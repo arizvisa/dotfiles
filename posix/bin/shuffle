@@ -1,0 +1,4 @@
+#!/bin/sh
+while read x; do
+    echo "$RANDOM $x"
+done | sort -n | cut -d ' ' -f 2

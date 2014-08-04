@@ -1,0 +1,58 @@
+#!/bin/sh
+## /usr/bin/w without depending on utmp
+## thx to navs@thunkers for being a /bin/sh ninja
+
+_return=""
+ourtty=$( tty | cut -f3- -d / )
+
+if [ $(uname) = "FreeBSD" ]; then
+    all_ttys=$( /bin/ls -1 /dev/tty[vp]? )
+
+    list_controlling_pids()
+    {
+        _return=$( ps -a -o pid,state,tty | grep -v PID | grep + | sed 's/  */ /g' | sed 's/^ *//' | cut -f 1,3 -d ' ' )
+    }
+
+    get_dev_stats()
+    {
+        _return=$( /usr/bin/stat -f %Su -- /dev/$1 )
+    }
+
+elif [ $(uname) = "Linux" ]; then
+    all_ttys=$( /bin/ls -1 /dev/pts/* )
+
+    list_controlling_pids()
+    {
+        _return=$( ps -e -o pid='' -o stat='' -o tty='' | grep -v PID | grep + | sed 's/  \+/ /g' | sed 's/^ *//' | cut -f 1,3 -d ' ' )
+    }
+
+    get_dev_stats()
+    {
+        _return=$( /usr/bin/stat -c %U -- /dev/$1 )
+    }
+fi
+
+## collect information
+ttys=$( echo "$all_ttys" | cut -f3- -d / )
+list_controlling_pids
+
+pid_filter=$( echo $ttys | xargs echo | sed 's/ /\\|/g' )
+pid_tty=$( echo "$_return" | grep -e $pid_filter | sort -k 2 )
+
+
+## print out each process+tty
+echo "$pid_tty" | while read res; do
+
+    pid=$( echo $res | cut -f 1 -d ' ' );
+    tty=$( echo $res | cut -f 2 -d ' ' );
+
+    if [ ! -e /proc/$pid/cmdline ]; then
+        continue
+    fi
+    command=$( cat /proc/$pid/cmdline | xargs -0 echo )
+
+    get_dev_stats $tty
+    stats=$_return
+
+    echo "$pid	$stats	$tty	$command" | expand -t 7,20,30
+done

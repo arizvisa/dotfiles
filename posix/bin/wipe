@@ -1,0 +1,43 @@
+#!/bin/sh
+RANDDEVICE=/dev/random
+WIPECOUNT=1
+
+wipe() {
+    touch -t 198706030000.00 "$1"
+    dd if=$RANDDEVICE of="$1" count=$( du "$1" | cut -f 1) 2>/dev/null
+}
+
+log() {
+    echo "wipe:" $*
+}
+
+range() {
+    echo $( yes count | head -n $1 )
+}
+
+for f in $*; do
+    if $( test ! -e $f ); then
+        log "$f: No such file or directory"
+        continue
+    fi
+
+    # read some input
+    echo "Are you SURE you wish to wipe: $f? [no]"
+    read response
+
+    if $( test -z "$response" ); then
+        response="no"
+    fi
+
+    if $( test "$response" = "yes" ); then
+        
+        for c in $(range $WIPECOUNT); do
+            wipe "$f"
+        done
+
+        log "$f: File overwritten $WIPECOUNT times"
+    else
+
+        log "$f: File not overwritten; user refused"
+    fi
+done

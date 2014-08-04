@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# ripped from navs; i removed the sudo command
+[ -z $1 ] && echo -e "Need a port number!\nusage: fport <portnum>" && exit;
+for pid in `fuser -n tcp $1|cut -d ":" -f 2`
+do
+if ((myfirst==0)); then
+/bin/ps -p $pid -wwo  user,pid,args|head -n 1
+myfirst=1;
+fi
+/bin/ps -p $pid -wwo  user=,pid=,args=
+done
+unset myfirst;

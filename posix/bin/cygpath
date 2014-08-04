@@ -1,0 +1,125 @@
+#!/bin/sh
+
+## conversions
+msys2default()
+{
+    path=$1
+    #echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\1:\//'
+    echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\/\1\//'
+}
+
+cygwin2default()
+{
+    path=$1
+    #echo "$path" | sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\1:\//'
+    echo "$path" | sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\/\1\//'
+}
+
+windows2default()
+{
+    #C:\path\where
+    path=$1
+    #echo "$path" | sed 's/^\([a-zA-Z]\):\\/\1:\//;s/\\/\//g'
+    echo "$path" | sed 's/\\/\//g;s/^\([a-zA-Z]\):\//\/\1\//'
+}
+
+default2msys()
+{
+    path=$1
+    echo "$path" | sed 's/^\([a-zA-Z]\):\//\/\1\//'
+}
+
+default2cygwin()
+{
+    path=$1
+    echo "$path" | sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\1\//'
+}
+
+default2windows()
+{
+    path=$1
+    echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\1:\//;s/\//\\/g'
+}
+
+## misc
+usage()
+{
+    echo "usage: $0 [-?] [-vip] [-u | -w | -s] [-W | -S | -P | path]"
+    echo "Converts path from msys/cygwin to the specified format"
+    cat <<EOF
+    output format:
+        -u -- output path is formatted for unix/msys (based on uname)
+        -w -- output path is formatted for windows with forward slahes
+        -s -- output path is formatted using the windows 8.3 format
+
+    paths:
+        -W -- return the path to the operating system (\\WINDOWS)
+        -S -- return the path to the OS' System directory
+        -P -- return the path to the application files (\\Program Files)
+        path -- specify the path (c:/WINDOWS, /c/WINDOWS)
+EOF
+}
+
+## parse arguments
+while getopts uwsopWSPvi? opt; do
+    case $opt in
+        u) FORMAT=unix ;;       # posixy form (msys|cygwin)
+        w) FORMAT=windows ;;    # windows form
+        s) FORMAT=win ;;        # windows (8.3) form
+
+        W) OUTPUT=windows ;;    # windows directory
+        S) OUTPUT=system ;;     # windows system directory
+        P) OUTPUT=program ;;    # program files
+        p)
+            # filename arg is a path (ignore this)
+            ;;
+        v|i)
+            # ignore missing filename argument
+            ;;
+        ?)
+            usage $0 1>&2
+            exit 1
+            ;;
+    esac
+done
+shift $(( OPTIND-1 ))
+
+# output according to 
+case "$OUTPUT" in
+    windows) path="$SYSTEMROOT" ;;
+    program) path="$PROGRAMFILES" ;;
+    system) path=`dirname "$COMSPEC"` ;;
+    *) path="$1"
+esac
+
+# check if it seems windowsy
+if test `echo "$path" | tr -s -d '[:alnum:][:space:][:cntrl:]' ':' | wc -c` -gt 0; then
+    default=`windows2default "$path"`
+    #platform=Windows
+
+else # otherwise normalize to a regular path according to the current platform
+    case `uname -o` in
+        Msys)
+            default=`msys2default "$path"`
+            platform=Msys
+            ;;
+        Cygwin)
+            default=`cygwin2default "$path"`
+            platform=Cygwin
+            ;;
+        *) normal="$path" ;;
+    esac
+fi
+normal=`readlink -m "$default"`
+
+# change all backslashes to forward slashes for some configure scripts
+normal=`echo "$normal" | sed 's/\\\/\//g'`
+
+## output results
+case "$FORMAT" in
+    unix) test "$platform" == "Msys" && default2msys "$normal" || default2cygwin "$normal" ;;
+    windows|win) default2windows "$normal" ;;
+    *) echo "$normal" ;;
+esac
+
+exit 0

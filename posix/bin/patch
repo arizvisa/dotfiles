@@ -1,0 +1,3 @@
+#!/bin/sh
+patch="/c/strawberry/c/bin/patch.exe"
+"$patch" "$@"

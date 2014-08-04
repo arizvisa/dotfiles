@@ -1,0 +1,6 @@
+[user]
+	name = Ali Rizvi-Santiago
+	email = arizvisa@gmail.com
+[core]
+	eol = lf
+	autocrlf = false

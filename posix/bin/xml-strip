@@ -1,0 +1,8 @@
+#!/bin/env python
+import sys
+from BeautifulSoup import *
+if __name__ == "__main__":
+    cook = lambda s, args: ''.join(s.findAll(*args, text=True))
+    seasoning,ingredients = sys.argv[1:],sys.stdin.read()
+    soup = BeautifulSoup(ingredients)
+    print cook(soup, seasoning)

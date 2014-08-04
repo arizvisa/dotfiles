@@ -1,0 +1,12 @@
+#!/bin/sh
+if $( test ! -e $HOME/.tor.pid ); then
+    tor -f $HOME/.torrc --RunAsDaemon 1 --PidFile $HOME/.tor.pid
+fi
+
+if $( test -e $HOME/.tsocks.conf ); then
+    TSOCKS_CONF_FILE=$HOME/.tsocks.conf
+else
+    TSOCKS_CONF_FILE=/etc/tor/tor-tsocks.conf
+fi
+export TSOCKS_CONF_FILE
+exec tsocks "$@"

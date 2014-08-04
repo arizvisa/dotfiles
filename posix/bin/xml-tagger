@@ -1,0 +1,45 @@
+#!/bin/env python
+import re, sys
+from BeautifulSoup import *
+
+def help():
+    print "%s tag attribute [search replace]\n"%sys.argv[0]
+    print "read in html from stdin, search for any instance of /tag/"
+    print "then print out the value of /attribute/"
+    print "if [search replace] is specfied, print out the html"
+    print "w/ a regex search/replace performed on the specified attribute"
+    sys.exit()
+
+def find(soup, tag, attribute):
+    tags = [ n for n in soup.findAll(tag) if n.__class__ == Tag ]
+    res = []
+    for n in tags:
+        try:
+            res.append( n[attribute] )
+        except KeyError:
+            pass
+
+    return '\n'.join(res)
+
+def replace(soup, tag, attribute, pattern, replace):
+    tags = [ n for n in soup.findAll(tag) if n.__class__ == Tag ]
+    for n in tags:
+        try:
+            n[attribute] = re.sub(pattern, replace, n[attribute])
+        except KeyError:
+            pass
+
+    return str(soup)
+
+if __name__ == "__main__":
+
+    if len(sys.argv) == 3:
+        cook = find
+    elif len(sys.argv) == 5:
+        cook = replace
+    else:
+        help()
+
+    ingredients = sys.stdin.read()
+    soup = BeautifulSoup(ingredients)
+    print cook(soup, *sys.argv[1:])

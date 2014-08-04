@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "refreshing tor..."
+kill -HUP $(cat $HOME/.tor.pid)

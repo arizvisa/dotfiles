@@ -1,0 +1,4 @@
+#!/bin/sh
+path="/c/users/user/tools/nmap"
+
+"$path/nmap.exe" "$@"

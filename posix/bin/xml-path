@@ -1,0 +1,56 @@
+#!/bin/env python
+import sys,logging
+
+try:
+    import lxml.etree
+except ImportError:
+    print >>sys.stderr, "Unable to run application due to missing module lxml"
+    print >>sys.stderr, "Please install python-lxml, or easy_install lxml to resume"
+    sys.exit(1)
+
+def help(program, errcode):
+    print >>sys.stderr,"usage: %s [-c | -i index] query\n"%program
+    print >>sys.stderr,"use xpath to select part of an html file and render to stdout"
+    print >>sys.stderr,"if -c is specified, return the number of results"
+    print >>sys.stderr,"if -i is specified, return the specified index"
+    sys.exit(errcode)
+
+def select(data, path):
+    tr = lxml.etree.HTML(data)
+    return tr.xpath(path)
+
+def output(result, index):
+    if index is None:
+        return '\n\n'.join(lxml.etree.tostring(x) for x in result)
+    return lxml.etree.tostring(result[index])
+
+if __name__ == '__main__':
+    args = list(sys.argv)
+    args.pop(0)
+
+    if len(args) == 0:
+        help(sys.argv[0],0)
+
+    index,count=None,False
+    try:
+        if args[0] == '-c':
+            args.pop(0)
+            count = True
+        elif args[0] == '-i':
+            args.pop(0)
+            index = args.pop(0)
+
+        path = args.pop(0)
+        if len(args) > 0:
+            raise IndexError
+
+    except IndexError:
+        help(sys.argv[0],1)
+
+    result = select(sys.stdin.read(), path)
+    if count:
+        print len(result)
+        sys.exit(0)
+
+    print output(result,int(index)) if index else output(result,None)
+    sys.exit(0)

@@ -1,0 +1,15 @@
+#!/bin/sh
+if test x$(uname -o) == xMsys; then
+    path="/c/Program Files (x86)/Google/Chrome/Application"
+    input=$(readlink -f $1)
+    shift
+
+    drive="$(echo $input | cut -d / -f 2):"
+    filename=$(echo $input | cut -d / -f 3-)
+
+    "$path/chrome.exe" "file://$drive/$filename" "$@"
+
+else
+    echo $0: not implemented on this platform
+    exit 1
+fi

@@ -1,0 +1,26 @@
+#!/bin/sh
+name=git
+windows="/c/Program Files (x86)/Git/bin/git.exe"
+
+## determine the platform from the system if uname doesn't have a -o option
+platform=`uname -o 2>/dev/null`
+if test $? -gt 0; then
+    case `uname -s` in
+        MINGW32*) platform="Msys" ;;
+        *) platform="unknown" ;;
+    esac
+fi
+
+## determine which program to run
+if test "$platform" = "Msys"; then
+    prog="$windows"
+else
+    prog=""
+    IFS=":"; for p in $PATH; do
+        test -x "$p/$name" && test "$p/$name" != "$0" && prog="$p/$name"
+    done
+    test -z "$prog" && echo "Unable to locate $name" 1>&2 && exit 1
+fi
+
+# go for it
+"$prog" "$@"

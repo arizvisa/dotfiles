@@ -1,0 +1,4 @@
+addpath "$HOME/bin"
+addpythonpath "$HOME/work/syringe/lib"
+addpythonpath "$HOME/work/syringe/template"
+addpythonpath "$HOME/work/symbolic"

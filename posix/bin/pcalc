@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+# pcalc v13.4 - w/ <3, from sohlow
+# thx to deft and the perl cb for the bin2dec suggestion and implementation
+# thx again to deft for the asc2chr suggestion
+# thx to deft for being my only user and having the exe to this when latest version was lost so i could recover the src
+@_ = @ARGV;
+top:
+if (!@ARGV) {
+    print "\n>";
+    $_ = <> || exit;
+    chomp;
+    @_ = ($_);
+}
+
+$s = $_ = join(' ', @_);
+$_ =~ s/0([01]+)b/unpack("N", pack("B32", substr("0"x32 . $1, -32)))/gse;
+$_ = eval($_);
+
+printf("string-representation:\n");
+printf("{str} %s\n", $s);
+printf("{ord} %s\n", join('', map { sprintf('\x%02x', ord($_)) } split(//, $s)));
+print "\n";
+
+printf("numerical-representation:\n");
+printf("[signed]        %d\n", $_);
+printf("[unsigned]      %u\n", $_);
+printf("[float]         %f\n", $_);
+printf("[octal]         %08o\n", $_);
+printf("[signed hex]   %9s\n", ($_&(1<<31))? sprintf('-%08.8x', ~($_-1)) : sprintf(' %08.8x', $_));
+printf("[unsigned hex]  %08x\n", $_);
+printf("[binary]        %08b %08b %08b %08b\n",
+       ($_&0xff000000)>>24, ($_&0xff0000)>>16, ($_&0xff00)>>8, $_&0xff);
+printf("[string]        %s\n", $_);
+printf("[chr2asc]       %s\n", join('', map { sprintf('\x%02x', ord($_)) } split(//, $_)));
+@_=();while ($_ > 0) { push @_, $_&0xff; $_ >>= 8 };
+printf("[asc2chr]       %s\n", join('', map { (chr =~ m/[[:print:]]/)? chr : '.' } @_) );
+
+if (!@ARGV) {
+    goto top;
+}

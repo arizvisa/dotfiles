@@ -1,0 +1,28 @@
+#!/bin/env python
+import re, sys
+from BeautifulSoup import *
+
+def help():
+    print "%s tag [attribute value]...\n"%sys.argv[0]
+    print "read in html from stdin, search for all instances of tag where"
+    print "any of the attributes matches value. this then will print the"
+    print "contents of the tag"
+    sys.exit()
+
+def find(soup, tag, **attributes):
+    tags = [ n for n in soup.findAll(tag,attrs=attributes) if n.__class__ == Tag ]
+    res = []
+    for n in tags:
+        res.append(str(n))
+    return '\n'.join(res)
+
+if __name__ == "__main__":
+    cook,seasoning = find,sys.argv[2:]
+    if len(sys.argv)>1 and len(seasoning)%2 == 0:
+        seasoning = [(seasoning[x], seasoning[x+1]) for x in range(0,len(seasoning),2)]
+    else:
+        help()
+
+    seasoning,ingredients = dict(seasoning),sys.stdin.read()
+    soup = BeautifulSoup(ingredients)
+    print cook(soup, sys.argv[1], **seasoning)

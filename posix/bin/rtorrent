@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "FIXME: can't figure out how to get rtorrent to work from any directory"
+#exit 0
+
+HOME=/f/tools/rtow
+PATH=$HOME/bin:$PATH HOME="$HOME" "$HOME/bin/rTorrent.exe" "$@"

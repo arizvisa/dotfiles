@@ -1,0 +1,15 @@
+#!/bin/sh
+path=$1
+shift
+
+if test -z "$path"; then
+    path=$(pwd)
+fi
+
+path=$(readlink -f "$path")
+
+if test ! -d "$path"; then
+    return 1
+fi
+
+echo "$path"

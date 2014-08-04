@@ -1,0 +1,79 @@
+#!/bin/sh
+url=$1
+CURL=$(type -P curl.sh || type -P curl)
+
+curl_get()
+{
+    "$CURL" -L -s -S -k --compressed "$@"
+}
+
+httpsize()
+{
+    url=$1
+    curl_get --head "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^Content-Length: *//;s/ *$//'
+}
+
+filesize()
+{
+    filename=$1
+    stat -c '%s' "$filename" 
+}
+
+calculatepercent()
+{
+    echo "BEGIN { print $1/$2*100 }" | awk -f-
+}
+
+transferstatus()
+{
+    filename=$1
+    maxsize=$2
+    size=0
+
+    while test "$size" -lt "$maxsize"; do
+        size=$( filesize "$filename" )
+        perc=$( calculatepercent $size $maxsize )
+        echo "$filename $perc% $size $maxsize"
+        sleep 1
+        echo -ne "\r\x1b[1A\x1b[K"
+    done
+    echo "$filename $perc% $size $maxsize"
+}
+
+filestatus()
+{
+    filename=$1
+    size = 0
+    while true; do
+        size=$( filesize "$filename" )
+        echo "$filename $size"
+        sleep 1
+        echo -ne "\r\x1b[1A\x1b[K"
+    done
+    echo "$filename $size"
+}
+
+download()
+{
+    url=$1
+    target=$2
+
+    size=$(httpsize "$url")
+    touch "$target"
+    #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
+    curl_get --compressed -C- --retry 65535 --retry-delay 0 --retry-max-time 0 -o "$target" -- "$url" 1>&2 &
+    pid=$!
+    if test "$size" != ""; then
+        transferstatus $target $size &
+        pid=$!
+        killthis=
+    else
+        filestatus $target &
+        killthis=$!
+    fi
+    wait $pid
+    test "$killthis" == "" || kill "$killthis"
+}
+
+filename=$(basename "$url")
+eval 'download "$url" "$filename"'
