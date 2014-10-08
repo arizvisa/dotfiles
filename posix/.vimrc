@@ -24,6 +24,7 @@ syntax enable
 filetype on
 
 set hls
+set colorcolumn=81
 
 set laststatus=2
 set ruler
