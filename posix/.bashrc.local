@@ -1,2 +1,2 @@
 addpath "$HOME/bin"
-addpythonpath "$HOME/.python
+addpythonpath "$HOME/.python"
