@@ -12,4 +12,8 @@ if test ! -d "$path"; then
     return 1
 fi
 
-echo "$path"
+if test ! "${CYGWIN}"; then
+  echo "$path"
+else
+  echo "$path" | /usr/bin/cygpath -u
+fi

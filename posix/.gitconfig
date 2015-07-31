@@ -4,3 +4,5 @@
 [core]
 	eol = lf
 	autocrlf = false
+[push]
+	default = matching

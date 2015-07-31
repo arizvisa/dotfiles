@@ -1,40 +1,51 @@
-import sys,os
+import sys,os,itertools
 import tempfile,logging,time
+logging.basicConfig(level=logging.INFO)
+editor = 'vim'
+
+executable = lambda(_): os.path.isfile(_) and os.access(_,os.X_OK)
+which = lambda _,envvar="PATH",extvar='PATHEXT':_ if executable(_) else iter(filter(executable,itertools.starmap(os.path.join,itertools.product(os.environ.get(envvar,os.defpath).split(os.pathsep),(_+e for e in os.environ.get(extvar,'').split(os.pathsep)))))).next()
 
 ### globals
-EDITOR = os.environ.get('EDITOR', '/usr/local/bin/vim')
-EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2')
+try:
+	EDITOR = os.environ.get('EDITOR', which(editor))
+except StopIteration:
+	logging.fatal("Unable to locate editor in PATH : {!r}".format(editor))
+EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 
 ### code
 def help(argv0):
-	print 'Usage: %s [-d] paths...'% argv0
+	print 'Usage: {:s} [-d] paths...'.format(argv0)
 	return
 
 def rename_file(a,b):
-	logging.info("renamed %s to %s", repr(a), repr(b))
-	return os.rename(a,b)
+	try:
+		result = os.rename(a,b)
+	except Exception, e:
+		logging.warning("os.rename({!r},{!r}) raised {!r}".format(a,b,e))
+		return False
+	logging.info("renamed {!r} to {!r}".format(a,b))
+	return True
 
 def rename(source,target):
 	count = 0
 	for a,b in zip(source,target):
 		if a != b:
-			rename_file(a,b)
-			count += 1
+			count += int(rename_file(a,b))
 		continue
 	return count
 
 def listing(p):
-	for dirpath,dirnames,filenames in os.walk(p):
-		result = list(filenames)
-		result.sort()
-		for name in result:
+	for dirpath,_,filenames in os.walk(os.path.relpath(p)):
+		for name in sorted(filenames):
 			yield os.path.join(dirpath,name)
 		continue
 	return
 
 def dirlisting(p):
-	for dirpath,dirnames,filenames in os.walk(p):
-		yield dirpath
+	for dirpath,dirnames,_ in os.walk(os.path.relpath(p)):
+		for name in sorted(dirnames):
+			yield os.path.join(dirpath,name)
 	return
 
 def edit(list):
@@ -48,19 +59,25 @@ def edit(list):
 			t2.write('\n'.join(list))
 			t2.flush()
 
-			result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
-			if result != 0:
-				logging.warning("os.spawnv(os.P_WAIT, %s, [%s, %s, '--', %s, %s]) returned %d", repr(EDITOR), repr(EDITOR), repr(EDITOR_ARGS), repr(t1.name), repr(t2.name))
+			message = "os.spawnv(os.P_WAIT, {!r}, [{!r}, {!r}, '--', {!r}, {!r}])".format(EDITOR, EDITOR, EDITOR_ARGS, t1.name, t2.name)
+			try:
+				result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
+			except Exception, e:
+				logging.fatal("{:s} raised {!r}".format(message, e))
+				raise
+			else:
+				if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
 			t2.seek(0)
 			destination = [x.strip() for x in t2.readlines()]
 		t1.seek(0)
 		source = [x.strip() for x in t1.readlines()]
 
-	if len([None for x,y in zip(source,list) if x != y]) > 0:
+	#if len([None for x,y in zip(source,list) if x != y]) > 0:
+	if any(x != y for x,y in zip(source,list)):
 		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
 
 	if len(destination) != len(list):
-		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. (%d != %d)", len(destination), len(list))
+		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 		return []
 
 	return destination
@@ -71,15 +88,15 @@ def main_files(*paths):
 		source.extend(listing(p))
 
 	if len(source) == 0:
-		logging.warning("renamer.main(...) - found no files. terminating.")
+		logging.info("renamer.main(...) - found no files. terminating.")
 		return
 
-	logging.warning("renamer.main(...) - found %d files. spawning editor..", len(source))
-	time.sleep(2)
+	logging.info("renamer.main(...) - found {:d} files. spawning editor..".format(len(source)))
+	time.sleep(1)
 
 	target = edit(source)
 	count = rename(source,target)
-	logging.warning("renamer.main(...) - renamed %d files.", count)
+	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
 	return
 
 def main_directories(*paths):
@@ -91,12 +108,12 @@ def main_directories(*paths):
 		logging.warning("renamer.main(...) - found no directories. terminating.")
 		return
 
-	logging.warning("renamer.main(...) - found %d directories. spawning editor..", len(source))
+	logging.info("renamer.main(...) - found {:d} directories. spawning editor..".format(len(source)))
 	time.sleep(2)
 
 	target = edit(source)
 	count = rename(source,target)
-	logging.warning("renamer.main(...) - renamed %d directories.", count)
+	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
 	return
 
 def parse_commandline(arguments):

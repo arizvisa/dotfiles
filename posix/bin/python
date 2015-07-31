@@ -1,8 +1,0 @@
-#!/bin/sh
-PYTHON=python2.7
-command=$(type -p $PYTHON)
-if test "$command" == ""; then
-    command='/c/Python27/python.exe'
-    type -p $PYTHON >/dev/null
-fi
-exec $command $@

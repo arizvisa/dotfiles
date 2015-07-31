@@ -19,67 +19,95 @@
 " at this point, it then sources the .vimrc at the same location as CSCOPE_DB
 " and then looks in the $CWD for a .vimrc to source as well.
 "
-" this script depends on the `which` command for finding the path to cscope.
-" I also included my nmap mappings because well...I'm lazy and just cut/pasted
-" this from my normal .vimrc
-" apologies for the sloppiness.
-"
 
-" follow symbolic links to return a 'normalized' path
-function! s:namei(dir)
-    let prevwd=getcwd()
-    execute "chdir ".a:dir
-    let r=getcwd()    
-    execute "chdir ".prevwd
-    return r
-endfunction
+let s:rcfilename = ".vimrc"
+let s:csfilename = "cscope"
 
-" source dir/.vimrc if its not in $HOME
-function! s:do_source(dir)
-    if (a:dir !=# s:namei($HOME)) && (filereadable(a:dir."/.vimrc"))
-        execute "source" a:dir."/.vimrc"
-    endif
-endfunction
-
-" source a glob of files
-function! s:do_globsource(path)
-    let files=glob(a:path)
-    while files != ""
-        let next=stridx(files, "\n")
-        if next == -1
-            let next=strlen(files)
-        endif
-
-        if filereadable(strpart(files, 0, next))
-            execute "source" strpart(files, 0, next)
-        endif
-
-        let files=strpart(files, next+1)
-    endwhile
-endfunction
-
-" cscope phun
 if has("cscope")
-    set csto=0
-    " XXX: all this jazz is actually to prevent vim from recursively
-    "      including this file. it actuallly doesn't work for all cases.
-    "      but...it works for all of mine. ;)
+    " follow symbolic links to return a 'normalized' path
+    function! s:namei_directory(dir)
+        let wd=resolve(simplify(a:dir))
+        if !isdirectory(a:dir)
+            throw printf("%s is not a directory", wd)
+        endif
 
+        let prevwd=getcwd()
+        execute printf("chdir %s", fnameescape(wd))
+        let result=getcwd()
+        execute printf("chdir %s", fnameescape(prevwd))
+        return result
+    endfunction
+
+    " source dir/.vimrc if its not in $HOME
+    function! s:source(dir)
+        let realdir=s:namei_directory(a:dir)
+        let sourcefile=fnameescape(printf("%s/%s", realdir, s:rcfilename))
+        if (realdir !=# s:namei_directory($HOME)) && (filereadable(sourcefile))
+            execute printf("source %s", sourcefile)
+        endif
+    endfunction
+
+    " source a glob of files
+    function! s:globsource(path)
+        let files=glob(a:path)
+        while files != ""
+            let next=stridx(files, "\n")
+            if next == -1
+                let next=strlen(files)
+            endif
+
+            if filereadable(strpart(files, 0, next))
+                execute printf("source %s", fnameescape(strpart(files, 0, next)))
+            endif
+
+            let files=strpart(files, next+1)
+        endwhile
+    endfunction
+
+    function! s:which(program)
+        let sep = has("unix")? ':' : ';'
+        let pathsep = (has("unix") || &shellslash)? '/' : '\'
+        for p in split($PATH, sep)
+            let path = join([substitute(p,(!has("unix") && &shellslash)?'\\':'/',pathsep,'g'),a:program], pathsep)
+
+            if executable(path)
+                return path
+            endif
+        endfor
+        throw printf("Unable to locate %s in $PATH", a:program)
+    endfunction
+
+    function! s:map_cscope()
+        nmap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+        nmap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
+        nmap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+    endfunction
+
+    set cscopetagorder=0
     " cheat and use `which` to find out where cscope is
-    let cscope_location=system("which cscope")
-    let &cscopeprg=substitute(cscope_location, "\n", "", "")
-    unlet cscope_location
+    if empty(&cscopeprg)
+        try
+            let &cscopeprg=s:which(s:csfilename)
+        catch
+            let &cscopeprg=s:which(s:csfilename . ".exe")
+        endtry
+    endif
 
     let cscope_db=$CSCOPE_DB
     let cscope_dir=$CSCOPE_DIR
 
     " if db wasn't specified check current dir for cscope.out
-    if cscope_db == "" && filereadable("./cscope.out")
+    if empty(cscope_db) && filereadable("./cscope.out")
         let cscope_db=getcwd()."/cscope.out"
     endif
 
     " if !dir, rip it out of cscope_db
-    if cscope_dir == ""
+    if empty(cscope_dir)
         let cscope_dir=strpart(cscope_db, 0, strridx(cscope_db, "/"))
     endif
 
@@ -88,27 +116,25 @@ if has("cscope")
         let cscope_dir=strpart(cscope_dir, 0, strlen(cscope_dir)-1)
     endif
 
-    set nocsverb
-    if (cscope_db != "") && (cscope_dir != "")
-        execute "cscope add" cscope_db cscope_dir
-        call s:do_source(cscope_dir)
+    set nocscopeverbose
+    if !empty(cscope_dir) && !isdirectory(cscope_dir)
+        echoerr printf("plugin/cscope.vim : cscope_dir=\"%s\" : Is not a valid directory", cscope_dir)
+    elseif !empty(cscope_dir) && !empty(cscope_db)
+        call s:source(cscope_dir)
+        execute printf("cscope add %s %s", fnameescape(cscope_db), fnameescape(cscope_dir))
     endif
-    set csverb
+    set cscopeverbose
 
     " 'normal-mode' map
-    nmap <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-    nmap <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+    augroup cscope
+        autocmd!
+        autocmd BufEnter,BufRead,BufNewFile *.c,*.h,*.cc,*.cpp,*.hh call s:map_cscope()
+"        autocmd BufLeave *.c,*.h call s:unmap_cscope()
+    augroup end
 
     " source $CWD/.vimrc
     if (getcwd() !=# cscope_dir)
-        call s:do_source(getcwd())
+        call s:source(getcwd())
     endif
-
 endif
 

@@ -1,2 +1,5 @@
 addpath "$HOME/bin"
-addpythonpath "$HOME/.python"
+
+for p in $HOME/.python/*; do
+    addpythonpath "$p"
+done

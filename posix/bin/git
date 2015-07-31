@@ -1,6 +1,6 @@
 #!/bin/sh
 name=git
-windows="/c/Program Files (x86)/Git/bin/git.exe"
+windows="/c/Program Files (x86)/Git/Cmd/git.exe"
 
 ## determine the platform from the system if uname doesn't have a -o option
 platform=`uname -o 2>/dev/null`

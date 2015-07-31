@@ -45,6 +45,7 @@ if __name__ == '__main__':
             raise IndexError
 
     except IndexError:
+        print >>sys.stderr, "Error : Too many arguments specified : {!r}".format(args)
         help(sys.argv[0],1)
 
     result = select(sys.stdin.read(), path)

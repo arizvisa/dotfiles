@@ -36,12 +36,10 @@ curl_post()
     referer=$3
     shift 3
 
-    host="portal.telussecuritylabs.com"
-    session=$( curl "$url" -f -s -k --compressed -d "$data" -D - -o /dev/null -H "Host: $host" -H "Referer: $url" -H "Accept-Language: en-US,en;q=0.8" -H "User-Agent: $agent" -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" -H "Referer: $referer" $@ )
+    host=`echo "$url" | grep -i -m1 -o '^\([a-z]\+://\)\?[^/]\+' | sed 's/.*\///'`
+    session=$( curl "$url" -f -s -k --compressed -d "$data" -H "Host: $host" -H "Referer: $url" -H "Accept-Language: en-US,en;q=0.8" -H "User-Agent: $agent" -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" -H "Referer: $referer" $@ )
 
-    if test "$session" == ""; then
-        return 1
-    fi
+    test "$session" == "" && return 1
     echo "$session"
     return 0
 }
@@ -56,7 +54,13 @@ authenticate()
     referer="https://portal.telussecuritylabs.com/"
     data="user[username]=$username&user[subscriber_number]=$subscriber&user[password]=$password"
 
-    curl_post $url "$data" $referer | egrep '^Set-Cookie: ' | cut -d ':' -f 2- | tr ';' '\n' | grep '_subscriber_session' | cut -d '=' -f 2
+    ctnNotice=`curl_post "$url" "$data" "$referer" | xml-select div class ctnNotice | xml-strip`
+    if test "$ctnNotice" == ""; then
+        curl_post "$url" "$data" "$referer" -D - | egrep '^Set-Cookie: ' | cut -d ':' -f 2- | tr ';' '\n' | grep '_subscriber_session' | cut -d '=' -f 2
+        return 0
+    fi
+    echo "$ctnNotice"
+    return 1
 }
 
 argv0=$0
@@ -87,7 +91,7 @@ SESSION=$(authenticate $u $s $p)
 if test "$?" == 0; then
     echo "Authenticated with _subscriber_session=$SESSION" 1>&2
 else
-    echo "Authentication failed" 1>&2
+    echo "Authentication failed : $SESSION" 1>&2
     exit 1
 fi
 

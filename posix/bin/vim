@@ -7,6 +7,7 @@ platform=`uname -o 2>/dev/null`
 if test $? -gt 0; then
     case `uname -s` in
         MINGW32*) platform="Msys" ;;
+	CYGWIN*) platform="Cygwin" ;;
         *) platform="unknown" ;;
     esac
 fi
@@ -14,6 +15,8 @@ fi
 ## determine which program to run
 if test "$platform" = "Msys"; then
     prog="$windows"
+elif test "$platform" = "Cygwin"; then
+    prog="/cygdrive/$windows"
 else
     prog=""
     IFS=":"; for p in $PATH; do
