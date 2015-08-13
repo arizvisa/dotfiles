@@ -1,10 +1,13 @@
-import sys,os,itertools
+import sys,os,itertools,operator
 import tempfile,logging,time
 logging.basicConfig(level=logging.INFO)
 editor = 'vim'
 
 executable = lambda(_): os.path.isfile(_) and os.access(_,os.X_OK)
 which = lambda _,envvar="PATH",extvar='PATHEXT':_ if executable(_) else iter(filter(executable,itertools.starmap(os.path.join,itertools.product(os.environ.get(envvar,os.defpath).split(os.pathsep),(_+e for e in os.environ.get(extvar,'').split(os.pathsep)))))).next()
+
+#hate python devers
+WIN32=True if sys.platform == 'win32' else False
 
 ### globals
 try:
@@ -51,26 +54,36 @@ def dirlisting(p):
 def edit(list):
 	list = [_ for _ in list]
 
-	with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.source') as t1:
-		t1.write('\n'.join(list))
-		t1.flush()
+	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(i,s)) for i,s in enumerate(list) ]
 
-		with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.destination') as t2:
-			t2.write('\n'.join(list))
-			t2.flush()
+	#hate python devers
+	with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.source', delete=not WIN32) as t1,tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.destination', delete=not WIN32) as t2:
+		map(operator.methodcaller('writelines',[_+'\n' for _ in list]), (t1,t2))
+		map(operator.methodcaller('flush'), (t1,t2))
 
-			message = "os.spawnv(os.P_WAIT, {!r}, [{!r}, {!r}, '--', {!r}, {!r}])".format(EDITOR, EDITOR, EDITOR_ARGS, t1.name, t2.name)
-			try:
-				result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
-			except Exception, e:
-				logging.fatal("{:s} raised {!r}".format(message, e))
-				raise
-			else:
-				if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
-			t2.seek(0)
-			destination = [x.strip() for x in t2.readlines()]
-		t1.seek(0)
+		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
+		logging.info("renamer.edit(...) - using destination filename {!r}".format(t2.name))
+
+		#hate python devers
+		if WIN32:
+			map(operator.methodcaller('close'), (t1,t2))
+
+		message = "os.spawnv(os.P_WAIT, {!r}, [{!r}, {!r}, '--', {!r}, {!r}])".format(EDITOR, EDITOR, EDITOR_ARGS, t1.name, t2.name)
+		try:
+			result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
+		except Exception, e:
+			logging.fatal("{:s} raised {!r}".format(message, e))
+			raise
+		else:
+			if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
+
+		#hate python devers
+		if WIN32:
+			t1,t2 = map(open, (t1.name,t2.name))
+
+		map(operator.methodcaller('seek', 0), (t1,t2))
 		source = [x.strip() for x in t1.readlines()]
+		destination = [x.strip() for x in t2.readlines()]
 
 	#if len([None for x,y in zip(source,list) if x != y]) > 0:
 	if any(x != y for x,y in zip(source,list)):
