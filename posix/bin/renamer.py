@@ -11,9 +11,10 @@ WIN32=True if sys.platform == 'win32' else False
 
 ### globals
 try:
-	EDITOR = os.environ.get('EDITOR', which(editor))
+	EDITOR = os.environ['EDITOR'] if 'EDITOR' in os.environ else which(editor)
 except StopIteration:
-	logging.fatal("Unable to locate editor in PATH : {!r}".format(editor))
+	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR',editor)))
+	sys.exit(1)
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 
 ### code

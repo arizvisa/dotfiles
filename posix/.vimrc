@@ -125,6 +125,9 @@
             autocmd BufEnter,BufRead,BufNewFile *.cs call s:map_braces()
     augroup end
 
+    autocmd BufNewFile,BufRead *.go setf go
+    autocmd FileType go setlocal noexpandtab shiftwidth=4 tabstop=4
+
 """ session auto-saving and things
     "set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
     if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
@@ -165,7 +168,7 @@
     let w:PHStatusLine = ''
 
     "map <C-g> :call MapCtrlG()<CR>
-    "let g:incpy#Program = "c:/ocamlms/bin/ocaml.exe"
+    "let g:incpy#Program = "c:/ocaml/bin/ocaml.exe"
     "let g:incpy#Program = "c:/python27/python -i"
     "let g:incpy#Program = "c:/users/user/pypy/pypy.exe -i -u -B"
     "let g:incpy#Program = "c:/MinGW/msys/1.0/bin/bash.exe -i"
@@ -178,3 +181,5 @@
     "let g:incpy#ProgramFollow = 0
     "let g:incpy#ProgramStrip = 0
 
+""" Disable vim's syntax coloring for ruby because it crashes my version of gvim (7.4)
+    autocmd! filetypedetect * *.rb
