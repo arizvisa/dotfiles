@@ -11,14 +11,28 @@ umask 022
 
 # strip all slashes at end of home
 export HOME=$(echo -n "$HOME" | sed 's/\/*$//')
-export PATH="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin:$PATH"
 export PS1='[\!] \u@\h \w$ '
 
+path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
+
+# decompose path, and add only the paths that exist.
+oldpath="$PATH"
+path=`echo "${path}" | while read -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
+PATH=`echo "${path}" | sed 's/:$//'`
+PATH="${PATH}:${oldpath}"
+unset oldpath path
+export PATH
+
 if test x$(uname -o) == xMsys; then
-    export EDITOR=$(which vim)
+    export EDITOR=`which vim`
     export programfiles=`cygpath "$PROGRAMFILES"`
+
+    # fix a bug with msys2, that actually comes from an older version of cygwin.
+    if test `uname -r | cut -d. -f 1` == 2; then
+        export PATH=`echo "${PATH}" | sed 's/\(:\/bin:\)/:\/usr\/bin\1/'`
+    fi
 else
-    export EDITOR=$(which vim)
+    export EDITOR=`which vim`
     export PERL5LIB="$HOME/.perl/share/perl/5.8.8"
 
     ulimit -c unlimited
@@ -27,7 +41,7 @@ else
     #ulimit -u 256
 fi
 
-## upgrade terminal
+## promote terminal to something colorful
 case "$TERM" in
     dumb) TERM=ansi ;;
     xterm) TERM=xterm-256color ;;
@@ -49,8 +63,9 @@ if test "$TMPDIR" == ""; then
     export TMPDIR="$HOME/tmp"
     test -d "$TMPDIR" || mkdir -p "$TMPDIR"
 fi
+export TMP="$TMPDIR"
 
-## go home
+## go home, john
 cd "$HOME"
 
 ## continue adding stuff from .bashrc

@@ -23,8 +23,7 @@ if echo "$0" | grep -q 64; then
 else
     ida="$path/idaq.exe"
 fi
-_base=$(basename "$input" .idb)
-progress="$_base.log"
+progress="$input.log"
 tmp=".ida.runscript$$.py"
 
 runscript()

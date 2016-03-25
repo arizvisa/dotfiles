@@ -24,6 +24,15 @@ def help(argv0):
 
 def rename_file(a,b):
 	try:
+		parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
+		if not os.path.isdir(parentdir):
+			logging.info("creating base directory {!r} to contain {!r}".format(parentdir,b))
+			os.makedirs(parentdir)
+	except Exception, e:
+		logging.warning("os.makedirs({!r}) raised {!r}".format(a,b,e))
+		return False
+
+	try:
 		result = os.rename(a,b)
 	except Exception, e:
 		logging.warning("os.rename({!r},{!r}) raised {!r}".format(a,b,e))

@@ -23,7 +23,7 @@ fi
 ida=$(cygpath -w "$ida")
 
 # files for ida to write to
-output="$output.idb"
+output="$output.i64"
 error="$output.log"
 tmp=".ida.analysis.$$.py"
 
