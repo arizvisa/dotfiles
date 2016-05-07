@@ -16,7 +16,8 @@ def help(program, errcode):
     sys.exit(errcode)
 
 def select(data, path):
-    tr = lxml.etree.HTML(data)
+    parser = lxml.etree.XMLParser(recover=True, huge_tree=True, resolve_entities=True, compact=False)
+    tr = lxml.etree.XML(data, parser=parser)
     return tr.xpath(path)
 
 def output(result, index):

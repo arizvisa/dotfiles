@@ -1,80 +1,45 @@
 " cscope w/ custom .vimrc files
-" by siflus@gmail.com
+" by salc@gmail.com
 "
-" more often than anything when I'm auditting code, people use
+" more often than anything when I'm auditing code, people use
 " different settings than I do. so my ts=4 will fuck up when I'm viewing
 " the code for those nasty gnu projects.
 " applications also tend to have multiple directories. which means as I'm
-" navigating the project at the shell, and editting a file, I have to csc
-" add the cscope db for the project everytime I run vim
+" navigating the project at the shell, and editing a file, I have to csc
+" add the cscope db for the project everytime I run an instance of vim.
 "
 " to solve these problems, this script does 2 things.
-" [1] it reads from the environment 2 vars. CSCOPE_DB and CSCOPE_DIR
-" [2] it sources a .vimrc from multiple locations
+" [1] it reads a ':'-separated list of db's from an environment variable: CSCOPE_DB
+" [2] it sources a .vimrc from the directory of each CSCOPE_DB
 "
-" CSCOPE_DB is the path to the cscope.out file you want to use
-" CSCOPE_DIR is the base directory that the cscope.out file resides in
-"
-" if CSCOPE_DIR isn't set, the directory is ripped from the path to CSCOPE_DB
-" at this point, it then sources the .vimrc at the same location as CSCOPE_DB
-" and then looks in the $CWD for a .vimrc to source as well.
-"
+" CSCOPE_DB is the paths to each cscope.out file you want to use.
+" if the variable isn't specified, the current directory is checked
 
 let s:rcfilename = ".vimrc"
 let s:csfilename = "cscope"
+let s:pathsep = (!has("unix") && &shellslash)? '\' : '/'
 
 if has("cscope")
-    " follow symbolic links to return a 'normalized' path
-    function! s:namei_directory(dir)
-        let wd=resolve(simplify(a:dir))
-        if !isdirectory(a:dir)
-            throw printf("%s is not a directory", wd)
-        endif
-
-        let prevwd=getcwd()
-        execute printf("chdir %s", fnameescape(wd))
-        let result=getcwd()
-        execute printf("chdir %s", fnameescape(prevwd))
-        return result
-    endfunction
-
-    " source dir/.vimrc if its not in $HOME
-    function! s:source(dir)
-        let realdir=s:namei_directory(a:dir)
-        let sourcefile=fnameescape(printf("%s/%s", realdir, s:rcfilename))
-        if (realdir !=# s:namei_directory($HOME)) && (filereadable(sourcefile))
-            execute printf("source %s", sourcefile)
-        endif
-    endfunction
-
-    " source a glob of files
-    function! s:globsource(path)
-        let files=glob(a:path)
-        while files != ""
-            let next=stridx(files, "\n")
-            if next == -1
-                let next=strlen(files)
-            endif
-
-            if filereadable(strpart(files, 0, next))
-                execute printf("source %s", fnameescape(strpart(files, 0, next)))
-            endif
-
-            let files=strpart(files, next+1)
-        endwhile
-    endfunction
-
     function! s:which(program)
         let sep = has("unix")? ':' : ';'
         let pathsep = (has("unix") || &shellslash)? '/' : '\'
         for p in split($PATH, sep)
-            let path = join([substitute(p,(!has("unix") && &shellslash)?'\\':'/',pathsep,'g'),a:program], pathsep)
-
+            let path = join([substitute(p, s:pathsep, pathsep, 'g'), a:program], pathsep)
             if executable(path)
                 return path
             endif
         endfor
         throw printf("Unable to locate %s in $PATH", a:program)
+    endfunction
+
+    function! s:basedirectory(path)
+        if !isdirectory(a:path) && !filereadable(a:path)
+            throw printf("%s does not exist", a:path)
+        endif
+        if isdirectory(a:path)
+            return a:path
+        endif
+        return s:basedirectory(fnamemodify(a:path, ":h"))
     endfunction
 
     function! s:map_cscope()
@@ -99,42 +64,31 @@ if has("cscope")
     endif
 
     let cscope_db=$CSCOPE_DB
-    let cscope_dir=$CSCOPE_DIR
 
     " if db wasn't specified check current dir for cscope.out
-    if empty(cscope_db) && filereadable("./cscope.out")
-        let cscope_db=getcwd()."/cscope.out"
+    if empty(cscope_db) && filereadable("cscope.out")
+        let cscope_db=join([getcwd(),"cscope.out"], s:pathsep)
     endif
 
-    " if !dir, rip it out of cscope_db
-    if empty(cscope_dir)
-        let cscope_dir=strpart(cscope_db, 0, strridx(cscope_db, "/"))
-    endif
-
-    " strip final slash from cscope_dir jic
-    if strridx(cscope_dir, "/") == strlen(cscope_dir)-1
-        let cscope_dir=strpart(cscope_dir, 0, strlen(cscope_dir)-1)
-    endif
-
-    set nocscopeverbose
-    if !empty(cscope_dir) && !isdirectory(cscope_dir)
-        echoerr printf("plugin/cscope.vim : cscope_dir=\"%s\" : Is not a valid directory", cscope_dir)
-    elseif !empty(cscope_dir) && !empty(cscope_db)
-        call s:source(cscope_dir)
-        execute printf("cscope add %s %s", fnameescape(cscope_db), fnameescape(cscope_dir))
-    endif
-    set cscopeverbose
-
-    " 'normal-mode' map
+    " only add the autocmds to the cscope group
     augroup cscope
-        autocmd!
-        autocmd BufEnter,BufRead,BufNewFile *.c,*.h,*.cc,*.cpp,*.hh call s:map_cscope()
-"        autocmd BufLeave *.c,*.h call s:unmap_cscope()
-    augroup end
+        " iterate through each cscope_db
+        for db in split(cscope_db, ':')
+            let directory=s:basedirectory(db)
 
-    " source $CWD/.vimrc
-    if (getcwd() !=# cscope_dir)
-        call s:source(getcwd())
-    endif
+            if filereadable(db)
+                " if a database is available, then add the cscope_db
+                set nocscopeverbose
+                execute printf("cscope add %s %s", fnameescape(db), fnameescape(directory))
+                set cscopeverbose
+
+                " also add the autocmd for setting mappings and sourcing a local .vimrc
+                let absolute=fnamemodify(directory, ":p")
+                exec printf("autocmd BufEnter,BufRead,BufNewFile %s* if filereadable(\"%s%s\") \| source %s%s \| endif \| call s:map_cscope()", absolute, absolute, s:rcfilename, absolute, s:rcfilename)
+            else
+                echoerr printf("cscope database %s does not exist", db)
+            endif
+        endfor
+    augroup end
 endif
 

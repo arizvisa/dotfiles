@@ -14,8 +14,6 @@ alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 
-alias pivot='export CSCOPE_DIR=$(pwd); export CSCOPE_DB=$CSCOPE_DIR/cscope.out;'
-alias unpivot='unset CSCOPE_DIR; unset CSCOPE_DB;'
 alias l=$(which less)
 alias info="$(which info) --vi-keys"
 
@@ -31,6 +29,67 @@ fi
 fman()
 {
     cat $@ | /usr/bin/gtbl | /usr/bin/nroff -Tascii -c -mandoc
+}
+
+alias addcscope=__addcscope
+alias rmcscope=__rmcscope
+
+__addcscope()
+{
+    test "$#" -eq "0" && path="`pwd`/cscope.out" || path="$@"
+
+    current_db="$CSCOPE_DB"
+    for p in $path; do
+        test -d "$p" && p="$p/cscope.out"
+        p=`readlink -m "$p"`
+        if test ! -e "$p"; then
+            printf "Unable to locate cscope database: %s\n" "$p" 1>&2
+            continue
+        fi
+        ft=`file -b "$p" | grep -oe "^[^ ]\+"`
+        if test "$ft" != "cscope"; then
+            printf "Invalid file magic for %s: %s\n" "$p" "$ft" 1>&2
+            continue
+        fi
+        printf "Adding path to CSCOPE_DB: %s\n" "$p" 1>&2
+        test "$current_db" = "" && current_db="$p" || current_db="$current_db:$p"
+    done
+    export CSCOPE_DB="$current_db"
+    unset current_db ft p
+    return 0
+}
+
+__rmcscope()
+{
+    test "$#" -eq "0" && cull=`pwd` || cull="$@"
+
+    current_db=
+    for n in `echo "$CSCOPE_DB" | tr ':' "\n"`; do
+        if test ! -e "$n"; then
+            printf "Removing missing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
+            continue
+        fi
+
+        found=0
+        for p in $cull; do
+            test -d "$p" && p="$p/cscope.out"
+            nabs=`readlink -f "$n"`
+            pabs=`readlink -f "$p"`
+
+            if test "$nabs" == "$pabs"; then
+                found=`expr "$found" + 1`
+            fi
+        done
+
+        if test "$found" -gt 0; then
+            printf "Removing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
+        else
+            test "$current_db" = "" && current_db="$n" || current_db="$current_db:$n"
+        fi
+    done
+    export CSCOPE_DB="$current_db"
+    unset cull current_db n p nabs pabs found
+    return 0
 }
 
 # devtodo specific

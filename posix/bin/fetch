@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 url=$1
 CURL=$(type -P curl.sh || type -P curl)
 

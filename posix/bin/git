@@ -1,6 +1,7 @@
 #!/bin/sh
 name=git
-windows="/c/Program Files (x86)/Git/Cmd/git.exe"
+posix=`PATH=/bin:/sbin:/usr/bin:/usr/sbin which git 2>/dev/null`
+windows="$PROGRAMFILES/Git/Cmd/git.exe"
 
 ## determine the platform from the system if uname doesn't have a -o option
 platform=`uname -o 2>/dev/null`
@@ -13,7 +14,7 @@ fi
 
 ## determine which program to run
 if test "$platform" = "Msys"; then
-    prog="$windows"
+    prog=`test "$posix" = "" && echo -n "$windows" || echo -n "$posix"`
 else
     prog=""
     IFS=":"; for p in $PATH; do

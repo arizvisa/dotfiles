@@ -50,14 +50,11 @@
     "" execute shell command in a new window
     map <C-w>! :new\|%!
 
-    "" insert current location into buffer
-    imap <C-R>& <C-R>=substitute(expand('%'),'\\','/','g').':'.line('.')<CR>
-    "imap <C-R>& <C-R>=substitute(expand('#'),'\\','/','g').':'.line('.')<CR>
-
-    "" current word, current line, current line number
-    cmap <C-R>^ <C-R>=expand('<cword>')<CR>
-    cmap <C-R>$ <C-R>=getline(line('.'))<CR>
-    cmap <C-R>@ <C-R>=line('.')<CR>
+    "" copy current locations into the default register
+    nmap ,cc :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')<CR>:let @*=@"<CR>
+    nmap ,cf :let @"=substitute(expand('%'),'\\','/','g')<CR>:let @*=@"<CR>
+    nmap ,cp :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @*=@"<CR>
+    nmap ,.  :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')."\n"<CR>
 
     "" for gvim
     if has("gui_running")
