@@ -136,7 +136,7 @@ flag_verbose=0
 
 set -- $args
 while [ $# -gt 0 ]; do
-    case "$1" in 
+    case "$1" in
         -h) halp $argv0; exit 0 ;;
         -q) flag_silent=1; shift ;;
         -v) flag_verbose=1; shift ;;
@@ -157,11 +157,11 @@ fi
 if echo "$SESSION" | egrep -v '^[0-9a-f]{32}' >/dev/null; then
     logerror "SESSION variable is not of the correct format. Should be a 256-bit hex number."
     halp "$argv0"
-    exit 1    
+    exit 1
 fi
 
 telus_id=$1
-if echo "$telus_id" | egrep '^[0-9]+$' >/dev/null; then 
+if echo "$telus_id" | egrep '^[0-9]+$' >/dev/null; then
     summary="https://portal.telussecuritylabs.com/archive/confirm_download_threat/$telus_id"
     id="$telus_id"
     filename="$id"  # XXX

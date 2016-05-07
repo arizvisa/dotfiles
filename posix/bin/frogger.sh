@@ -111,7 +111,7 @@ if [ $? -eq 1 ]
 		exit 1
 else
 	compare_arpscan=$(echo "$ARPVER < 1.8" | bc)
-	if [ $compare_arpscan -eq 1 ] 
+	if [ $compare_arpscan -eq 1 ]
 		then
 			echo ""
 			echo -e "\e[01;31m[!]\e[00m Unable to find version 1.8 of arp-scan, 1.8 is required for VLAN tagging. Install at least version 1.8 and try again. Download from www.nta-monitor.com."
@@ -291,7 +291,7 @@ done
 
 # if CDP was not found, then exit script
 cat CDPONTMP 2>&1 |grep "0 packets captured" >/dev/null
-if [ $? = 0 ] 
+if [ $? = 0 ]
 	then
 		rm CDPONTMP 2>/dev/null
 		exit 1
@@ -337,7 +337,7 @@ read IPADDRESS
 
 rm MANIPTMP 2>/dev/null
 clear
-for VLANIDSCAN in $(echo "$VLANIDS") 
+for VLANIDSCAN in $(echo "$VLANIDS")
 do
 	echo ""
 	echo -e "\e[1;33m---------------------------------------------------------------------------------------\e[00m"

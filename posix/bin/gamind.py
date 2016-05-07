@@ -91,4 +91,4 @@ if __name__ == '__main__':
     for files in mon:
         if any( files, lambda x: re_match(x) ):
             map(os.system, (command.format(f, path=f) for f in files if re_match(f)))
-        
+

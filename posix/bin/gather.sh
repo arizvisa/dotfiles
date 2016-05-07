@@ -23,7 +23,7 @@ grope() {
 logerror() {
 	echo "Error: $*" 1>&2
 }
-log() { 
+log() {
 	[ $flag_silent -eq 0 ] && echo "Status: $*" 1>&2
 }
 logverbose() {
@@ -53,7 +53,7 @@ flag_insert=0
 
 set -- $args
 while [ $# -gt 0 ]; do
-	case "$1" in 
+	case "$1" in
 		-h)
 			halp $argv0;
 			exit 0

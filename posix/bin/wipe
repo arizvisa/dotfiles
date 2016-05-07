@@ -1,4 +1,4 @@
-#!/bin/sh
+
 RANDDEVICE=/dev/random
 WIPECOUNT=1
 
@@ -30,7 +30,7 @@ for f in $*; do
     fi
 
     if $( test "$response" = "yes" ); then
-        
+
         for c in $(range $WIPECOUNT); do
             wipe "$f"
         done

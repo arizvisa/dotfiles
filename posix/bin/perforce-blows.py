@@ -138,7 +138,7 @@ def fetchTree(start, target):
         urlpath = urljoin(start, path)
         filepath = '%s/%s'% (target, str(name))
         downloadFromLogPage(urlpath, str(filepath) )
-    
+
     ## descend into subdirs if there are any
     for name,subdir in subdirs:
         urlpath = urljoin(start, subdir)

@@ -39,12 +39,12 @@ def fn(x):
    l = [(x+1)&0xffffffff for x in packets.keys()]
    if tcp.ack in l:
     return True
-# might want to listen for more types of error traffic  
+# might want to listen for more types of error traffic
 #  if x.haslayer(IP):
 #   ip = x.getlayer(IP)
 #   if ip.src == host:
 #    return True
-  
+
   return False
 
 res = sniff(count=len(packets.values()), lfilter=fn, prn=pr)

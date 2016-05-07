@@ -76,7 +76,7 @@ flag_verbose=0
 
 set -- $args
 while [ $# -gt 0 ]; do
-    case "$1" in 
+    case "$1" in
         -h) halp $argv0; exit 0 ;;
         --) shift; break ;;
     esac

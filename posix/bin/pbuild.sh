@@ -343,7 +343,7 @@ while getopts AC:dF:ij:qhx:f opt; do
             chdir $OPTARG       #XXX: chdir needs to be platform independant
             ;;
 
-        F) 
+        F)
             FILE=$OPTARG
             ;;
 

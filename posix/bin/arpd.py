@@ -35,7 +35,7 @@ def get_interface_by_name(e, faces):
     e = str(e)
     a = [ f for f in faces if e == f[0] ]
     return a[0]
-    
+
 def get_interface_by_address(e, faces):
     str(e)
     for f in faces:
@@ -67,7 +67,7 @@ def get_interface(e):
 class arp_enforce(object):
     '''class that does all the arp enforcement work'''
     ## database of IP/MAC pairs
-    ethers = {} 
+    ethers = {}
 
     ## arp packets that we send out
     # key is (who to arp, what ip they want)
@@ -143,7 +143,7 @@ class arp_enforce(object):
             self.info('[%d] %s is telling %s that its ip is %s'%(timestamp, eth.dst, whatmac, whatip), 1)
             self.queue[i] = ( timestamp, sendermac, senderip, self.packetcount )
             ## XXX: might want to punish 'sendermac'
-        
+
     def do_checkrequest(self, pkt, timestamp):
         ''' who-has - answer any requests '''
         eth = pkt.getlayer(Ether)
@@ -202,7 +202,7 @@ class lexer:
     '''just implements a tokenizer'''
     skip = ' \t\n'
     tokens = []
-    
+
     def lex(self, s):
         if not s:
             return
@@ -299,7 +299,7 @@ class ether_parse(lexer):
 
         self.elements = l
 
-    def _parse(self, data):    
+    def _parse(self, data):
         n = 0
         l = []
         for s in data.split('\n'):
@@ -334,7 +334,7 @@ class ether_parse(lexer):
             if (len(tokens) != 2):
                 raise ValueError('expected "hwaddr hostname"\ngot "%s"'%t, n, s)
 
-            if not (tokens[0][0] == 'hwaddr' and tokens[1][0] == 'hostname'):       
+            if not (tokens[0][0] == 'hwaddr' and tokens[1][0] == 'hostname'):
                 raise ValueError('expected "hwaddr hostname"\ngot "%s"'%t, n, s)
 
             l.append(tokens)
@@ -381,7 +381,7 @@ class main:
             'packetcount' : conf['rearp_count'],
             'verbose' : conf['verbose']
         }
-        
+
         self.arp = arp_enforce(promisc=1, **blah)
         signal.signal(signal.SIGHUP, self.sighup)
 

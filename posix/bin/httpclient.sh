@@ -154,7 +154,7 @@ function httpClient()
 #        exit
 #        if ! ping -c 1 -q $HOST 2>&1 >/dev/null                         # Make sure its on the network. What if not
 #                                                    # accepting pings? Maybe we don't even care.
-#                                                    # Not sure how bash responds when the host 
+#                                                    # Not sure how bash responds when the host
 #                                                    # is not reachable
 #        then
 #            echo "$HOST not found"

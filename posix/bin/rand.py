@@ -82,5 +82,5 @@ if __name__ == '__main__':
     elif argv[0].endswith('seq.py'):
         do_sequence(argv.pop(0), argv)
         sys.exit(0)
-    
+
     raise NotImplementedError(argv[0])

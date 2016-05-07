@@ -16,7 +16,7 @@ httpsize()
 filesize()
 {
     filename=$1
-    stat -c '%s' "$filename" 
+    stat -c '%s' "$filename"
 }
 
 calculatepercent()

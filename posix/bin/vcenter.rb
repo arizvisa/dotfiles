@@ -257,8 +257,8 @@ class Commands
             puts ["rename",vm._ref,oldname,newname].join(":") + "\n"
             true
         end
-    end 
-    
+    end
+
     def self.power(vm, command)
         if vm.is_a? Array
             return vm.map {|x| self.power(x, command)}
@@ -353,7 +353,7 @@ class Commands
 #        spec = VmHelper.getSpec(vm)
 #
 #        if path.include? "/"
-#            name = 
+#            name =
 #        else
 #            if vm.parent.is_a? RbVmomi::VIM::Folder
 #                folder = vm.parent
