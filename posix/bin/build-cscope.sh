@@ -1,52 +1,54 @@
-#!/bin/sh
-cscope=$(which cscope)
-
+#!/usr/bin/env bash
+arg0=`basename "$0"`
 usage()
 {
-    printf "usage: %s [-h] [-?] [--help] [[-f filter1]...] directory1...\n" "$1"
-    printf "builds a cscope database in each directory specified at the commandline\n"
-    printf "if a filter isn't specified, then use '*.c' and '*.h'\n"
+    printf "usage: %s [-h] [-?] [[-f filter1]...] directory1...\n" "$1"
+    printf "builds a cscope database in each directory specified at the commandline.\n"
+    printf "if a filter isn't specified, then use \"'*.c' '*.h'\".\n"
+    printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
 }
 
-args=`getopt -u -o h\?f: -l help -- $*`
-if [ "$?" -ne 0 ]; then
-    usage "$0" 1>&2
-    exit 1
-fi
-
 filter=
-set -- $args
-while [ "$#" -gt "0" ]; do
-    case "$1" in
-        -h|-\?|--help)
-            usage "$0"
+while getopts hf: opt; do
+    case "$opt" in
+        h|\?)
+            usage "$arg0"
             exit 0
             ;;
-        -f)
-            filter="$filter '$2'"
-            shift
-            ;;
-        --)
-            shift
-            break
+        f)
+            printf "%s: adding filter : %s\n" "$arg0" "$OPTARG"
+            [ "$filter" = "" ] && filter="$OPTARG" || filter="$filter $OPTARG"
             ;;
     esac
 done
+shift `expr "$OPTIND" - 1`
 
 if [ "$filter" = "" ]; then
-    filter="'*.c' '*.h'"
+    filter="*.c *.h"
+    printf "%s: using filter : %s\n" "$arg0" "$filter"
+fi
+
+if [ "$CSPROG" = "" ]; then
+    cscope=$(which cscope)
+    command="$cscope -b -v -i-"
+else
+    command="$CSPROG"
 fi
 
 if [ "$#" -eq 0 ]; then
-    printf "%s: building cscope database for %s\n" "$0" "$filter"
-    ( for glob in $filter; do eval find ./ -type f -a -name $glob; done ) | $cscope -b -v -i-
+    printf "%s: building cscope database : %s\n" "$arg0" "$filter"
+    ( echo "$filter " | while read -d' ' glob; do find ./ -type f -a -name "$glob"; done ) | $command
     exit $?
 fi
 
 for path in "$@"; do
-    printf "%s: building cscope database for %s in %s\n" "$0" "$filter" "$path"
-    ( cd "$path" && for glob in $filter; do
-        eval find ./ -type f -a -name $glob
-    done | $cscope -b -v -i- )
+    if [ ! -d "$path" ]; then
+        printf "%s: skipping invalid path : %s\n" "$arg0" "$path"
+        continue
+    fi
+    printf "%s: building cscope database : %s\n" "$arg0" "$path"
+    ( cd -- "$path" && echo "$filter " | while read -d' ' glob; do
+        find ./ -type f -a -name "$glob"
+    done | $command )
 done
 

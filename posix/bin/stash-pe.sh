@@ -22,36 +22,61 @@ if test ! -d "$outdir"; then
     exit 1
 fi
 
-# figure out path (FIXME: if peversionpath.py errors-out, handle it properly instead of depending on dirname to return ./)
-outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$inpath"`
+# figure out path to store pe into
+echo "Attempting to determine versioning info for \"$inpath\"." 1>&2
+outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
-    outpath="$outdir"
-    echo "Unable to determine the path from the VERSION_INFO record : $inpath" 1>&2
+    echo "Unable to format versioning info for \"$infile\" using default format." 1>&2
+    formats="{ProductVersion}/{InternalName} {ProductVersion}/{__name__}"
+    for fmt in $formats; do
+        echo "Re-attempting with another format : $fmt" 1>&2
+        outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$fmt" "$inpath" 2>/dev/null`
+        test "$?" -eq "0" && break
+        outpath=
+    done
+
+    if test "$outpath" == ""; then
+        echo "Unable to determine the path from the VERSION_INFO record : $inpath" 1>&2
+        exit 1
+    fi
 fi
+echo "Output path determined from version was \"$outpath\"." 1>&2
 
 outsubdir=`dirname "$outpath"`
 outfile=`basename "$outpath"`
 
-machine=`"$PYTHON" "$SYRINGE/tools/pe.py" -p --path 'FileHeader:Machine' "$inpath"`
+echo "Attempting to determine the machine type for \"$inpath\"" 1>&2
+machine=`"$PYTHON" "$SYRINGE/tools/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
     echo "Error trying to parse PE file : $inpath" 1>&2
     exit 1
 fi
+echo "The PE machine type was determined as #$machine." 1>&2
 
 case "$machine" in
     332) builder="build-idb.sh" ;;
     34404) builder="build-idb64.sh" ;;
     *) echo "Unsupported machine type : $inpath" 1>&2; exit 1 ;;
 esac
+echo "Decided on $builder to build the database." 1>&2
 
 (
-mkdir -p "$outdir/$outsubdir"
-cp "$inpath" "$outdir/$outsubdir/$outfile"
-if test "$infile" != "$outfile"; then
-    ln -sf `cygpath "$outdir/$outsubdir/$outfile"` "$outdir/$outsubdir/$infile"
-fi
+    echo "Carving a path to \"$outdir/$outsubdir/$outfile\"." 1>&2
+    mkdir -p "$outdir/$outsubdir"
 
-# build .idb based on version
+    echo "Dropping \"$inpath\" into \"$outdir/$outsubdir/$outfile\"." 1>&2
+    cp "$inpath" "$outdir/$outsubdir/$outfile"
+
+    if test "$infile" != "$outfile"; then
+        echo "Making a link from \"$outfile\" to the original name \"$infile\"." 1>&2
+        ln -sf `cygpath "$outdir/$outsubdir/$outfile"` "$outdir/$outsubdir/$infile" 2>/dev/null
+    fi
+
+    echo "Now building the database for \"$outfile\"." 1>&2
     cd "$outdir/$outsubdir"
-    sh "$builder" "$outfile"
+    sh "$builder" "$outfile" 1>&2
 )
+
+echo "Done!" 1>&2
+
+echo "$outdir/$outsubdir/$outfile"

@@ -15,11 +15,14 @@
 " CSCOPE_DB is the paths to each cscope.out file you want to use.
 " if the variable isn't specified, the current directory is checked
 
-let s:rcfilename = ".vimrc"
-let s:csfilename = "cscope"
-let s:pathsep = (!has("unix") && &shellslash)? '\' : '/'
-
 if has("cscope")
+    let s:rcfilename = ".vimrc"
+    let s:csfilename = "cscope"
+    let s:pathsep = (has("unix") && &shellslash)? '/' : '\'
+    let s:listsep = has("unix")? ':' : ';'
+
+    let &cscopeverbose=1
+
     function! s:which(program)
         let sep = has("unix")? ':' : ';'
         let pathsep = (has("unix") || &shellslash)? '/' : '\'
@@ -43,15 +46,59 @@ if has("cscope")
     endfunction
 
     function! s:map_cscope()
-        nmap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-        nmap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
-        nmap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+        if exists("s:map_cscope") && s:map_cscope > 0
+            return
+        endif
+        "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
+        nnoremap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+        nnoremap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+        let s:map_cscope = 1
     endfunction
+
+    function! s:unmap_cscope()
+        if !exists("s:map_cscope") || s:map_cscope == 0
+            return
+        endif
+        "echomsg "Disabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
+        silent! nunmap <buffer> <C-_>c
+        silent! nunmap <buffer> <C-_>d
+        silent! nunmap <buffer> <C-_>e
+        silent! nunmap <buffer> <C-_>f
+        silent! nunmap <buffer> <C-_>g
+        silent! nunmap <buffer> <C-_>i
+        silent! nunmap <buffer> <C-_>s
+        silent! nunmap <buffer> <C-_>t
+        let s:map_cscope = 0
+    endfunction
+
+    function! s:add_cscope(path)
+        if !filereadable(a:path)
+            throw printf("File \"%s\" does not exist", a:path)
+        endif
+
+        let directory=s:basedirectory(a:path)
+        let path=fnamemodify(a:path, printf(":p:gs?%s?/?", s:pathsep))
+
+        " if a database is available, then add the cscope_db
+        execute printf("silent cscope add %s %s", fnameescape(path), fnameescape(fnamemodify(directory,":p:h")))
+        exec printf("echomsg \"Using cscope database \" | echohl MoreMsg | echon \"%s\" | echohl None", path)
+
+        " also add the autocmd for setting mappings and sourcing a local .vimrc
+        augroup cscope
+            let base=fnamemodify(directory, printf(":p:gs?%s?/?", s:pathsep))
+            exec printf("autocmd BufWinEnter %s* call s:map_cscope() | if filereadable(\"%s%s\") | source %s%s | endif", base, base, s:rcfilename, base, s:rcfilename)
+            exec printf("autocmd BufWinLeave %s* call s:unmap_cscope()", base)
+        augroup end
+    endfunction
+
+    " create a command that calls add_cscope directly
+    command! -nargs=1 -complete=file AddCscope call s:add_cscope(<f-args>)
 
     set cscopetagorder=0
     " cheat and use `which` to find out where cscope is
@@ -63,6 +110,13 @@ if has("cscope")
         endtry
     endif
 
+    " check if tmpdir was defined. if not set it to something
+    " because cscope requires it.
+    if empty($TMPDIR) && has("win32")
+        let $TMPDIR=$TEMP
+    endif
+
+    " pass the environment variable to a local variable
     let cscope_db=$CSCOPE_DB
 
     " if db wasn't specified check current dir for cscope.out
@@ -70,25 +124,16 @@ if has("cscope")
         let cscope_db=join([getcwd(),"cscope.out"], s:pathsep)
     endif
 
-    " only add the autocmds to the cscope group
-    augroup cscope
-        " iterate through each cscope_db
-        for db in split(cscope_db, ':')
-            let directory=s:basedirectory(db)
-
-            if filereadable(db)
-                " if a database is available, then add the cscope_db
-                set nocscopeverbose
-                execute printf("cscope add %s %s", fnameescape(db), fnameescape(directory))
-                set cscopeverbose
-
-                " also add the autocmd for setting mappings and sourcing a local .vimrc
-                let absolute=fnamemodify(directory, ":p")
-                exec printf("autocmd BufEnter,BufRead,BufNewFile %s* if filereadable(\"%s%s\") \| source %s%s \| endif \| call s:map_cscope()", absolute, absolute, s:rcfilename, absolute, s:rcfilename)
-            else
-                echoerr printf("cscope database %s does not exist", db)
-            endif
-        endfor
-    augroup end
+    " iterate through each cscope_db
+    for db in split(cscope_db, s:listsep)
+        let verbosity = &cscopeverbose
+        let &cscopeverbose = 0
+        try
+            call s:add_cscope(db)
+        catch
+            echoerr printf("cscope database %s does not exist", db)
+        endtry
+        let &cscopeverbose = verbosity
+    endfor
 endif
 
