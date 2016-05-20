@@ -18,7 +18,7 @@
 if has("cscope")
     let s:rcfilename = ".vimrc"
     let s:csfilename = "cscope"
-    let s:pathsep = (has("unix") && &shellslash)? '/' : '\'
+    let s:pathsep = (has("unix") || &shellslash)? '/' : '\'
     let s:listsep = has("unix")? ':' : ';'
 
     let &cscopeverbose=1

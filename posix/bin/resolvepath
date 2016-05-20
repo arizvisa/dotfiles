@@ -2,18 +2,16 @@
 path=$1
 shift
 
-if test -z "$path"; then
-    path=$(pwd)
-fi
+[ -z "$path" ] && path=`pwd`
+path=`readlink -f "$path"`
 
-path=$(readlink -f "$path")
+[ ! -d "$path" ] && exit 1
 
-if test ! -d "$path"; then
-    return 1
-fi
+case "$platform" in
+    Cygwin|Msys) echo "$path" | xargs cygpath -u -- ;;
+    *) echo "$path" ;;
+esac
 
-if test ! "${CYGWIN}"; then
-  echo "$path"
-else
-  echo "$path" | /usr/bin/cygpath -u
+if [ "$#" -gt 0 ]; then
+    $0 "$@" || exit 1
 fi

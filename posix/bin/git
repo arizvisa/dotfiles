@@ -1,27 +1,26 @@
 #!/bin/sh
-name=git
-posix=`PATH=/bin:/sbin:/usr/bin:/usr/sbin which git 2>/dev/null`
-windows="$PROGRAMFILES/Git/Cmd/git.exe"
-
-## determine the platform from the system if uname doesn't have a -o option
-platform=`uname -o 2>/dev/null`
-if test $? -gt 0; then
-    case `uname -s` in
-        MINGW32*) platform="Msys" ;;
-        *) platform="unknown" ;;
-    esac
-fi
+posix=git
+pf=`cygpath "$PROGRAMFILES"`
+windows=`ls -1 "$pf"/Git/Cmd/git.exe 2>/dev/null`
 
 ## determine which program to run
-if test "$platform" = "Msys"; then
-    prog=`test "$posix" = "" && echo -n "$windows" || echo -n "$posix"`
-else
-    prog=""
-    IFS=":"; for p in $PATH; do
-        test -x "$p/$name" && test "$p/$name" != "$0" && prog="$p/$name"
+case "$platform" in
+    Msys|Cygwin)
+        prog=`[ -x "$windows" ] && echo "$windows"`
+        ;;
+esac
+
+## if it's not found, then search the path
+if [ -z "$prog" ]; then
+    argv0=`readlink -f "$0"`
+    IFS=:
+    for p in $PATH; do
+        rp=`readlink -f "$p/$posix"`
+        [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
     done
-    test -z "$prog" && echo "Unable to locate $name" 1>&2 && exit 1
 fi
 
-# go for it
+# go for it...or not.
+[ -z "$prog" ] && echo "Unable to locate $posix" 1>&2 && exit 1
 "$prog" "$@"
+exit $?

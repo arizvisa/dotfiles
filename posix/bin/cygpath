@@ -136,12 +136,12 @@ case "$OUTPUT" in
 esac
 
 # check if it seems windowsy
-if test `echo "$path" | tr -s -d '[:alnum:][:space:][:cntrl:]' ':' | wc -c` -gt 0; then
+if [ `echo "$path" | tr -s -d '[:alnum:][:space:][:cntrl:]' ':' | wc -c` -gt 0 ]; then
     default=`windows2default "$path"`
     #platform=Windows
 
 else # otherwise normalize to a regular path according to the current platform
-    case `uname -o` in
+    case `uname -o 2>/dev/null || uname -s 2>/dev/null` in
         Msys)
             default=`msys2default "$path"`
             platform=Msys
@@ -160,7 +160,7 @@ normal=`echo "$normal" | sed 's/\\\/\//g'`
 
 ## output results
 case "$FORMAT" in
-    unix) test "$platform" == "Msys" && default2msys "$normal" || default2cygwin "$normal" ;;
+    unix) [ "$platform" == "Msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
     windows|win) default2windows "$normal" ;;
     *) echo "$normal" ;;
 esac

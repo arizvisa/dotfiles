@@ -1,22 +1,70 @@
-
+#!/bin/sh
+argv0=`basename "$0"`
 RANDDEVICE=/dev/random
 WIPECOUNT=1
 
+random() {
+    dd "if=$RANDDEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:xdigit:]" | dd "count=$1" bs=1 2>/dev/null
+}
+
+randdec() {
+    num=`random "$1"`
+    res=`echo "scale=8;$((16#$num)) / ( 16 ^ $1 ) * (10 ^ $1)" | bc | cut -d. -f1`
+    [ -z "$res" ] && echo 0 || echo "$res"
+}
+
+randrange() {
+    range=`expr $2 - $1`
+    length=`echo -n "$range" | wc -c | tr -d ' '`
+    n=`randdec "$length"`
+    res=`echo "scale=8;$n / ( 10 ^ $length ) * $range + $1" | bc | cut -d. -f 1`
+    [ -z "$res" ] && echo 0 || echo "$res"
+}
+
+randstring() {
+    dd "if=$RANDDEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:upper:][:lower:][:digit:]" | dd "count=$1" bs=1 2>/dev/null
+}
+
 wipe() {
-    touch -t 198706030000.00 "$1"
-    dd if=$RANDDEVICE of="$1" count=$( du "$1" | cut -f 1) 2>/dev/null
+    dd "if=$RANDDEVICE" "of=$1" count=`du "$1" | cut -f 1` 2>/dev/null
+}
+
+tamper() {
+    e=`stat -f %c /sbin`
+    oldest_yr=`perl -e "(\\\$_,\\\$_,\\\$_,\\\$_,\\\$_,\\\$yr,\\\$_,\\\$_)=localtime($e); print int(\\\$yr)+1900"`
+
+    for opt in "" m a; do
+        yr=`randrange $oldest_yr $(date +%Y)`
+        mo=`randrange 0 12`
+        dy=`randrange 0 30`
+        hr=`randrange 0 24`
+        mn=`randrange 0 60`
+        ts=`printf "%04d%02d%02d%02d%02d" "$yr" "$mo" "$dy" "$hr" "$mn"`
+        if [ -z "$opt" ]; then
+            touch -ft $ts "$1" || exit 1
+        else
+            touch -ft $ts -$opt "$1" || exit 1
+        fi
+    done
+}
+
+randname() {
+    length=`echo -n "$1" | wc -c | tr -d ' '`
+    name=`randstring "$length"`
+    mv -f "$1" "$name" || exit 1
+    echo "$name"
 }
 
 log() {
-    echo "wipe:" $*
+    echo "$argv0:" $* 1>&2
 }
 
 range() {
-    echo $( yes count | head -n $1 )
+    echo `yes count | head -n "$1"`
 }
 
-for f in $*; do
-    if $( test ! -e $f ); then
+for f in "$@"; do
+    if [ ! -e "$f" ]; then
         log "$f: No such file or directory"
         continue
     fi
@@ -25,17 +73,22 @@ for f in $*; do
     echo "Are you SURE you wish to wipe: $f? [no]"
     read response
 
-    if $( test -z "$response" ); then
+    if [ -z "$response" ]; then
         response="no"
     fi
 
-    if $( test "$response" = "yes" ); then
-
-        for c in $(range $WIPECOUNT); do
+    if [ "$response" = "yes" ]; then
+        for c in `range "$WIPECOUNT"`; do
             wipe "$f"
         done
-
         log "$f: File overwritten $WIPECOUNT times"
+
+        tamper "$f" && log "$f: Successfully tampered with creation, modification, and access times" || ( log "$f: Unable to tamper file" && continue )
+
+        rn=`randname "$f"`
+        [ "$?" -eq 0 ] && log "$f: Renamed file to $rn" || ( log "$f: Unable to rename file" && continue )
+
+        rm -f "$rn" && log "$f: Removed file $rn" || ( log "$f: Unable to remove file $rn" && continue )
     else
 
         log "$f: File not overwritten; user refused"
