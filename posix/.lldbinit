@@ -1,0 +1,4 @@
+script import user,types,lldb
+script __lldbinit__ = types.ModuleType('__lldbinit__')
+script execfile(os.path.join(user.home, '.lldbinit.py'), __lldbinit__.__dict__, __lldbinit__.__dict__)
+script __lldbinit__.__lldb_init_module(lldb.debugger or lldb.SBDebugger.Create(), globals())
