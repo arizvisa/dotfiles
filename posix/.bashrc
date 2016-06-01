@@ -34,7 +34,12 @@ fi
 ## useful functions
 fman()
 {
-    cat "$@" | /usr/bin/gtbl | /usr/bin/nroff -Tascii -c -mandoc
+    cat "$@" | groff -t -c -mmandoc -Tascii
+}
+
+termdump()
+{
+     infocmp -1 | grep -ve '^#' | ( read n; cat ) | cut -d= -f1 | tr -cd '[:alpha:][:digit:]\n' | while read n; do printf "%s -- %s\n" "$n" "`man -w 5 terminfo | xargs zcat | egrep -A 2 \"\b$n[^[:print:]]\" | tr -d '\n' | sed 's/T{/{/g;s/T}/}/g' | egrep -m1 -o '\{[^}]+\}' | tr -d '\n'`"; done
 }
 
 alias addcscope=__addcscope
