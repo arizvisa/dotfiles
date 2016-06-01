@@ -4,7 +4,7 @@ usage()
 {
     printf "usage: %s [-h] [-?] [[-f filter1]...] directory1...\n" "$1"
     printf "builds a cscope database in each directory specified at the commandline.\n"
-    printf "if a filter isn't specified, then use \"'*.c' '*.h'\".\n"
+    printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
 }
 
@@ -24,7 +24,7 @@ done
 shift `expr "$OPTIND" - 1`
 
 if [ "$filter" = "" ]; then
-    filter="*.c *.h"
+    filter="*.c *.h *.cc *.cpp *.hpp"
     printf "%s: using filter : %s\n" "$arg0" "$filter"
 fi
 
