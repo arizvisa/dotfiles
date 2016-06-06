@@ -132,7 +132,7 @@ case "$OUTPUT" in
     windows) path="$SYSTEMROOT" ;;
     program) path="$PROGRAMFILES" ;;
     system) path=`dirname "$COMSPEC"` ;;
-    *) path="$1"
+    *) path=$*
 esac
 
 # check if it seems windowsy

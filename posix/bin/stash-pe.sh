@@ -6,11 +6,13 @@ infile=`basename "$inpath"`
 PYTHON=`which python`
 test "$SYRINGE" == "" && SYRINGE=`python -c 'print __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", ".."))'`
 
-if test -z "$inpath" -o "$#" -ne 2; then
-    echo "Usage: $0 file path" 1>&2
+if test -z "$inpath" -o "$#" -lt 2; then
+    echo $#
+    echo "Usage: $0 file path [peversionpath-options..]" 1>&2
     echo "Stashes a PE file to specified directory keyed by it's version and then pre-build's an .idb" 1>&2
     exit 1
 fi
+shift 2
 
 if test ! -e "$SYRINGE/tools/pe.py" -o ! -e "$SYRINGE/tools/peversionpath.py"; then
     echo "Unable to locate tools (pe.py, peversionpath.py) for parsing the portable executable format : $SYRINGE" 1>&2
@@ -30,7 +32,7 @@ if test "$?" -gt 0; then
     formats="{ProductVersion}/{InternalName} {ProductVersion}/{__name__}"
     for fmt in $formats; do
         echo "Re-attempting with another format : $fmt" 1>&2
-        outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$fmt" "$inpath" 2>/dev/null`
+        outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$fmt" "$@" "$inpath" 2>/dev/null`
         test "$?" -eq "0" && break
         outpath=
     done

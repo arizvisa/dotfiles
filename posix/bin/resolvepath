@@ -1,5 +1,5 @@
 #!/bin/sh
-path=$1
+path=$*
 shift
 
 [ -z "$path" ] && path=`pwd`

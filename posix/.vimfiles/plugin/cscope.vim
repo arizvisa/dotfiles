@@ -46,9 +46,6 @@ if has("cscope")
     endfunction
 
     function! s:map_cscope()
-        if exists("s:map_cscope") && s:map_cscope > 0
-            return
-        endif
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         nnoremap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
         nnoremap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
@@ -58,13 +55,9 @@ if has("cscope")
         nnoremap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
         nnoremap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
         nnoremap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
-        let s:map_cscope = 1
     endfunction
 
     function! s:unmap_cscope()
-        if !exists("s:map_cscope") || s:map_cscope == 0
-            return
-        endif
         "echomsg "Disabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         silent! nunmap <buffer> <C-_>c
         silent! nunmap <buffer> <C-_>d
@@ -74,7 +67,6 @@ if has("cscope")
         silent! nunmap <buffer> <C-_>i
         silent! nunmap <buffer> <C-_>s
         silent! nunmap <buffer> <C-_>t
-        let s:map_cscope = 0
     endfunction
 
     function! s:add_cscope(path)
@@ -92,8 +84,8 @@ if has("cscope")
         " also add the autocmd for setting mappings and sourcing a local .vimrc
         augroup cscope
             let base=fnamemodify(directory, printf(":p:gs?%s?/?", s:pathsep))
-            exec printf("autocmd BufWinEnter %s* call s:map_cscope() | if filereadable(\"%s%s\") | source %s%s | endif", base, base, s:rcfilename, base, s:rcfilename)
-            exec printf("autocmd BufWinLeave %s* call s:unmap_cscope()", base)
+            exec printf("autocmd BufEnter,BufRead,BufNewFile %s* call s:map_cscope() | if filereadable(\"%s%s\") | source %s%s | endif", base, base, s:rcfilename, base, s:rcfilename)
+            exec printf("autocmd BufDelete %s* call s:unmap_cscope()", base)
         augroup end
     endfunction
 
