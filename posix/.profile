@@ -3,50 +3,56 @@
 # System-wide .profile file for sh(1).
 umask 022
 
-# TODO:
-#   assign $HOME if undefined
-#   resolve ~/ to $HOME if possible
-#   move xMsys specific environment elsewhere
+# set a global so that .bashrc can verify this rcfile has been executed already.
+export PROFILE=`[ -z "$USERPROFILE" ] && echo "$USERPROFILE" || echo "$HOME"`
+if [ ! -d "$PROFILE" ]; then
+    # FIXME: programmatically determine the tmp directory in case $PROFILE fails.
+    export PROFILE="/tmp/`id -u`"
+    echo "Unable to determine profile directory. Defaulting to \"$PROFILE\"." 1>&2
+fi
 
 [ -z "$USER" ] && export USER=`whoami`
-[ -z "$HOME" ] && export HOME=`( cd && pwd -P )`
-export HOME=`echo "$HOME" | sed 's/\/*$//'`     # strip all slashes at end of home
+[ -z "$HOME" ] && export HOME=`( cd "$PROFILE" && pwd -P )`
+
+export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
 export PS1='[\!] \u@\h \w$ '
 
 path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
 
 # decompose path, and keep only the paths that exist.
+# FIXME: figure out bourne-specific way to replace sed here so we don't have to depend on the path.
 oldpath="$PATH"
 path=`echo "${path}" | while read -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
-PATH=`echo "${path}" | sed 's/:$//'`
+PATH=`echo "${path}" | /bin/sed 's/:$//'`
 PATH="${PATH}:${oldpath}"
 unset oldpath path
 export PATH
 
 ## set language locale to utilize utf-8 encoding
-if [ "$LANG" == "" ]; then
+if [ -z "$LANG" ]; then
     export LANG=en_US.UTF-8
 fi
 
 ## default tmpdir
-if [ "$TMPDIR" == "" ]; then
+if [ -z "$TMPDIR" ]; then
     export TMPDIR="$HOME/tmp"
     [ -d "$TMPDIR" ] || mkdir -p "$TMPDIR"
 fi
 export TMP="$TMPDIR"
 
 ## global variables/settings
-export EDITOR=`which vim`
+export EDITOR=`type -p vim`
 ulimit -c unlimited
 ulimit -u 384 2>/dev/null
 
 ## platform-specific stuff
+# FIXME: use $MACHTYPE variable instead of `uname` to determine platform
 export platform=`uname -o 2>/dev/null || uname -s 2>/dev/null`
 case "$platform" in
     Msys|Cygwin)
         export programfiles=`cygpath "$PROGRAMFILES"`
 
-        # fix a bug with msys2, that actually comes from an older version of cygwin.
+        # fix a bug when compiling on msys2, that actually came from some older version of cygwin and still remains.
         if [ `uname -r | cut -d. -f 1` == 2 ]; then
             export PATH=`echo "${PATH}" | sed 's/\(:\/bin:\)/:\/usr\/bin\1/'`
         fi
@@ -65,7 +71,7 @@ esac
 
 ## promote terminal to something colorful
 case "$TERM" in
-    *-256color) TERM=$TERM ;;
+    *-256color) TERM="$TERM" ;;
     xterm) TERM=xterm-256color ;;
     gnome-terminal) TERM=gnome-256color ;;
     dumb) TERM=ansi ;;
@@ -80,4 +86,4 @@ export TERM
 cd "$HOME"
 
 ## continue loading stuff from .bashrc
-[ -e $HOME/.bashrc ] && source $HOME/.bashrc
+[ -e "$HOME/.bashrc" ] && source "$HOME/.bashrc"
