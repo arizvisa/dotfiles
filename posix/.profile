@@ -4,7 +4,7 @@
 umask 022
 
 # set a global so that .bashrc can verify this rcfile has been executed already.
-export PROFILE=`[ -z "$USERPROFILE" ] && echo "$USERPROFILE" || echo "$HOME"`
+export PROFILE=`[ ! -z "$USERPROFILE" ] && echo "$USERPROFILE" || echo "$HOME"`
 if [ ! -d "$PROFILE" ]; then
     # FIXME: programmatically determine the tmp directory in case $PROFILE fails.
     export PROFILE="/tmp/`id -u`"
@@ -23,7 +23,7 @@ path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr
 # FIXME: figure out bourne-specific way to replace sed here so we don't have to depend on the path.
 oldpath="$PATH"
 path=`echo "${path}" | while read -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
-PATH=`echo "${path}" | /bin/sed 's/:$//'`
+PATH="${path%:}"
 PATH="${PATH}:${oldpath}"
 unset oldpath path
 export PATH

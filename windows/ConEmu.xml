@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2016-04-20 18:14:56" build="160329">
+		<key name=".Vanilla" modified="2016-06-15 19:56:47" build="160609">
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data="C:\MinGW\msys\1.0\bin\bash.exe --login"/>
 			<value name="StartTasksFile" type="string" data=""/>
@@ -87,16 +87,16 @@
 			<value name="StoreTaskbarCommands" type="hex" data="00"/>
 			<value name="SaveCmdHistory" type="hex" data="01"/>
 			<value name="CmdLineHistory" type="multi">
+				<line data="{Bash::msys::Admin}"/>
+				<line data="{cmd::SDK::Python (x86)}"/>
+				<line data="{cmd::User}"/>
 				<line data="{PowerShell::User}"/>
 				<line data="{cmd::Admin}"/>
 				<line data="{cmd::SDK::vs12 (x86)}"/>
-				<line data="{cmd::User}"/>
-				<line data="{cmd::SDK::Python (x86)}"/>
 				<line data="{SDK::Python (x86)}"/>
 				<line data="{SDK::vs12 (x86)}"/>
 				<line data="{Bash::git}"/>
 				<line data="{Bash::cygwin}"/>
-				<line data="{Bash::msys::Admin}"/>
 				<line data="{Bash::msys}"/>
 				<line data="{PowerShell::Admin}"/>
 				<line data="{Language::Go}"/>
@@ -123,7 +123,7 @@
 			<value name="Multi.DetachConfirm" type="hex" data="01"/>
 			<value name="Multi.UseArrows" type="hex" data="00"/>
 			<value name="Multi.UseNumbers" type="hex" data="00"/>
-			<value name="Multi.UseWinTab" type="hex" data="00"/>
+			<value name="Multi.UseWinTab" type="hex" data="01"/>
 			<value name="Multi.AutoCreate" type="hex" data="00"/>
 			<value name="Multi.LeaveOnClose" type="hex" data="00"/>
 			<value name="Multi.HideOnClose" type="hex" data="00"/>
@@ -136,7 +136,7 @@
 			<value name="FontName" type="string" data="Courier New"/>
 			<value name="FontName2" type="string" data="Consolas"/>
 			<value name="FontAutoSize" type="hex" data="00"/>
-			<value name="FontSize" type="ulong" data="9"/>
+			<value name="FontSize" type="ulong" data="11"/>
 			<value name="FontSizeX" type="ulong" data="0"/>
 			<value name="FontUseDpi" type="hex" data="01"/>
 			<value name="FontUseUnits" type="hex" data="01"/>
@@ -161,10 +161,10 @@
 			<value name="ColorKeyValue" type="dword" data="00010101"/>
 			<value name="UseCurrentSizePos" type="hex" data="01"/>
 			<value name="WindowMode" type="dword" data="0000051f"/>
-			<value name="ConWnd Width" type="dword" data="000000bf"/>
-			<value name="ConWnd Height" type="dword" data="00000029"/>
+			<value name="ConWnd Width" type="dword" data="00000088"/>
+			<value name="ConWnd Height" type="dword" data="00000022"/>
 			<value name="Cascaded" type="hex" data="01"/>
-			<value name="ConWnd X" type="long" data="1"/>
+			<value name="ConWnd X" type="long" data="152"/>
 			<value name="ConWnd Y" type="long" data="-3"/>
 			<value name="16bit Height" type="ulong" data="0"/>
 			<value name="AutoSaveSizePos" type="hex" data="01"/>
@@ -404,7 +404,7 @@
 			<value name="Update.DownloadPath" type="string" data="%TEMP%\ConEmu"/>
 			<value name="Update.LeavePackages" type="hex" data="00"/>
 			<value name="Update.PostUpdateCmd" type="string" data="echo Last successful update&gt;ConEmuUpdate.info &amp;&amp; date /t&gt;&gt;ConEmuUpdate.info &amp;&amp; time /t&gt;&gt;ConEmuUpdate.info"/>
-			<key name="HotKeys" modified="2016-04-12 21:46:42" build="160329">
+			<key name="HotKeys" modified="2016-06-15 19:56:47" build="160609">
 				<value name="KeyMacroVersion" type="hex" data="02"/>
 				<value name="Multi.Modifier" type="dword" data="0000005b"/>
 				<value name="Multi.ArrowsModifier" type="dword" data="0000005b"/>
@@ -437,8 +437,8 @@
 				<value name="Multi.SplitFocusD" type="dword" data="00101128"/>
 				<value name="Multi.SplitFocusL" type="dword" data="00101125"/>
 				<value name="Multi.SplitFocusR" type="dword" data="00101127"/>
-				<value name="Multi.Next" type="dword" data="00105b09"/>
-				<value name="Multi.NextShift" type="dword" data="00005b09"/>
+				<value name="Multi.Next" type="dword" data="00001109"/>
+				<value name="Multi.NextShift" type="dword" data="00a01109"/>
 				<value name="Multi.Recreate" type="dword" data="00000000"/>
 				<value name="Multi.AltCon" type="dword" data="00000000"/>
 				<value name="Multi.Pause" type="dword" data="00000000"/>
@@ -589,9 +589,9 @@
 				<value name="Key.DumpTree" type="dword" data="00000000"/>
 				<value name="Key.ResetTerm" type="dword" data="00000000"/>
 			</key>
-			<key name="Tasks" modified="2016-04-12 21:46:42" build="160329">
+			<key name="Tasks" modified="2016-06-15 19:56:47" build="160609">
 				<value name="Count" type="long" data="19"/>
-				<key name="Task1" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task1" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Bash::msys}"/>
 					<value name="Flags" type="dword" data="00000003"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -600,7 +600,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task2" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task2" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Bash::msys::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -609,7 +609,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task3" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task3" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Bash::cygwin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -618,7 +618,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task4" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task4" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Bash::cygwin::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -627,7 +627,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task5" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task5" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Bash::git}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -636,7 +636,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task6" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task6" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{PowerShell::User}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -645,7 +645,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task7" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task7" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{PowerShell::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -654,7 +654,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task8" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task8" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::User}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -663,7 +663,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task9" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task9" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -672,7 +672,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task10" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task10" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -681,7 +681,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task11" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task11" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -690,7 +690,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task12" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task12" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::SDK::Python (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -699,7 +699,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task13" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task13" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{cmd::SDK::Python (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -708,7 +708,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task14" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task14" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Tests::Show ANSI colors}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -717,7 +717,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task15" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task15" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Language::Python}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -726,7 +726,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task16" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task16" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Language::Ocaml}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -735,7 +735,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task17" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task17" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Language::Ruby}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -744,7 +744,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task18" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task18" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Language::Go}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -753,7 +753,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task19" modified="2016-04-12 21:46:42" build="160329">
+				<key name="Task19" modified="2016-06-15 19:56:47" build="160609">
 					<value name="Name" type="string" data="{Mimikatz}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -763,14 +763,14 @@
 					<value name="Count" type="long" data="1"/>
 				</key>
 			</key>
-			<key name="Apps" modified="2016-04-12 21:46:42" build="160329">
+			<key name="Apps" modified="2016-06-15 19:56:47" build="160609">
 				<value name="Count" type="long" data="0"/>
 			</key>
-			<key name="Colors" modified="2016-04-12 21:46:42" build="160329">
+			<key name="Colors" modified="2016-06-15 19:56:47" build="160609">
 				<value name="Count" type="long" data="0"/>
 			</key>
 			<value name="Notification.StopBuzzingDate" type="string" data="2015-8-24"/>
-			<value name="LastMonitor" type="string" data="0,0,1366,716"/>
+			<value name="LastMonitor" type="string" data="0,0,1280,728"/>
 			<value name="StartCreateDelay" type="ulong" data="100"/>
 			<value name="ProcessCtrlZ" type="hex" data="00"/>
 			<value name="SuppressBells" type="hex" data="01"/>
@@ -779,6 +779,15 @@
 			<value name="CTS.EraseBeforeReset" type="hex" data="01"/>
 			<value name="Anti-aliasing2" type="hex" data="00"/>
 			<value name="DebugLog" type="hex" data="00"/>
+			<value name="VividColors" type="hex" data="01"/>
+			<value name="AnsiExecution" type="hex" data="01"/>
+			<value name="AnsiAllowedCommands" type="multi">
+				<line data="cmd -cur_console:R /cGitShowBranch.cmd"/>
+			</value>
+			<value name="UseAltGrayPlus" type="hex" data="01"/>
+			<value name="MouseDragWindow" type="hex" data="01"/>
+			<value name="StatusBar.Hide.TMode" type="hex" data="01"/>
+			<value name="StatusBar.Hide.RMode" type="hex" data="01"/>
 		</key>
 	</key>
 </key>

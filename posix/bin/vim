@@ -1,6 +1,7 @@
 #!/bin/sh
 posix=vim
-pf=`cygpath "$PROGRAMFILES"`
+pf_x86=`env | egrep "^ProgramFiles\(x86\)" | cut -d= -f2-`
+pf=`cygpath "${pf_x86}"`
 windows=`ls -1 "$pf"/Vim/vim*/gvim.exe 2>/dev/null`
 
 ## determine which program to run
