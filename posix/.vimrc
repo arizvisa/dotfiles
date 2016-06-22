@@ -165,14 +165,14 @@
     let w:PHStatusLine = ''
 
     "map <C-g> :call MapCtrlG()<CR>
+    "let g:incpy#Program = ""
     "let g:incpy#Program = "c:/ocaml/bin/ocaml.exe"
     "let g:incpy#Program = "c:/python27/python -i"
     "let g:incpy#Program = "c:/users/user/pypy/pypy.exe -i -u -B"
     "let g:incpy#Program = "c:/MinGW/msys/1.0/bin/bash.exe -i"
-    "let g:incpy#Program = "c:/Program Files (x86)/Microsoft SDKs/F#/3.0/Framework/v4.0/fsi.exe --readline- --checked+ --tailcalls+ --consolecolors- --fullpaths"
+    "let g:incpy#Program = "c:/Program Files (x86)/Microsoft SDKs/F#/3.1/Framework/v4.0/fsi.exe --readline- --checked+ --tailcalls+ --consolecolors- --fullpaths"
 
-    let g:incpy#Name = "internal-python"
-    let g:incpy#Program = ""
+    let g:incpy#Name = "interpreter"
     let g:incpy#WindowRatio = 1.0/8
     "let g:incpy#WindowPreview = 1
     "let g:incpy#ProgramFollow = 0

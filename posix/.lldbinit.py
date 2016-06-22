@@ -278,6 +278,11 @@ class module(object):
         return
 
     @classmethod
+    def byaddress(cls, target, address):
+        res = (m for m in target.modules if cls.address(m) <= address < cls.address(m)+cls.loadsize(m))
+        return next(res)
+
+    @classmethod
     def mappedQ(cls, m):
         res = cls.address(m)
         return res not in (0,lldb.LLDB_INVALID_ADDRESS)

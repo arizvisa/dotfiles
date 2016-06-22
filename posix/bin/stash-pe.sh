@@ -4,7 +4,7 @@ outdir="$2"
 infile=`basename "$inpath"`
 
 PYTHON=`which python`
-test "$SYRINGE" == "" && SYRINGE=`python -c 'print __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", ".."))'`
+test -z "$SYRINGE" && SYRINGE=`python -c 'print __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", ".."))'`
 
 if test -z "$inpath" -o "$#" -lt 2; then
     echo $#
@@ -26,7 +26,7 @@ fi
 
 # figure out path to store pe into
 echo "Attempting to determine versioning info for \"$inpath\"." 1>&2
-outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$inpath" 2>/dev/null`
+outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
     echo "Unable to format versioning info for \"$infile\" using default format." 1>&2
     formats="{ProductVersion}/{InternalName} {ProductVersion}/{__name__}"
@@ -37,7 +37,7 @@ if test "$?" -gt 0; then
         outpath=
     done
 
-    if test "$outpath" == ""; then
+    if test -z "$outpath"; then
         echo "Unable to determine the path from the VERSION_INFO record : $inpath" 1>&2
         exit 1
     fi

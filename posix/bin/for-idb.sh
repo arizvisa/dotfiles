@@ -1,12 +1,14 @@
-#!/bin/sh
 arg0=`basename "$0"`
 input="$1"
 script="$2"
 shift 2
 
+echo "$arg0" | grep -q 64 && bits=64 || bits=32
+
 if test -z "$input" -o -z "$script"; then
-    printf "Usage: %s file.idb script [script-arguments...]\n" "$0" 1>&2
-    printf "Executes an ida script for file.idb\n" 1>&2
+    test "$bits" -eq 64 && ext=i64 || ext=idb
+    printf "Usage: %s file.%s script [script-arguments...]\n" "$0" "${ext}" 1>&2
+    printf "Executes an ida script for file.%s\n" "${ext}" 1>&2
     exit 1
 fi
 
@@ -18,11 +20,7 @@ currentdate()
 logprefix()
 {
     arg0=`basename "$0"`
-    if test "$#" -gt 0; then
-        current="$1"
-    else
-        current=`currentdate`
-    fi
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
     printf "+ $arg0 began at : %s\n" "$current"
     printf "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
@@ -31,11 +29,7 @@ logprefix()
 logsuffix()
 {
     arg0=`basename "$0"`
-    if test "$#" -gt 0; then
-        current="$1"
-    else
-        current=`currentdate`
-    fi
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf "====================================================================================================================================\n"
     printf "= $arg0 completed at : %s\n" "$current"
     printf "====================================================================================================================================\n"
@@ -50,10 +44,9 @@ if test ! -f "$script"; then
     exit 1
 fi
 
-
 # poorly determine path to ida
 idapath=`resolvepath /c/Program\ Files*/IDA*`
-if echo "$0" | grep -q 64; then
+if test "$bits" -eq 64; then
     ida="$idapath/idaq64.exe"
     idaext="i64"
 else
@@ -70,6 +63,7 @@ runscript()
     #export script="$1"
     script="$1" cat <<EOF
 import __builtin__,sys,time
+sys.argv = __import__('idc').ARGV = ['$script'] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
 for _ in ('traceback','logging','os','_idaapi','idaapi','idc','idautils','PySide'):
     try:
         globals()[_] = __builtin__.__import__(_)
@@ -95,10 +89,15 @@ EOF
 
 runscript "$script" >| $tmp
 trap 'rm -f "$tmp" "$progress"; exit $?' INT TERM EXIT
-printf "[%s] running \"%s\" on \"%s\"\n" "`currentdate`" "$script" "$script" "$input"
+printf "[%s] running \"%s\" against \"%s\"\n" "`currentdate`" "$script" "$input"
+
 beginning=`currentdate`
 #"ida" -A -L$progress -S"$tmp" "$input"
-"$ida" -A -L$progress -S"$tmp $*" "$input"
+#"$ida" -A -L$progress -S"$tmp $*" "$input"
+unquoted=("$@")
+quoted=(${unquoted[@]/#/\"})
+quoted=(${quoted[@]/%/\"})
+"$ida" -A -L$progress -S"$tmp ${quoted[*]}" "$input"
 ending=`currentdate`
 trap - INT TERM EXIT
 

@@ -1,8 +1,8 @@
-#!/bin/sh
 usage()
 {
     printf "usage: %s file [output]\n" "$1"
-    printf "builds an ida database for file. writes output to file.{idb,log}.\n"
+    echo "$1" | grep -q 64 && bits="64-bit" || bits="32-bit"
+    printf "builds a %s ida database for file. writes output to file.{idb,log}.\n" "$bits"
 }
 
 currentdate()
@@ -13,11 +13,7 @@ currentdate()
 logprefix()
 {
     arg0=`basename "$0"`
-    if test "$#" -gt 0; then
-        current="$1"
-    else
-        current=`currentdate`
-    fi
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
     printf "+ $arg0 began at : %s\n" "$current"
     printf "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
@@ -26,11 +22,7 @@ logprefix()
 logsuffix()
 {
     arg0=`basename "$0"`
-    if test "$#" -gt 0; then
-        current="$1"
-    else
-        current=`currentdate`
-    fi
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf "====================================================================================================================================\n"
     printf "= $arg0 completed at : %s\n" "$current"
     printf "====================================================================================================================================\n"
