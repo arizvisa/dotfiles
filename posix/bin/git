@@ -1,11 +1,11 @@
 #!/bin/sh
 posix=git
-pf=`cygpath "$PROGRAMFILES"`
+pf=`cygpath "${ProgramFiles}"`
 windows=`ls -1 "$pf"/Git/Cmd/git.exe 2>/dev/null`
 
 ## determine which program to run
 case "$platform" in
-    Msys|Cygwin)
+    msys|cygwin)
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
 esac

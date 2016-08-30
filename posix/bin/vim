@@ -6,7 +6,7 @@ windows=`ls -1 "$pf"/Vim/vim*/gvim.exe 2>/dev/null`
 
 ## determine which program to run
 case "$platform" in
-    Msys|Cygwin)
+    msys|cygwin)
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
 esac

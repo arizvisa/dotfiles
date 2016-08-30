@@ -1,5 +1,6 @@
 import sys,os,itertools,operator
 import tempfile,logging,time
+import codecs
 logging.basicConfig(level=logging.INFO)
 editor = 'vim'
 
@@ -16,6 +17,7 @@ except StopIteration:
 	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR',editor)))
 	sys.exit(1)
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
+ENCODING = 'utf-8-sig'
 
 ### code
 def help(argv0):
@@ -62,21 +64,20 @@ def dirlisting(p):
 	return
 
 def edit(list):
-	list = [_ for _ in list]
+	list = map(None, list)
 
 	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(i,s)) for i,s in enumerate(list) ]
 
 	#hate python devers
 	with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.source', delete=not WIN32) as t1,tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.destination', delete=not WIN32) as t2:
-		map(operator.methodcaller('writelines',[_+'\n' for _ in list]), (t1,t2))
-		map(operator.methodcaller('flush'), (t1,t2))
+		# really hate python devers
+		map(operator.methodcaller('close'), (t1,t2))
+		with codecs.open(t1.name, 'w+b', encoding=ENCODING) as t1e, codecs.open(t2.name, 'w+b', encoding=ENCODING) as t2e:
+			map(operator.methodcaller('writelines',[_+'\n' for _ in list]), (t1e,t2e))
+			map(operator.methodcaller('flush'), (t1e,t2e))
 
 		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
 		logging.info("renamer.edit(...) - using destination filename {!r}".format(t2.name))
-
-		#hate python devers
-		if WIN32:
-			map(operator.methodcaller('close'), (t1,t2))
 
 		message = "os.spawnv(os.P_WAIT, {!r}, [{!r}, {!r}, '--', {!r}, {!r}])".format(EDITOR, EDITOR, EDITOR_ARGS, t1.name, t2.name)
 		try:
@@ -87,13 +88,14 @@ def edit(list):
 		else:
 			if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
 
-		#hate python devers
-		if WIN32:
-			t1,t2 = map(open, (t1.name,t2.name))
+		#really hate python devers
+		with codecs.open(t1.name, 'rb', encoding=ENCODING) as t1e, codecs.open(t2.name, 'rb', encoding=ENCODING) as t2e:
+			map(operator.methodcaller('seek', 0), (t1e,t2e))
+			source = map(unicode.strip, t1e.readlines())
+			destination = map(unicode.strip, t2e.readlines())
 
-		map(operator.methodcaller('seek', 0), (t1,t2))
-		source = [x.strip() for x in t1.readlines()]
-		destination = [x.strip() for x in t2.readlines()]
+		# restore the handles so that when we exit 'with', it won't double-close them.
+		t1,t2 = map(open, (t1.name,t2.name))
 
 	#if len([None for x,y in zip(source,list) if x != y]) > 0:
 	if any(x != y for x,y in zip(source,list)):
@@ -103,7 +105,7 @@ def edit(list):
 		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 		return []
 
-	return destination
+	return source,destination
 
 def main_files(*paths):
 	source = []
@@ -117,7 +119,16 @@ def main_files(*paths):
 	logging.info("renamer.main(...) - found {:d} files. spawning editor..".format(len(source)))
 	time.sleep(1)
 
-	target = edit(source)
+	_, target = edit(source)
+	# FIXME: compare newsource and target to see what's attempting to be renamed
+	#if len([None for x,y in zip(source,list) if x != y]) > 0:
+#	if any(x != y for x,y in zip(source,list)):
+#		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
+
+#	if len(destination) != len(list):
+#		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
+#		return []
+
 	count = rename(source,target)
 	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
 	return
@@ -134,7 +145,16 @@ def main_directories(*paths):
 	logging.info("renamer.main(...) - found {:d} directories. spawning editor..".format(len(source)))
 	time.sleep(2)
 
-	target = edit(source)
+	_, target = edit(source)
+	# FIXME: compare newsource and target to see what's attempting to be renamed
+	#if len([None for x,y in zip(source,list) if x != y]) > 0:
+#	if any(x != y for x,y in zip(source,list)):
+#		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
+
+#	if len(destination) != len(list):
+#		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
+#		return []
+
 	count = rename(source,target)
 	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
 	return
@@ -166,5 +186,5 @@ if __name__ == '__main__':
 	main = main_files
 	if '-d' in options:
 		main = main_directories
-	result = main(*arguments)
+	result = main(*map(unicode,arguments))
 	sys.exit(int(result is not None))

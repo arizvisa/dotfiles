@@ -5,8 +5,10 @@ if test "$#" -ne 1; then
     echo "Symbolically links the contents of $path/posix into the directory specified by target."
     exit 1
 fi
+fullpath=`readlink -f "$path"`
 
-find $path/posix -mindepth 1 -maxdepth 1 -print | while read n; do
-    echo ln -sf "$n" "$1"
-    ln -sf "$n" "$1"
+find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read p; do
+    base=`basename "$p"`
+    echo ln -sf "$p" "$1/$base"
+    ln -sf "$p" "$1/$base"
 done

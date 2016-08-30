@@ -26,10 +26,10 @@ fi
 
 # figure out path to store pe into
 echo "Attempting to determine versioning info for \"$inpath\"." 1>&2
-outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
+outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "{OriginalFilename}/{ProductVersion}/{__name__}" "$@" "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
     echo "Unable to format versioning info for \"$infile\" using default format." 1>&2
-    formats="{ProductVersion}/{InternalName} {ProductVersion}/{__name__}"
+    formats="{InternalName}/{ProductVersion}/{__name__} {__name__}/{ProductVersion}/{__name__}"
     for fmt in $formats; do
         echo "Re-attempting with another format : $fmt" 1>&2
         outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$fmt" "$@" "$inpath" 2>/dev/null`

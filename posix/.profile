@@ -46,11 +46,24 @@ ulimit -c unlimited
 ulimit -u 384 2>/dev/null
 
 ## platform-specific stuff
-# FIXME: use $MACHTYPE variable instead of `uname` to determine platform
-export platform=`uname -o 2>/dev/null || uname -s 2>/dev/null`
+IFS=- read arch model platform <<< "${MACHTYPE}"
+export arch model platform
+
 case "$platform" in
-    Msys|Cygwin)
-        export programfiles=`cygpath "$PROGRAMFILES"`
+    msys|cygwin)
+        # windows variables
+        export ProgramFiles="${ProgramFilesW6432:-$PROGRAMFILES}"
+        export ProgramFiles_x86_=`env | egrep '^ProgramFiles\(x86\)=' | cut -d= -f2-`
+
+        # figure out msys/cygwin root
+        export Root=`mount | cut -d' ' -f 1,3,5 | awk '$2 == "/"' | cut -d' ' -f 1`
+
+        # figure out mingw's root according to the arch
+        case "$arch" in
+        x86_64) Mingw="${Root}/mingw64" ;;
+        x86) Mingw="${Root}/mingw32" ;;
+        esac
+        export Mingw
 
         # fix a bug when compiling on msys2, that actually came from some older version of cygwin and still remains.
         if [ `uname -r | cut -d. -f 1` == 2 ]; then
@@ -63,6 +76,8 @@ case "$platform" in
             export PERL5LIB="$HOME/.perl/share/perl/$perlver"
             unset perlver
         fi
+
+        # FIXME: add support for python's user-local site-packages
 
         #ulimit -t 60
         #ulimit -v 1048576

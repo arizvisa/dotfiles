@@ -18,6 +18,10 @@ def help(program, errcode):
 def select(data, path):
     parser = lxml.etree.XMLParser(recover=True, huge_tree=True, resolve_entities=True, compact=False)
     tr = lxml.etree.XML(data, parser=parser)
+    if tr is None:
+        parser = lxml.etree.HTMLParser(recover=True, compact=False)
+        tr = lxml.etree.HTML(data, parser=parser)
+    assert tr is not None, 'Unable to parse input'
     return tr.xpath(path)
 
 def output(result, index):

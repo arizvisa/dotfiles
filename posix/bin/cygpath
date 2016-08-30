@@ -141,14 +141,15 @@ if [ `echo "$path" | tr -s -d '[:alnum:][:space:][:cntrl:]' ':' | wc -c` -gt 0 ]
     #platform=Windows
 
 else # otherwise normalize to a regular path according to the current platform
-    case `uname -o 2>/dev/null || uname -s 2>/dev/null` in
-        Msys)
+    IFS=- read arch model platform <<< "${MACHTYPE}"
+    case "${platform}" in
+        msys)
             default=`msys2default "$path"`
-            platform=Msys
+            platform=msys
             ;;
-        Cygwin)
+        cygwin)
             default=`cygwin2default "$path"`
-            platform=Cygwin
+            platform=cygwin
             ;;
         *) normal="$path" ;;
     esac
@@ -160,7 +161,7 @@ normal=`echo "$normal" | sed 's/\\\/\//g'`
 
 ## output results
 case "$FORMAT" in
-    unix) [ "$platform" == "Msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
+    unix) [ "$platform" == "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
     windows|win) default2windows "$normal" ;;
     *) echo "$normal" ;;
 esac

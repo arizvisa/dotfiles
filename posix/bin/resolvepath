@@ -8,7 +8,7 @@ path=`readlink -f "$path"`
 [ ! -d "$path" ] && exit 1
 
 case "$platform" in
-    Cygwin|Msys) echo "$path" | xargs cygpath -u -- ;;
+    cygwin|msys) echo "$path" | xargs cygpath -u -- ;;
     *) echo "$path" ;;
 esac
 

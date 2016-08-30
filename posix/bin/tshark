@@ -1,6 +1,6 @@
 #!/bin/sh
 args="-n -2"
-if test x$(uname -o) == xMsys; then
+if "${platform}" == "msys"; then
     dir="$HOME/tools/WiresharkPortable"
     exec "$dir/App/Wireshark/tshark.exe" $args "$@"
 else

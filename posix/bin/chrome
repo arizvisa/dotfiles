@@ -1,11 +1,11 @@
 #!/bin/sh
-if test x$(uname -o) == xMsys; then
-    path="/c/Program Files (x86)/Google/Chrome/Application"
-    input=$(readlink -f $1)
+if test "${platform}" == "msys"; then
+    path="${ProgramFiles_x86_}/Google/Chrome/Application"
+    input=`readlink -f $1`
     shift
 
-    drive="$(echo $input | cut -d / -f 2):"
-    filename=$(echo $input | cut -d / -f 3-)
+    drive="`echo $input | cut -d / -f 2`:"
+    filename=`echo $input | cut -d / -f 3-`
 
     "$path/chrome.exe" "file://$drive/$filename" "$@"
 

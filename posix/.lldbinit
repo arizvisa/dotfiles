@@ -11,3 +11,5 @@ script __lldbinit__.__lldb_init_module(lldb.debugger or lldb.SBDebugger.Create()
 
 # source a user-local .lldbinit
 script os.path.exists(os.path.join(user.home, '.lldbinit.local')) and lldb.debugger.HandleCommand('command source -- {:s}'.format(os.path.join(user.home, '.lldbinit.local'))) and 0 or None
+
+#target stop-hook add -o h
