@@ -9,7 +9,7 @@ def help():
     sys.exit()
 
 def finditer(soup, **attributes):
-    chef = lambda (_,plate): any(plate.get(season) == amount for season,amount in attributes.iteritems())
+    chef = lambda (_,plate): any(plate.get(season) == amount for season,amount in attributes.iteritems()) if attributes else True
     for _,e in itertools.ifilter(chef, soup):
         yield e
     return

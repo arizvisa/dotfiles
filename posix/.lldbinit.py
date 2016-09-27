@@ -29,10 +29,17 @@ if __name__ == '__main__':
 import sys,os,platform,traceback,logging
 import types,itertools,operator,functools
 import fnmatch,six,array,math,string,heapq
-import commands,argparse,shlex
+import commands,argparse,shlex,string
 import lldb
 import subprocess,re
-import pyparsing as pp
+try:
+    import pyparsing as pp
+except ImportError:
+    logging.fatal("Unable to import pyparsing module. Please ensure it's in your site-packages.")
+    raise
+
+LLDB_VERSION, = (_ for _ in lldb.SBDebugger_GetVersionString().split(' ') if _[0] in string.digits)
+LLDB_VERSION_MAJOR,LLDB_VERSION_MINOR,LLDB_VERSION_PATCH = map(int,LLDB_VERSION.split('.'))
 
 ### default options
 class Options(object):
@@ -43,8 +50,8 @@ class Options(object):
     color = False
 
     # FIXME: allow customization
-    here_rows = 4, 6
-    hex_rows = 6
+    here = 4, 6
+    rows = 6
 
     forward_disassembly = 4
     backward_disassembly =2
@@ -319,8 +326,11 @@ class ExpressionParser(object):
         if res: yield res
 
 ### lldb command utilities
+
+__FRONTEND__ = types.ModuleType('__FRONTEND__') # fuck lldb
+
 class Command(object):
-    __alias__, cache = {}, {}
+    __alias__, cache = {}, __FRONTEND__.__dict__
     __synchronicity__ = {}
     __typemap__ = [(types.TypeType, types.ObjectType), ((types.FunctionType,types.MethodType), types.FunctionType)]
 
@@ -351,23 +361,44 @@ class Command(object):
         key = cls.__hash(callable)
         if key in cls.cache:
             cls.__unalias(key)
-        cls.__alias__[name], cls.cache[key] = key, callable
+
+        if LLDB_VERSION_MAJOR <= 3 and LLDB_VERSION_MINOR <= 4 and LLDB_VERSION_PATCH <= 2:
+            cls.cache[key] = callable.__fallback__ if isinstance(callable, type) else callable
+        else:
+            cls.cache[key] = callable
+
+        cls.__alias__[name] = key
         if sync: cls.__synchronicity__[key] = sync.value
         return key if cls.__add(key) else None
 
-    @classmethod
-    def __add_command(cls, key):
-        path = (cls.__module__, cls.__name__, cls.frontend.__class__.__name__)
-        t = cls.__type(cls.cache[key])
-        if t == types.FunctionType:
-            scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
-        elif t == types.ObjectType and key in cls.__synchronicity__:
-            scr = functools.partial("command script add -c {:s}.{:s} -s {:s} {:s}".format, '.'.join(path), key, cls.__synchronicity__[key])
-        elif t == types.ObjectType and key not in cls.__synchronicity__:
-            scr = functools.partial("command script add -c {:s}.{:s} {:s}".format, '.'.join(path), key)
-        else:
-            raise TypeError('{:s}.{:s} : Unable to generate command with unknown type. {!r}'.format(cls.__module__, cls.__name__, t))
-        return scr
+    if LLDB_VERSION_MAJOR <= 3 and LLDB_VERSION_MINOR <= 4 and LLDB_VERSION_PATCH <= 2:
+        @classmethod
+        def __add_command(cls, key):
+            path = (cls.__module__, __FRONTEND__.__name__)
+            t = cls.__type(cls.cache[key])
+            if t == types.FunctionType:
+                scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
+            elif t == types.ObjectType and key in cls.__synchronicity__:
+                scr = functools.partial("command script add -f {:s}.{:s} -s {:s} {:s}".format, '.'.join(path), key, cls.__synchronicity__[key])
+            elif t == types.ObjectType and key not in cls.__synchronicity__:
+                scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
+            else:
+                raise TypeError('{:s}.{:s} : Unable to generate command with unknown type. {!r}'.format(cls.__module__, cls.__name__, t))
+            return scr
+    else:
+        @classmethod
+        def __add_command(cls, key):
+            path = (cls.__module__, __FRONTEND__.__name__)
+            t = cls.__type(cls.cache[key])
+            if t == types.FunctionType:
+                scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
+            elif t == types.ObjectType and key in cls.__synchronicity__:
+                scr = functools.partial("command script add -c {:s}.{:s} -s {:s} {:s}".format, '.'.join(path), key, cls.__synchronicity__[key])
+            elif t == types.ObjectType and key not in cls.__synchronicity__:
+                scr = functools.partial("command script add -c {:s}.{:s} {:s}".format, '.'.join(path), key)
+            else:
+                raise TypeError('{:s}.{:s} : Unable to generate command with unknown type. {!r}'.format(cls.__module__, cls.__name__, t))
+            return scr
 
     @classmethod
     def __add(cls, key):
@@ -453,7 +484,7 @@ class Command(object):
                 if not res: error[k] = res
             continue
         if error:
-            raise StandardError('{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}'.format(cls.frontend.__module__, cls.__name__, tuple(error.keys())))
+            raise StandardError('{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
 
         # now we can add each command
         error, result = {}, lldb.SBCommandReturnObject()
@@ -466,7 +497,7 @@ class Command(object):
         # and now we can update our alias dictionary with our changes
         cls.__alias__.update({k : v for k,v in aliasdict.iteritems() if k not in error})
         if error:
-            logging.warn('{:s}.{:s} : Error trying to add the following commands : {!r}'.format(cls.frontend.__module__, cls.__name__, tuple(error.keys())))
+            logging.warn('{:s}.{:s} : Error trying to add the following commands : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
 
         # finally done
         return False if error else True
@@ -484,17 +515,12 @@ class Command(object):
         result.Clear()
         res = cls.interpreter.HandleCommand(removescr(name), result, False)
         if not result.Succeeded():
-            logging.warn('{:s}.{:s} : Error trying to remove the following alias : {!r}'.format(cls.frontend.__module__, cls.__name__, name))
+            logging.warn('{:s}.{:s} : Error trying to remove the following alias : {!r}'.format(cls.__module__, cls.__name__, name))
             return False
 
         # now clear the alias
         cls.__alias__.pop(name)
         return True
-
-    class frontend(object):
-        def __getattr__(self, name):
-            return Command.cache[name]
-    frontend = frontend()
 
     # decorator utilities
     @classmethod
@@ -504,7 +530,10 @@ class Command(object):
         def prepare(definition):
             key = cls.__hash(definition)
             cls.__alias__[name] = key
-            cls.cache[key] = definition
+            if LLDB_VERSION_MAJOR <= 3 and LLDB_VERSION_MINOR <= 4 and LLDB_VERSION_PATCH <= 2:
+                cls.cache[key] = definition.__fallback__ if isinstance(definition, type) else definition
+            else:
+                cls.cache[key] = definition
             if sync: cls.__synchronicity__[key] = sync
             return definition
         return prepare
@@ -520,7 +549,7 @@ class Command(object):
             res = cls.interpreter.HandleCommand(addcmd, result, False)
             if not result.Succeeded(): error[alias] = res
         if error:
-            logging.warn('{:s}.{:s} : Error trying to load the following commands : {!r}'.format(cls.frontend.__module__, cls.__name__, tuple(error.keys())))
+            logging.warn('{:s}.{:s} : Error trying to load the following commands : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
             return False
         return True
     def __new__(cls, name, sync=None):
@@ -597,6 +626,8 @@ class DebuggerCommandOutput(object):
         result.SetStatus(lldb.eReturnStatusFailed if failed else self.success)
 
 Flags = type('Flags', (object,), { n[len('eCommand'):] : getattr(lldb, n) for n in dir(lldb) if n.startswith('eCommand') })
+Flags.__getattr__ = lambda s, n: 0
+Flags = Flags()
 
 class DebuggerCommand(object):
     # what context to pass to the command
@@ -625,7 +656,7 @@ class DebuggerCommand(object):
         # return the correct object given the requested context
         if ctx == None:
             return context.GetTarget()
-        elif ctx == lldb.SBExecutionContext:
+        elif hasattr(lldb, 'SBExecutionContext') and ctx == lldb.SBExecutionContext:
             return context
         elif ctx == lldb.SBDebugger:
             return debugger
@@ -720,6 +751,7 @@ class DebuggerCommand(object):
         else: res = argv
 
         setattr(self, 'result', result)
+        context = context if context.IsValid() else lldb.target.GetProcess()
         ctx = self.__convert__(self.context, (debugger,context))
         try: return self.callable(ctx, res, result)
         finally: delattr(self, 'result')
@@ -727,6 +759,14 @@ class DebuggerCommand(object):
     @staticmethod
     def command(context, arguments):
         raise NotImplementedError
+
+    @classmethod
+    def __fallback__(cls, debugger, command, result, globals):
+        if not hasattr(cls, '__instance__'):
+            res = cls(debugger, globals)
+            setattr(cls, '__instance__', res)
+            return cls.__fallback__(debugger, command, result, globals)
+        return cls.__instance__(debugger, command, lldb.process, result)
 
 ### generalized lldb object tools
 class Module(object):
@@ -940,11 +980,9 @@ class Target(object):
 
     @classmethod
     def _bin_generator(cls, iterable, itemsize):
-        # FIXME: this might not be tested properly
-        maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(2))
         while True:
             n = next(iterable)
-            yield '{:0{:d}x}'.format(n, int(maxlength))
+            yield '{:0{:d}b}'.format(n, itemsize)
         return
 
     @classmethod
@@ -957,10 +995,10 @@ class Target(object):
 
     @classmethod
     def _float_generator(cls, iterable, itemsize):
-        maxlength = 16
+        maxlength = 32
         while True:
             n = next(iterable)
-            yield '{:{:d}f}'.format(n, int(maxlength))
+            yield '{:{:d}.5f}'.format(n, int(maxlength))
         return
 
     @classmethod
@@ -1027,15 +1065,15 @@ class Target(object):
 
     @classmethod
     def hexdump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._hexdump)))
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._hexdump)))
 
     @classmethod
     def itemdump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._itemdump)))
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._itemdump)))
 
     @classmethod
     def binarydump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._bindump)))
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._bindump)))
 
 class Breakpoint(object):
     cache = {}          # unique id number to breakpoint/watchpoint name
@@ -1186,7 +1224,7 @@ class Breakpoint(object):
 
     @classmethod
     def flush_command(cls, target, id):
-        debugger, path = target.GetDebugger(), (cls.__module__, cls.__name__, cls.frontend.__class__.__name__)
+        debugger, path = target.GetDebugger(), (cls.__module__, __FRONTEND__.__name__)
         key = cls.cache[id]
         com = cls.__function__[key]
 
@@ -1384,9 +1422,9 @@ class show_stack(DebuggerCommand):
         res = Register(frame).general()
         print('-=[stack]=-')
         if bits == 32:
-            print(Target.hexdump(t, res['esp'], 0x10 * Options.here_rows[0], 'I'))
+            print(Target.hexdump(t, res['esp'], 0x10 * Options.here[0], 'I'))
         elif bits == 64:
-            print(Target.hexdump(t, res['rsp'], 0x10 * Options.here_rows[0], 'L'))
+            print(Target.hexdump(t, res['rsp'], 0x10 * Options.here[0], 'L'))
         else: raise NotImplementedError(bits)
 
 class show_code(DebuggerCommand):
@@ -1397,8 +1435,8 @@ class show_code(DebuggerCommand):
         regs = Register(frame)
         pc = regs['rip']    # FIXME: would be nice to properly determine the pc based on arch
 
-        bcount = int(math.floor(float(Options.here_rows[1]) / 2))
-        fcount = int(math.ceil(float(Options.here_rows[1]) / 2))
+        bcount = int(math.floor(float(Options.here[1]) / 2))
+        fcount = int(math.ceil(float(Options.here[1]) / 2))
 
         backwards = Target.disassemble_up(t, pc, bcount)
         forwards = Target.disassemble(t, pc, fcount)
@@ -1407,7 +1445,7 @@ class show_code(DebuggerCommand):
         # FIXME: although it'd be proper to grab the address and disassemble it,
         #        lldb uses SBFrame.Disassemble to display the current pc
         #        and it includes no option to specify the assembler flavor.
-        # lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble  --start-address=$pc --count={:d} -F {:s}".format(Options.here_rows[1], Options.syntax), None)
+        # lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble  --start-address=$pc --count={:d} -F {:s}".format(Options.here[1], Options.syntax), None)
         res = lldb.SBCommandReturnObject();
         lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -f -F {:s}".format(Options.syntax), res);
         # print res.GetOutput();
@@ -1501,7 +1539,7 @@ class hexdump(DebuggerCommand):
 
     @classmethod
     def command(cls, target, args):
-        count = Options.hex_rows if args.count is None else args.count
+        count = Options.rows if args.count is None else args.count[0]
         expr = Target.evaluate(target, ''.join(args.expression))
         print Target.hexdump(target, expr, count, cls.kind)
 
@@ -1513,8 +1551,8 @@ class itemdump(DebuggerCommand):
 
     @classmethod
     def command(cls, target, args):
-        count = Options.rows if args.count is None else args.count
-        expr = Target.evaluate(t, ''.join(args.expression))
+        count = Options.rows if args.count is None else args.count[0]
+        expr = Target.evaluate(target, ''.join(args.expression))
         print Target.itemdump(target, expr, count, cls.kind)
 
 class binarydump(DebuggerCommand):
@@ -1526,8 +1564,8 @@ class binarydump(DebuggerCommand):
 
     @classmethod
     def command(cls, target, args):
-        count = Options.rows if args.count is None else args.count
-        expr = Target.evaluate(t, ''.join(args.expression))
+        count = Options.rows if args.count is None else args.count[0]
+        expr = Target.evaluate(target, ''.join(args.expression))
         print Target.binarydump(target, expr, count, cls.kind)
 
 # FIXME: fix up the help documentation for each of these
