@@ -34,6 +34,24 @@ class Options
             @result.datacenter = d
         end
 
+        @result.listresource = false
+        @help.on("-r", "list available computer-resources") do
+            @result.listresource = true
+        end
+        @result.resource = nil
+        @help.on("-R name", "--compute-resource=name", String, "select a specific compute-resource") do |r|
+            @result.resource = r
+        end
+
+        @result.listpath = false
+        @help.on("-p", "list entities in the specified path") do
+            @result.listpath = true
+        end
+        @result.path = ""
+        @help.on("-P name", "--path=/path/to/vm", String, "select the path to the virtual machines") do |p|
+            @result.path = p
+        end
+
         @help.separator ""
         @help.separator "Commands:"
         @help.separator "\tfilter glob -- specifies a filter to select multiple vms. property=value"
@@ -95,8 +113,12 @@ class Options
         {
             :config => YAML.load_file(@result.configfile).map{|k,v| [k.to_sym,v]}.to_h,
             :command => @result.command,
-            :list => @result.listdatacenter,
+            :listdatacenter => @result.listdatacenter,
             :datacenter => @result.datacenter,
+            :listresource => @result.listresource,
+            :resource => @result.resource,
+            :listpath => @result.listpath,
+            :path => @result.path,
         }
     end
 end
@@ -417,7 +439,7 @@ def main(args)
     options = Options.new.parse(args)
     STDERR.puts "Connecting to #{options[:config][:user]}@#{options[:config][:host]}:#{options[:config][:port] or 443}\n"
     dc = connect(options[:config])
-    if dc.length > 1 || options[:list]
+    if dc.length > 1 || options[:listdatacenter]
         STDERR.puts "Listing datacenters..."
         dc.each {|x|
             puts "#{x.name}\n"
@@ -431,14 +453,48 @@ def main(args)
     end
 
     if dc.length > 1
-        dc = dc.find {|x| File.fnmatch(options.datacenter,x.name)}
+        dc = dc.find {|x| File.fnmatch(options[:datacenter],x.name)}
         STDERR.puts "Using datacenter #{dc.name}\n"
     else
         dc = dc[0]
         STDERR.puts "Defaulting to datacenter #{dc.name}\n"
     end
 
-    machines = dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine).to_a
+    if dc.vmFolder.childEntity.count == 0 || options[:listresource]
+        if dc.hostFolder.children.count > 1 || options[:listresource]
+            STDERR.puts "Listing compute resources..."
+            dc.hostFolder.children.each {|x|
+                puts "#{x.name}\n"
+            }
+            exit 1
+        end
+        if dc.hostFolder.children.count > 1
+            resource = dc.hostFolder.children.find {|x| File.fnmatch(options[:resource], x.name) }
+            STDERR.puts "Using resource #{resource.name}\n"
+        else
+            resource = dc.hostFolder.children[0]
+            STDERR.puts "Defaulting to resource #{resource.name}\n"
+        end
+        hostvms = resource.host.map{|x| x.vm.to_a}.flatten(1)
+        res = hostvms.grep(RbVmomi::VIM::VirtualMachine).to_a
+    else
+        res = dc.vmFolder.children
+        options[:path].split("/").each {|p|
+            res = res.find {|n| File.fnmatch(p, n.name)}.children
+        }
+
+        if options[:listpath]
+            STDERR.puts "Listing current path : " << options[:path]
+            res.each {|x|
+                puts "#{x.name}\n"
+            }
+            exit 1
+        end
+
+        res = res.grep(RbVmomi::VIM::VirtualMachine).to_a
+    end
+
+    machines = res
     if machines.length == 0
         STDERR.puts "Unable to locate any virtual-machines\n"
         exit 1
