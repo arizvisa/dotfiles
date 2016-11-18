@@ -84,6 +84,12 @@ case "$platform" in
         ;;
 esac
 
+case "$OS" in
+    Windows*) os="windows" ;;
+    *) os="posix" ;;
+esac
+export os
+
 ## promote terminal to something colorful
 case "$TERM" in
     *-256color) TERM="$TERM" ;;

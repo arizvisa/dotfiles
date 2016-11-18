@@ -45,13 +45,13 @@ termdump()
      infocmp -1 | grep -ve '^#' | ( read n; cat ) | cut -d= -f1 | tr -cd '[:alpha:][:digit:]\n' | while read n; do printf "%s -- %s\n" "$n" "`man -w 5 terminfo | xargs zcat | egrep -A 2 \"\b$n[^[:print:]]\" | tr -d '\n' | sed 's/T{/{/g;s/T}/}/g' | egrep -m1 -o '\{[^}]+\}' | tr -d '\n'`"; done
 }
 
-alias addcscope=__addcscope
-alias rmcscope=__rmcscope
-
 __addcscope()
 {
-    [ "$#" -eq "0" ] && path="`pwd`/cscope.out" || path="$@"
+    local listsep
+    [ "${os}" = "windows" ] && listsep=";" || listsep=":"
 
+    [ "$#" -eq "0" ] && path="`pwd`/cscope.out" || path="$@"
+    local current_db p
     current_db="$CSCOPE_DB"
     for p in $path; do
         [ -d "$p" ] && p="$p/cscope.out"
@@ -65,27 +65,38 @@ __addcscope()
             printf "Invalid file magic for %s: %s\n" "$p" "$ft" 1>&2
             continue
         fi
-        printf "Adding path to CSCOPE_DB: %s\n" "$p" 1>&2
-        [ "$current_db" = "" ] && current_db="$p" || current_db="$current_db:$p"
+        local np
+        [ "${os}" = "windows" ] && np=`cygpath -w "$p"` || np="$p"
+        printf "Adding path to CSCOPE_DB: %s\n" "$np" 1>&2
+        [ "$current_db" = "" ] && current_db="$np" || current_db="$current_db""${listsep}""$np"
     done
     export CSCOPE_DB="$current_db"
-    unset current_db ft p
     return 0
 }
 
 __rmcscope()
 {
+    [ "${os}" = "windows" ] && listsep=";" || listsep=":"
     [ "$#" -eq "0" ] && cull=`pwd` || cull="$@"
 
-    current_db=
-    for n in `echo "$CSCOPE_DB" | tr ':' "\n"`; do
+    local nn np
+    local nabs pabs
+
+    local current_db=
+    for nn in `echo "$CSCOPE_DB" | tr "${listsep}" "\n"`; do
+        local n
+        [ "${os}" = "windows" ] && n=`cygpath "$nn"` || n="$nn"
+
         if [ ! -e "$n" ]; then
             printf "Removing missing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
             continue
         fi
 
         found=0
-        for p in $cull; do
+        for np in $cull; do
+            local p
+            [ "${os}" = "windows" ] && p=`cygpath "$np"` || p="$np"
+
             [ -d "$p" ] && p="$p/cscope.out"
             nabs=`readlink -f "$n"`
             pabs=`readlink -f "$p"`
@@ -98,13 +109,16 @@ __rmcscope()
         if [ "$found" -gt 0 ]; then
             printf "Removing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
         else
-            [ "$current_db" = "" ] && current_db="$n" || current_db="$current_db:$n"
+            [ "$current_db" = "" ] && current_db="$nn" || current_db="$current_db""${listsep}""$nn"
         fi
     done
     export CSCOPE_DB="$current_db"
-    unset cull current_db n p nabs pabs found
+    unset cull found
     return 0
 }
+
+alias addcscope=__addcscope
+alias rmcscope=__rmcscope
 
 # devtodo specific
 command devtodo >/dev/null 2>&1
