@@ -55,13 +55,13 @@ execute(),emit(),typeof(),sprintf()
 
 def intcast(val):
     if val.type.sizeof == 8:
-        return "uint64_t"
+        return "unsigned long long"
     elif val.type.sizeof == 4:
-        return "uint32_t"
+        return "unsigned int"
     elif val.type.sizeof == 2:
-        return "uint16_t"
+        return "unsigned short"
     elif val.type.sizeof == 1:
-        return "uint8_t"
+        return "unsigned char"
     raise NotImplementedError(val.type)
 
 def parsenum(string):
@@ -76,14 +76,15 @@ end
 
 ## hexdump helpers
 python
-import math,array,string
+import sys,math,array,string
 
 class Memory(object):
     printable = set().union(string.printable).difference(string.whitespace).union(' ')
 
     @classmethod
     def read(cls, inferior, address, count):
-        return inferior.read_memory(address, count)[:]
+        res = inferior.read_memory(address, count)
+        return res.tobytes() if isinstance(res, memoryview) else res[:]
     @classmethod
     def write(cls, inferior, address, buffer):
         return inferior.write_memory(address, count)
@@ -132,7 +133,7 @@ class Memory(object):
 
     @classmethod
     def _dump(cls, data, kind=1):
-        lookup = {1:'B', 2:'H', 4:'I', 8:'L'}
+        lookup = {1:'B', 2:'H', 4:'I', 8:'Q' if sys.version_info.major == 3 else 'L'}
         itemtype = lookup.get(kind, kind)
         return array.array(itemtype, data)
 
@@ -166,15 +167,16 @@ class Memory(object):
     @classmethod
     def _chardump(cls, data, width):
         printable = set(sorted(cls.printable))
-        printable = ''.join((ch if ch in printable else '.') for ch in map(chr,xrange(0,256)))
-        res = array.array('c', data.translate(printable))
-        return width, itertools.imap(''.join, itertools.izip_longest(*(iter(res),)*width, fillvalue=''))
+        printable = ''.join((ch if ch in printable else '.') for ch in map(chr,range(0,256)))
+        res = array.array('b', data.translate(printable.encode('ascii')))
+        imap, izip = (map,itertools.zip_longest) if sys.version_info.major == 3 else (itertools.imap,itertools.izip_longest)
+        return width, imap(''.join, izip(*(imap(chr,res),)*width, fillvalue=''))
 
     @classmethod
     def _row(cls, width, columns):
         result = []
         for itemsize,column in columns:
-            data = (c for i,c in zip(xrange(0, width, itemsize),column))
+            data = (c for i,c in zip(range(0, width, itemsize),column))
             result.append(' '.join(data))
         return result
 
@@ -182,7 +184,7 @@ class Memory(object):
     def _dump(cls, target, address, count, width, kind, content):
         data = cls.read(target, address, count)
         countup = int((count // width) * width)
-        offset = ('{:0{:d}x}'.format(a, int(math.floor(math.log(address+count)/math.log(0x10) + 1))) for a in xrange(address, address+countup, width))
+        offset = ('{:0{:d}x}'.format(a, int(math.floor(math.log(address+count)/math.log(0x10) + 1))) for a in range(address, address+countup, width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
@@ -233,14 +235,14 @@ class __dumpbinary__(__dump__): method = Memory.binarydump
 class db(__dumphex__): kind = 'B'
 class dw(__dumphex__): kind = 'H'
 class dd(__dumphex__): kind = 'I'
-class dq(__dumphex__): kind = 'L'
+class dq(__dumphex__): kind = 'Q' if sys.version_info.major == 3 else 'L'
 db(),dw(),dd(),dq()
 
 # integrals
 class dnb(__dumpitem__): kind = 'B'
 class dnw(__dumpitem__): kind = 'H'
 class dnd(__dumpitem__): kind = 'I'
-class dnq(__dumpitem__): kind = 'L'
+class dnq(__dumpitem__): kind = 'Q' if sys.version_info.major == 3 else 'L'
 dnb(),dnw(),dnd(),dnq()
 
 # floating-point
@@ -252,7 +254,7 @@ df(),dD()
 class dyb(__dumpbinary__): kind = 'B'
 class dyw(__dumpbinary__): kind = 'H'
 class dyd(__dumpbinary__): kind = 'I'
-class dyq(__dumpbinary__): kind = 'L'
+class dyq(__dumpbinary__): kind = 'Q' if sys.version_info.major == 3 else 'L'
 dyb(),dyw(),dyd(),dyq()
 
 ## functions
@@ -276,7 +278,7 @@ end
 define show_regs32
     emit "\n-=[registers]=-\n"
     emit $sprintf("[eax: 0x%08x] [ebx: 0x%08x] [ecx: 0x%08x] [edx: 0x%08x]\n", $eax, $ebx, $ecx, $edx)
-    emit $sprintf("[esi: 0x%08x] [edi: 0x%08x] [esp: 0x%08x] [ebp: 0x%08x]\n", $esi, $edi, (uint32_t)$esp, (uint32_t)$ebp)
+    emit $sprintf("[esi: 0x%08x] [edi: 0x%08x] [esp: 0x%08x] [ebp: 0x%08x]\n", $esi, $edi, (unsigned int)$esp, (unsigned int)$ebp)
     show_flags
 end
 
@@ -284,10 +286,10 @@ define show_regs64
     emit "\n-=[registers]=-\n"
     emit $sprintf("[rax: 0x%016x] [rbx: 0x%016x] [rcx: 0x%016x]\n", $rax, $rbx, $rcx)
     emit $sprintf("[rdx: 0x%016x] [rsi: 0x%016x] [rdi: 0x%016x]\n", $rdx, $rsi, $rdi)
-    emit $sprintf("[rsp: 0x%016x] [rbp: 0x%016x] [ pc: 0x%016x]\n", (uint64_t)$rsp, (uint64_t)$rbp, (uint64_t)$pc)
+    emit $sprintf("[rsp: 0x%016x] [rbp: 0x%016x] [ pc: 0x%016x]\n", (unsigned long long)$rsp, (unsigned long long)$rbp, (unsigned long long)$pc)
     emit $sprintf("[ r8: 0x%016x] [ r9: 0x%016x] [r10: 0x%016x]\n", $r8, $r9, $r10)
     emit $sprintf("[r11: 0x%016x] [r12: 0x%016x] [r13: 0x%016x]\n", $r11, $r12, $r13)
-    emit $sprintf("[r14: 0x%016x] [r15: 0x%016x] [efl: 0x%08x]\n", $r14, $r15, (uint32_t)$eflags)
+    emit $sprintf("[r14: 0x%016x] [r15: 0x%016x] [efl: 0x%08x]\n", $r14, $r15, (unsigned int)$eflags)
     show_flags
 end
 

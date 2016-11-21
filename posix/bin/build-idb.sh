@@ -32,15 +32,15 @@ makeanalysis()
 {
     arg0=`basename "$0"`
     cat <<EOF
-import _idaapi,time
+import idaapi,time
 print "~"*132
 _ = time.time()
 print "$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime()))
-_idaapi.autoWait()
+idaapi.autoWait()
 print "$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime()))
 print "~"*132
-_idaapi.save_database(_idaapi.cvar.database_idb, 0)
-_idaapi.qexit(0)
+idaapi.save_database(idaapi.cvar.database_idb, 0)
+idaapi.qexit(0)
 EOF
 }
 

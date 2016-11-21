@@ -64,14 +64,14 @@ runscript()
     script="$1" cat <<EOF
 import __builtin__,sys,time
 sys.argv = __import__('idc').ARGV = ['$script'] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
-for _ in ('traceback','logging','os','_idaapi','idaapi','idc','idautils','PySide'):
+for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils','PySide'):
     try:
         globals()[_] = __builtin__.__import__(_)
     except ImportError:
         print "$arg0:unable to import module %s. skipping."% _
     continue
 #print "%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime()))
-#_idaapi.autoWait()
+#idaapi.autoWait()
 print "~"*132
 __builtin__._ = time.time()
 print "%s:executing %s (%s)"% ("$arg0", "$script", time.asctime(time.localtime()))
@@ -82,8 +82,8 @@ except: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''
 print "%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-__builtin__._, time.asctime(time.localtime()))
 print "~"*132
 print "%s:saving %s"% ("$arg0", "$script")
-_idaapi.save_database(_idaapi.cvar.database_idb, 0)
-_idaapi.qexit(0)
+idaapi.save_database(idaapi.cvar.database_idb, 0)
+idaapi.qexit(0)
 EOF
 }
 
