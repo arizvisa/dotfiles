@@ -52,7 +52,7 @@ export arch model platform
 case "$platform" in
     msys|cygwin)
         # windows variables
-        export ProgramFiles="${ProgramFilesW6432:-$PROGRAMFILES}"
+        export ProgramFiles="${ProgramW6432:-$PROGRAMFILES}"
         export ProgramFiles_x86_=`env | egrep '^ProgramFiles\(x86\)=' | cut -d= -f2-`
 
         # figure out msys/cygwin root
