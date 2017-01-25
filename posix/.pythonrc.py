@@ -43,3 +43,4 @@ def fexception(f, *a, **k):
         except: return sys.exc_info()[1], __builtin__.None
     return functools.partial(closure, *a, **k)
 fexc = fexception
+partial = functools.partial

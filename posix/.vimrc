@@ -170,7 +170,7 @@
     "let g:incpy#Program = "c:/python27/python -i"
     "let g:incpy#Program = "c:/users/user/pypy/pypy.exe -i -u -B"
     "let g:incpy#Program = "c:/MinGW/msys/1.0/bin/bash.exe -i"
-    "let g:incpy#Program = "c:/Program Files (x86)/Microsoft SDKs/F#/3.1/Framework/v4.0/fsi.exe --readline- --checked+ --tailcalls+ --consolecolors- --fullpaths"
+    "let g:incpy#Program = $FsharpInterpreter." --readline- --checked+ --tailcalls+ --consolecolors- --fullpaths"
 
     let g:incpy#Name = "interpreter"
     let g:incpy#WindowRatio = 1.0/8
@@ -178,5 +178,6 @@
     "let g:incpy#ProgramFollow = 0
     "let g:incpy#ProgramStrip = 0
 
-""" Disable vim's syntax coloring for ruby because it crashes my version of gvim (7.4)
+""" Disable vim's syntax coloring for ruby and yaml because it crashes my version of gvim (7.4)
     autocmd! filetypedetect * *.rb
+    autocmd! filetypedetect * *.yml
