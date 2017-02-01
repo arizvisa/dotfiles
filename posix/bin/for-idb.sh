@@ -122,7 +122,7 @@ quoted=(${unquoted[@]/#/\"})
 quoted=(${quoted[@]/%/\"})
 tmppath_ida=`nativepath "$tmp"`
 progresspath_ida=`nativepath "$progress"`
-"$ida" -A "-L$progresspath_ida" -S"$tmppath_ida ${quoted[*]}" "$input"
+"$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
 ending=`currentdate`
 trap - INT TERM EXIT
 
