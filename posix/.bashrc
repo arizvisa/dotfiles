@@ -166,7 +166,7 @@ addpath()
     shift
 
     [ -z "$PATH" ] && PATH="$path" || PATH="$path:$PATH"
-    export PYTHONPATH
+    export PATH
 
     [ "$#" -gt 0 ] && addpath "$@"
 }

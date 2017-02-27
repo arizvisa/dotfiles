@@ -3,7 +3,7 @@ path=$*
 shift
 
 [ -z "$path" ] && path=`pwd`
-path=`readlink -f "$path"`
+path=`type -P realpath >/dev/null && realpath -s -m "$path" || readlink -f "$path"`
 
 [ ! -d "$path" ] && exit 1
 

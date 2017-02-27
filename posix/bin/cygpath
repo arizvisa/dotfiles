@@ -154,7 +154,7 @@ else # otherwise normalize to a regular path according to the current platform
         *) normal="$path" ;;
     esac
 fi
-normal=`readlink -m "$default"`
+normal=`type -P realpath >/dev/null && realpath -s -m "$default" || readlink -m "$default"`
 
 # change all backslashes to forward slashes for some configure scripts
 normal=`echo "$normal" | sed 's/\\\/\//g'`
