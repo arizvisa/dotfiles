@@ -44,3 +44,4 @@ def fexception(f, *a, **k):
     return functools.partial(closure, *a, **k)
 fexc = fexception
 partial = functools.partial
+imap = compose(map,iter)

@@ -1,18 +1,15 @@
 #!/bin/sh
 
-# Commit:
-#   added a commandline option to force building of a rule
-#   swapped -F (build file) and -f (force)
-
 # Terminology:
 #   target -- the file that is supposed to be built
 #   rule -- the function that is used to produce the target
 #   deps -- any files that the rule uses to build a target
 
 # Commands:
-#   resolve $target $rule deps..      -- generates a tangible file $target
-#   pseudo $pseudo-target $rule deps.. -- creates a pseudo-target that build each dep
-#   default $target -- starts building the specified target
+#   resolve $target $rule deps.. -- generates a tangible file $target
+#   define $target $rule args.. -- defines a target that will execute rule with the specified args
+#   pseudo $pseudo-target deps.. -- creates a pseudo-target that build each dep
+#   default $target -- starts building the specified target by default
 #   alias $original targets.. -- will point each target to the original target
 
 # deps can be prefixed with specific command characters.
@@ -25,79 +22,6 @@
 #   alias MakeConfig config.h localconfig.h
 #
 #   pseudo BuildEverything verify prog2.exe prog1.dll %MakeConfig
-
-# TODO:
-#   add some more commandline options
-#       -F to force building a target
-#       -c for cleaning up intermediary files necessary for building a target
-#
-#   allow support for external dependencies.
-#       this is for targets that don't have a rule to build them.
-#           like if the user is responsible for placing them into the filesystem
-#       maybe these deps can be prefixed with '@' or '!' or maybe '+' to
-#           identify them. i need to steal a char that isn't supported by the fs
-#       i.e.:   resolve whatev.obj compile whatever.c blah.h @config.h
-#               resolve prog1.exe link whatev.obj !kernel32.lib +user32.lib
-#
-#   add support for pseudo targets. these are targets that don't have any tangible
-#   data produced from it. this can be used for joining together multiple targets
-#   under one target and processing them via a rule.
-#   i.e.:  resolve module1.obj compile module1.c @dep1.h @dep2.h
-#          resolve module1.dll sharedobject module1.obj @user32.lib @kernel32.lib
-#          alias build-modules verify module1.dll module2.dll module3.dll
-#          alias check-config generateConfig
-#          alias all update %check-config %build-modules program1.exe
-#
-#   implement support for the user to specify prerequisite targets
-#       this is a rule that is required to be run before any other rules
-#       like for determining any type of environmental options, or setting
-#       configuration parameters for the target.
-#       perhaps also some way of choosing the compiler.
-#       maybe the command could be "requisite target1 target2 target3"
-#   i.e.:  resolve module1.obj compile module1.c @dep1.h @dep2.h
-#          resolve module1.dll sharedobject module1.obj @user32.lib @kernel32.lib
-#          requisite AskUserForConfig
-#
-#   implement some way to clean up files produced by a target
-#       maybe this can be done via a rule that just removes all targets that are
-#       also deps or a commandline option that can take a rule and will walk all
-#       deps form a target.
-#       i.e.:   pbuild -c whatev.obj
-#                  # find all deps for whatev.obj, check if they're also
-#                  # targets then delete htm
-#
-#   implement support for the user to specify a default target
-#       by default if a rule isn't specified, have some way to specify
-#       the default target to build
-#       i.e.:   resolve prog1.exe link prog1.obj prog2.obj heh.lib @kernel32.lib
-#               pseudo mybuildeverythingrule prog1.exe prog2.exe prog3.exe
-#               default mybuildeverythingrule
-#
-#   implement some generic rules
-#       such as updating timestamps of all deps
-#       chaining rules to multiple other rules
-#           and/all -- would return success if all of the deps were built
-#           or/any -- would return success if any of the deps were built
-#       compile, link, lib, assemble
-#
-#   provide a function library for rules to utilize
-#        a function that converts a unix-path to a native-style path
-#        mapping a ':' separated list to something else like '/I$_'
-#        updating the timestamp of an arbitrary file
-#        letting a rule know what platform it's being built on
-#        this can allow custom environment variables to be passed to rules
-#        chopping up a file into its components (like basename)
-#        some basic string matching, like .startswith from python
-#        a command ("noisy") for echoing the commandline options as well as
-#            executing it
-#        ways of escaping paths, like for m$ tools which have paths with spaces
-#
-#   provide some sort of automatic build-environment detection
-#       determine what are the correct paths for building
-#       this can also be used to provide paths and commands for
-#           a generic compile, link, or lib rule
-#
-#   rebuild workspace if pbuild.sh is newer than workspace
 
 debug()
 {
@@ -127,9 +51,8 @@ fatal()
 hashGet()
 {
     hash=$1
-    shift
-    field=$1
-    shift
+    field=$2
+    shift 2
 
     if test "$field" == ""; then
         return 1
@@ -168,11 +91,9 @@ hashAdd()
 {
     local IFS="\n"
     argh=$1
-    shift
-    field=$1
-    shift
-    value=$1
-    shift
+    field=$2
+    value=$3
+    shift 3
 
     item="$field:$value"
 
@@ -188,9 +109,8 @@ __template()
 {
     _rule_=$1
     _directory_=$( echo "$_rule_" | sed 's/[^/\]\+$//' )
-    shift
-    _function_=$1
-    shift
+    _function_=$2
+    shift 2
     _dependencies_=$@
 
     ## template produces the following code
@@ -263,9 +183,8 @@ EOF
 resolve()
 {
     rule=$1
-    shift
-    function=$1
-    shift
+    function=$2
+    shift 2
 
     LIST=$( hashAdd "$LIST" "$rule" "$function" )
 
@@ -284,6 +203,46 @@ resolve()
     chmod +x "$BUILDDIR/$rule.$BUILDSUFFIX"
 }
 
+# builds the specified rule
+__define()
+{
+    _rule_=$1
+    _directory_=$( echo "$_rule_" | sed 's/[^/\]\+$//' )
+    _function_=$2
+    shift 2
+    _arguments_=$@
+
+    cat <<EOF
+info "executing $_rule_ via $_function_"
+$_function_ $_arguments_
+result=\$?
+debug "$_rule_ returned \$result"
+return \$result
+EOF
+}
+
+# executes a specified command with the given arguments
+define()
+{
+    rule=$1
+    function=$2
+    shift 2
+
+    LIST=$( hashAdd "$LIST" "$rule" "$function" )
+
+    __directory=$( echo "$rule" | sed 's/[^/\]\+$//' )
+
+    if test "$__directory" != "$rule" -a ! -d "$BUILDDIR/$__directory"; then
+        __directory=$( echo "$rule" | sed 's/[^/\]\+$//' )
+        mkdir -p "$BUILDDIR/$__directory"
+        info "creating workspace: $__directory"
+    fi
+
+    out=$( __define "$rule" "$function" $@ )
+    echo "$out" >| "$BUILDDIR/$rule.$BUILDSUFFIX"
+    chmod +x "$BUILDDIR/$rule.$BUILDSUFFIX"
+}
+
 __help()
 {
     echo "Usage: $0 [options] target"
@@ -294,7 +253,8 @@ build target using the contents of "$FILE"
   -x dir        use dir ($BUILDDIR) for storing internal build scripts
   -C dir        change to directory
   -d            display debugging information
-  -f file       use specified build file
+  -F file       use specified build file
+  -f            force building the specified rule
   -j maxprocs   parallel building
   -q            question mode (1 on failure, 0 on success)
   -R            rebuild workspace
@@ -399,4 +359,4 @@ test "$FORCE" -gt 0 && info "user requested force build of $RULE"
 debug "building $RULE"
 . "$BUILDDIR/$RULE.$BUILDSUFFIX"
 
-info "successfully updated $RULE"
+info "successfully executed $RULE"

@@ -533,7 +533,7 @@ end
 catch exec
 catch fork
 catch vfork
-catch signal
+catch throw
 tbreak main
 
 ## options

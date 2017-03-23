@@ -30,6 +30,21 @@ elif [ $(uname) = "Linux" ]; then
     {
         _return=$( /usr/bin/stat -c %U -- /dev/$1 )
     }
+
+elif [ ${platform} = 'msys' ]; then
+    fps() { ps -e | sed 's/ \+/\t/g' | ( read x; cat) }
+
+    all_ttys=$( fps | cut -f6 | sort | uniq )
+
+    list_controlling_pids()
+    {
+        _return=$( fps | cut -f 5,6 )
+    }
+
+    get_dev_stats()
+    {
+        _return=$( /usr/bin/stat -c %U -- /dev/$1 )
+    }
 fi
 
 ## collect information
@@ -38,7 +53,6 @@ list_controlling_pids
 
 pid_filter=$( echo $ttys | xargs echo | sed 's/ /\\|/g' )
 pid_tty=$( echo "$_return" | grep -e $pid_filter | sort -k 2 )
-
 
 ## print out each process+tty
 echo "$pid_tty" | while read res; do
@@ -50,6 +64,9 @@ echo "$pid_tty" | while read res; do
         continue
     fi
     command=$( cat /proc/$pid/cmdline | xargs -0 echo )
+    if [ "$command" = "<defunct>" ]; then
+        command=$( cat /proc/$pid/exename )
+    fi
 
     get_dev_stats $tty
     stats=$_return

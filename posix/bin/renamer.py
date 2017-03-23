@@ -1,4 +1,5 @@
-import sys,os,itertools,operator
+import sys,os
+import itertools,operator,functools
 import tempfile,logging,time
 import codecs
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +18,7 @@ except StopIteration:
 	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR',editor)))
 	sys.exit(1)
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
-ENCODING = 'utf-8-sig'
+FILEENCODING = 'utf-8-sig'
 
 ### code
 def help(argv0):
@@ -51,20 +52,20 @@ def rename(source,target):
 	return count
 
 def listing(p):
-	for dirpath,_,filenames in os.walk(os.path.relpath(p)):
+	for dirpath,_,filenames in os.walk(unicode(os.path.relpath(p), encoding=sys.getfilesystemencoding())):
 		for name in sorted(filenames):
 			yield os.path.join(dirpath,name)
 		continue
 	return
 
 def dirlisting(p):
-	for dirpath,dirnames,_ in os.walk(os.path.relpath(p)):
+	for dirpath,dirnames,_ in os.walk(unicode(os.path.relpath(p), encoding=sys.getfilesystemencoding())):
 		for name in sorted(dirnames):
 			yield os.path.join(dirpath,name)
 	return
 
 def edit(list):
-	list = map(None, list)
+	list = filter(None, list)
 
 	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(i,s)) for i,s in enumerate(list) ]
 
@@ -72,8 +73,8 @@ def edit(list):
 	with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.source', delete=not WIN32) as t1,tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.destination', delete=not WIN32) as t2:
 		# really hate python devers
 		map(operator.methodcaller('close'), (t1,t2))
-		with codecs.open(t1.name, 'w+b', encoding=ENCODING) as t1e, codecs.open(t2.name, 'w+b', encoding=ENCODING) as t2e:
-			map(operator.methodcaller('writelines',[_+'\n' for _ in list]), (t1e,t2e))
+		with codecs.open(t1.name, 'w+b', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'w+b', encoding=FILEENCODING) as t2e:
+			map(operator.methodcaller('writelines', map(u'{:s}\n'.format, list)), (t1e,t2e))
 			map(operator.methodcaller('flush'), (t1e,t2e))
 
 		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
@@ -83,23 +84,25 @@ def edit(list):
 		try:
 			result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
 		except Exception, e:
-			logging.fatal("{:s} raised {!r}".format(message, e))
+			logging.fatal("{:s} raised {!r}".format(message, e), exc_info=True)
 			raise
 		else:
 			if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
 
 		#really hate python devers
-		with codecs.open(t1.name, 'rb', encoding=ENCODING) as t1e, codecs.open(t2.name, 'rb', encoding=ENCODING) as t2e:
+		with codecs.open(t1.name, 'rb', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'rb', encoding=FILEENCODING) as t2e:
 			map(operator.methodcaller('seek', 0), (t1e,t2e))
-			source = map(unicode.strip, t1e.readlines())
-			destination = map(unicode.strip, t2e.readlines())
+			source, destination = t1e.readlines(), t2e.readlines()
+			source, destination = map(unicode.strip, source), map(unicode.strip, destination)
 
 		# restore the handles so that when we exit 'with', it won't double-close them.
 		t1,t2 = map(open, (t1.name,t2.name))
 
 	#if len([None for x,y in zip(source,list) if x != y]) > 0:
 	if any(x != y for x,y in zip(source,list)):
-		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
+		logging.warning("renamer.edit(...) - source list was modified. using it to rename files.")
+	else:
+		source = list[:]
 
 	if len(destination) != len(list):
 		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
@@ -119,7 +122,7 @@ def main_files(*paths):
 	logging.info("renamer.main(...) - found {:d} files. spawning editor..".format(len(source)))
 	time.sleep(1)
 
-	_, target = edit(source)
+	newsource, target = edit(source)
 	# FIXME: compare newsource and target to see what's attempting to be renamed
 	#if len([None for x,y in zip(source,list) if x != y]) > 0:
 #	if any(x != y for x,y in zip(source,list)):
@@ -129,7 +132,7 @@ def main_files(*paths):
 #		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 #		return []
 
-	count = rename(source,target)
+	count = rename(newsource,target)
 	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
 	return
 
@@ -145,7 +148,8 @@ def main_directories(*paths):
 	logging.info("renamer.main(...) - found {:d} directories. spawning editor..".format(len(source)))
 	time.sleep(2)
 
-	_, target = edit(source)
+	newsource, target = edit(source)
+
 	# FIXME: compare newsource and target to see what's attempting to be renamed
 	#if len([None for x,y in zip(source,list) if x != y]) > 0:
 #	if any(x != y for x,y in zip(source,list)):
@@ -155,7 +159,7 @@ def main_directories(*paths):
 #		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 #		return []
 
-	count = rename(source,target)
+	count = rename(newsource,target)
 	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
 	return
 
