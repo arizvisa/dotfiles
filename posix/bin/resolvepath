@@ -1,17 +1,18 @@
-#!/bin/sh
+#!/bin/bash
 path=$*
 shift
 
+# if no path is specified then use the current directory
 [ -z "$path" ] && path=`pwd`
-path=`type -P realpath >/dev/null && realpath -s -m "$path" || readlink -f "$path"`
 
+# ensure that the path exists
+path=`type -P realpath >/dev/null && realpath -s -m "$path" 2>/dev/null || readlink -f "$path"`
+
+# and that it's a directory
 [ ! -d "$path" ] && exit 1
 
+# if we're cygwin/msys then transform it
 case "$platform" in
     cygwin|msys) echo "$path" | xargs cygpath -u -- ;;
     *) echo "$path" ;;
 esac
-
-if [ "$#" -gt 0 ]; then
-    $0 "$@" || exit 1
-fi

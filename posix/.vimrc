@@ -1,3 +1,12 @@
+""" script locals and default configs
+    if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
+    let s:rcfilename = ".vimrc"
+    let s:rcfilename_site = ".vimrc.local"
+    let s:rcfilename_local = ".vimrc"
+    let s:state = ".vim.session"
+
+    set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
+
 """ general vim options
     set nocp
     set encoding=utf-8
@@ -76,6 +85,11 @@
         endtry
     endif
 
+""" globals
+    let g:HOME = has("windows")? $USERPROFILE : $HOME
+    let g:rcfilename_global = join([g:HOME, s:rcfilename], s:pathsep)
+    let g:rcfilename_site = join([g:HOME, s:rcfilename_site], s:pathsep)
+
 """ utility functions
     function! Which(program)
         let sep = has("unix")? ':' : ';'
@@ -126,58 +140,57 @@
     autocmd FileType go setlocal noexpandtab shiftwidth=4 tabstop=4
 
 """ session auto-saving and things
-    "set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
-    if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
-    let g:session_file = join([getcwd(),".vim.session"], s:pathsep)
-    if (argc() == 0) && empty(v:this_session) && filereadable(g:session_file)
-        let g:session = 1
-    else
-        let g:session = 0
-    endif
+    let g:session_state = join([getcwd(),s:state], s:pathsep)
 
+    let g:session = ((argc() == 0) && empty(v:this_session) && filereadable(g:session_state))? 1 : 0
     function! Session_save(filename)
         if g:session > 0
-            echomsg 'Saving current session to ' . a:filename
-            execute 'mksession! ' . a:filename
+            echomsg printf('Saving current session to %s', a:filename)
+            execute printf('mksession! %s', a:filename)
             if !filewritable(a:filename)
-                echoerr 'Unable to save current session to ' . a:filename
+                echoerr printf('Unable to save current session to %s', a:filename)
             endif
         endif
     endfunction
     function! Session_load(filename)
         if g:session > 0
-            echomsg 'Loading session from ' . a:filename
+            echomsg printf('Loading session from %s', a:filename)
             if filereadable(a:filename)
-                execute 'source ' . a:filename
+                execute printf('source %s', a:filename)
             endif
         endif
     endfunction
 
     augroup session
         autocmd!
-        autocmd VimEnter * call Session_load(g:session_file)
-        autocmd VimLeave * call Session_save(g:session_file)
+        autocmd VimEnter * call Session_load(g:session_state)
+        autocmd VimLeave * call Session_save(g:session_state)
     augroup end
 
-""" plugin options
+""" default plugin options
     "" for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
     let g:MultipleSearchMaxColors=16
     let w:PHStatusLine = ''
 
-    "map <C-g> :call MapCtrlG()<CR>
-    "let g:incpy#Program = ""
-    "let g:incpy#Program = "c:/ocaml/bin/ocaml.exe"
-    "let g:incpy#Program = "c:/python27/python -i"
-    "let g:incpy#Program = "c:/users/user/pypy/pypy.exe -i -u -B"
-    "let g:incpy#Program = "c:/MinGW/msys/1.0/bin/bash.exe -i"
-    "let g:incpy#Program = $FsharpInterpreter." --readline- --checked+ --tailcalls+ --consolecolors- --fullpaths"
-
+    "" for vim-incpy [ http://github.com/arizvisa/vim-incpy ]
     let g:incpy#Name = "interpreter"
     let g:incpy#WindowRatio = 1.0/8
-    "let g:incpy#WindowPreview = 1
-    "let g:incpy#ProgramFollow = 0
-    "let g:incpy#ProgramStrip = 0
 
-""" Disable vim's syntax coloring for ruby and yaml because it crashes my version of gvim (7.4)
-    autocmd! filetypedetect * *.rb
-    autocmd! filetypedetect * *.yml
+""" site-local .vimrc
+    if !exists("g:vimrc_site") | let g:vimrc_site = 0 | endif
+    if g:vimrc_site == 0 && filereadable(g:rcfilename_site)
+        try
+            exec printf("source %s", g:rcfilename_site)
+            let g:vimrc_site += 1
+        catch
+            echoerr printf("Error: unable to source site-local .vimrc : %s", g:rcfilename_site)
+        endtry
+    else
+        if !filereadable(g:rcfilename_site) | echohl WarningMsg | echomsg printf("Warning: site-local .vimrc does not exist : %s", g:rcfilename_site) | echohl None | endif
+    endif
+
+""" directory-local .vimrc
+    augroup vimrc-directory-local
+        exec printf("autocmd BufRead,BufNewFile * if expand('%%:p:h') != g:HOME && filereadable(join([expand('%%:p:h'),\"%s\"], s:pathsep)) | exec printf(\"source %%s\", join([expand('%%:p:h'), \"%s\"], s:pathsep)) | endif", s:rcfilename_local, s:rcfilename_local)
+    augroup end
+

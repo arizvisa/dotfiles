@@ -33,12 +33,12 @@ makeanalysis()
     arg0=`basename "$0"`
     cat <<EOF
 import idaapi,time
-print "~"*132
+print "~"*110
 _ = time.time()
 print "$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime()))
 idaapi.autoWait()
 print "$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime()))
-print "~"*132
+print "~"*110
 idaapi.save_database(idaapi.cvar.database_idb, 0)
 idaapi.qexit(0)
 EOF

@@ -154,14 +154,24 @@ else # otherwise normalize to a regular path according to the current platform
         *) normal="$path" ;;
     esac
 fi
-normal=`type -P realpath >/dev/null && realpath -s -m "$default" || readlink -m "$default"`
+
+# normalize the path by removing extraneous characters
+case "${platform}" in
+    *bsd*)
+        # XXX: freebsd has no way to really normalize paths from shell...so try our best.
+        normal=`echo "$default" | sed 's/\/\+/\//g;s/\/\.\//\//g'`
+        ;;
+    *)
+        normal=`type -P realpath >/dev/null && realpath -s -m "$default" 2>/dev/null || readlink -m "$default" 2>/dev/null`
+        ;;
+esac
 
 # change all backslashes to forward slashes for some configure scripts
 normal=`echo "$normal" | sed 's/\\\/\//g'`
 
 ## output results
 case "$FORMAT" in
-    unix) [ "$platform" == "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
+    unix) [ "${platform}" == "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
     windows|win) default2windows "$normal" ;;
     *) echo "$normal" ;;
 esac

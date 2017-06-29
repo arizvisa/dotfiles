@@ -39,6 +39,7 @@ if [ -z "$TMPDIR" ]; then
     [ -d "$TMPDIR" ] || mkdir -p "$TMPDIR"
 fi
 export TMP="$TMPDIR"
+export TEMP="$TMP"
 
 ## global variables/settings
 export EDITOR=`type -p vim`
