@@ -129,8 +129,8 @@ function! s:windowtail(bufid)
     " tail the window with the requested bufid
     let last = s:windowselect(bufwinnr(a:bufid))
     if winnr() == bufwinnr(a:bufid)
-        noautocmd normal gg
-        noautocmd normal G
+        keepjumps noautocmd normal gg
+        keepjumps noautocmd normal G
         call s:windowselect(last)
 
     " check which tabs the buffer is in
@@ -142,8 +142,8 @@ function! s:windowtail(bufid)
             if index(tabpagebuflist(tn+1), a:bufid) > -1
                 execute printf("tabnext %d", tn)
                 let tl = s:windowselect(bufwinnr(a:bufid))
-                noautocmd normal gg
-                noautocmd normal G
+                keepjumps noautocmd normal gg
+                keepjumps noautocmd normal G
                 call s:windowselect(tl)
             endif
         endfor
@@ -320,7 +320,7 @@ class interpreter(object):
         return self.detach()
     def write(self, data):
         """Writes data directly into view"""
-        return self.view.write(data)
+        return self.view.write(data.encode('ascii', 'replace'))
     def __repr__(self):
         if self.view.window > -1:
             return '<__incpy__.%s buffer:%d>'% (self.__class__.__name__, self.view.buffer.number)
@@ -357,7 +357,7 @@ class interpreter_python_internal(__incpy__.interpreter):
         sys.stdin,sys.stdout,sys.stderr = self.state
     def communicate(self, data, silent=False):
         if __incpy__.vim.gvars['incpy#ProgramEcho'] and not silent:
-            self.view.write('\n'.join('## %s'% x for x in data.split('\n')) + '\n')
+            self.view.write('\n'.join('## %s'% x.encode('ascii','replace') for x in data.split('\n')) + '\n')
         exec data in __incpy__.builtin.globals()
     def start():
         __incpy__.log('python interpreter already started by host vim process')
@@ -584,7 +584,7 @@ class view(object):
 
     def write(self, data):
         """Write data directly into window contents (updating buffer)"""
-        return self.buffer.write(data)
+        return self.buffer.write(data.encode('ascii', 'replace'))
 
     def create(self, position, ratio):
         """Create window for buffer"""

@@ -104,10 +104,10 @@ EOF
 }
 
 ## parse arguments
-while getopts uwsopWSPvi? opt; do
+while getopts uwsopmWSPvil? opt; do
     case $opt in
         u) FORMAT=unix ;;       # posixy form (msys|cygwin)
-        w) FORMAT=windows ;;    # windows form
+        m|w|l) FORMAT=windows ;;    # windows form
         s) FORMAT=win ;;        # windows (8.3) form
 
         W) OUTPUT=windows ;;    # windows directory

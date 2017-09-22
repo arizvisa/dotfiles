@@ -52,10 +52,18 @@ fi
 # poorly determine path to ida
 idapath=`resolvepath /c/Program\ Files*/IDA*`
 if test "$bits" -eq 64; then
-    ida="$idapath/idaq64.exe"
+    if [ -e "$idapath/idaq64.exe" ]; then
+        ida="$idapath/idaq64.exe"
+    else
+        ida="$idapath/ida64.exe"
+    fi
     idaext="i64"
 else
-    ida="$idapath/idaq.exe"
+    if [ -e "$idapath/idaq.exe" ]; then
+        ida="$idapath/idaq.exe"
+    else
+        ida="$idapath/ida.exe"
+    fi
     idaext="idb"
 fi
 ida=`nativepath "$ida"`
@@ -95,15 +103,18 @@ for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils'):
 #idaapi.autoWait()
 print "~"*110
 __builtin__._ = time.time()
-print "%s:executing %s (%s)"% ("$arg0", "$script", time.asctime(time.localtime()))
+print "%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv)
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
 try: execfile(r"$scriptpath", globals())
 except: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info()))
 print "%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-__builtin__._, time.asctime(time.localtime()))
 print "~"*110
-print "%s:saving %s"% ("$arg0", "$script")
-idaapi.save_database(idaapi.cvar.database_idb, 0)
+print "%s:saving to %s"% (r"$arg0", r"$input")
+if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
+    idaapi.save_database(idaapi.cvar.database_idb, 0)
+else:
+    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
 idaapi.qexit(0)
 EOF
 }

@@ -39,7 +39,11 @@ print "$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time
 idaapi.autoWait()
 print "$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime()))
 print "~"*110
-idaapi.save_database(idaapi.cvar.database_idb, 0)
+print "%s:saving to %s"% (r"$arg0", r"$output")
+if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
+    idaapi.save_database(idaapi.cvar.database_idb, 0)
+else:
+    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
 idaapi.qexit(0)
 EOF
 }
@@ -78,10 +82,18 @@ fi
 # poorly determine path to ida
 idapath=`resolvepath /c/Program\ Files*/IDA*`
 if echo "$0" | grep -q 64; then
-    ida="$idapath/idaq64.exe"
+    if [ -e "$idapath/idaq.exe" ]; then
+        ida="$idapath/idaq64.exe"
+    else
+        ida="$idapath/ida64.exe"
+    fi
     idaext="i64"
 else
-    ida="$idapath/idaq.exe"
+    if [ -e "$idapath/idaq.exe" ]; then
+        ida="$idapath/idaq.exe"
+    else
+        ida="$idapath/ida.exe"
+    fi
     idaext="idb"
 fi
 ida=`cygpath -w "$ida"`

@@ -1,4 +1,5 @@
 #!/bin/sh
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
 argv0=`basename "$0"`
 RANDDEVICE=/dev/random
 WIPECOUNT=1
@@ -30,13 +31,13 @@ wipe() {
 }
 
 tamper() {
-    e=`stat -f %c /sbin`
+    e=`stat -c %W /`
     oldest_yr=`perl -e "(\\\$_,\\\$_,\\\$_,\\\$_,\\\$_,\\\$yr,\\\$_,\\\$_)=localtime($e); print int(\\\$yr)+1900"`
 
     for opt in "" m a; do
         yr=`randrange $oldest_yr $(date +%Y)`
-        mo=`randrange 0 12`
-        dy=`randrange 0 30`
+        mo=`randrange 1 12`
+        dy=`randrange 1 30`
         hr=`randrange 0 24`
         mn=`randrange 0 60`
         ts=`printf "%04d%02d%02d%02d%02d" "$yr" "$mo" "$dy" "$hr" "$mn"`

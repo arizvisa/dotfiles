@@ -1,8 +1,6 @@
 import logging, user
 logging.root=logging.RootLogger(logging.WARNING)
 
-from user import *
-
 try:
     import sys,ptypes
     from ptypes import *
@@ -58,3 +56,11 @@ def top(ea=None):
     return fn.top(whereami(ea))
 
 hex = '{:x}'.format
+
+def memberFromOp(st, ea, opnum):
+    sizelookup = {1:'b',2:'w',4:'d',8:'',16:'q'}
+    offset, size = ins.op(ea, opnum).offset, ins.op_size(ea, opnum)
+    name = 'v'+sizelookup[size]
+    ok = st.members.add((name,offset), (int, size), offset)
+    assert ok
+mop = memberFromOp
