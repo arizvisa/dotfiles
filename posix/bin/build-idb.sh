@@ -49,18 +49,15 @@ EOF
 }
 
 # parse commandline
-args=`getopt -u -o h\? -l help -- $*`
-if test "$?" -ne 0 -o "$#" -eq 0; then
+while getopts h? opt; do
+    case "$opt" in
+        h|?) usage "$0"; exit 0 ;;
+    esac
+done
+if test "$#" -lt 1 -o "$#" -gt 2; then
     usage "$0" 1>&2
     exit 1
 fi
-set -- $args
-while test "$#" -gt 0; do
-    case "$1" in
-        -h|-\?|--help) usage "$0"; exit 0 ;;
-        --) shift; break ;;
-    esac
-done
 
 # extract paths to read from and write to
 input=`cygpath -w "$1" | sed 's/\//\\\/g'`
@@ -97,6 +94,7 @@ else
     idaext="idb"
 fi
 ida=`cygpath -w "$ida"`
+ida_args='-pmetapc'
 
 # check to see what user is trying to write to
 ext=`echo "$filename" | sed 's/.*\.//'`
@@ -148,10 +146,10 @@ fi
 beginning=`currentdate`
 if test -f "$outpath/$output"; then
     printf "[%s] updating \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ -L$error "$output" )
+    ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ $ida_args "-L$error" "$output" )
 else
     printf "[%s] building \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ -L$error -o$output "$input" )
+    ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ $ida_args "-L$error" "-o$output" "$input" )
 fi
 ending=`currentdate`
 

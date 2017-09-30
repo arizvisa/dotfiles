@@ -28,7 +28,7 @@ echo "Attempting to determine versioning info for \"$inpath\"." 1>&2
 outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
     echo "Unable to format versioning info for \"$infile\" using default format." 1>&2
-    formats="/{ProductVersion}/{OriginalFilename} /{ProductVersion}/{InternalName} /{ProductVersion}/{__name__}"
+    formats="/{FileVersion}/{OriginalFilename} /{FileVersion}/{InternalName} /{FileVersion}/{__name__} /{ProductVersion}/{OriginalFilename} /{ProductVersion}/{InternalName} /{ProductVersion}/{__name__}"
     for fmt in $formats; do
         echo "Re-attempting with another format : $fmt" 1>&2
         outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "{__name__}$fmt" "$@" "$inpath" 2>/dev/null`
@@ -75,7 +75,7 @@ echo "Decided on $builder to build the database." 1>&2
 
     echo "Now building the database for \"$outfile\"." 1>&2
     cd "$outdir/$outsubdir"
-    sh "$builder" "$outfile" 1>&2
+    "$builder" "$outfile" 1>&2
 )
 
 echo "Done!" 1>&2
