@@ -1,6 +1,6 @@
 import sys,os
-import itertools,operator,functools
-import tempfile,logging,time
+import functools,operator,itertools
+import argparse,tempfile,logging,time
 import codecs
 logging.basicConfig(level=logging.INFO)
 editor = 'vim'
@@ -21,9 +21,11 @@ EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
 
 ### code
-def help(argv0):
-	print 'Usage: {:s} [-d] paths...'.format(argv0)
-	return
+def parse_args():
+	res = argparse.ArgumentParser(description='Rename any number of files within a list of paths using an editor.', add_help=True)
+	res.add_argument('-d', dest='use_dirs', action='store_true', default=False, help='rename directories instead of files')
+	res.add_argument(dest='paths', metavar='path', nargs='*', action='store', type=unicode)
+	return res.parse_args()
 
 def rename_file(a,b):
 	try:
@@ -117,7 +119,7 @@ def main_files(*paths):
 
 	if len(source) == 0:
 		logging.info("renamer.main(...) - found no files. terminating.")
-		return
+		return 0
 
 	logging.info("renamer.main(...) - found {:d} files. spawning editor..".format(len(source)))
 	time.sleep(1)
@@ -134,7 +136,7 @@ def main_files(*paths):
 
 	count = rename(newsource,target)
 	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
-	return
+	return count
 
 def main_directories(*paths):
 	source = []
@@ -143,7 +145,7 @@ def main_directories(*paths):
 
 	if len(source) == 0:
 		logging.warning("renamer.main(...) - found no directories. terminating.")
-		return
+		return 0
 
 	logging.info("renamer.main(...) - found {:d} directories. spawning editor..".format(len(source)))
 	time.sleep(2)
@@ -161,34 +163,23 @@ def main_directories(*paths):
 
 	count = rename(newsource,target)
 	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
-	return
+	return count
 
 def parse_commandline(arguments):
 	options,arguments = [],[x for x in arguments]
 	if '--' in arguments:
 		_ = argv.index('--')
 		options,arguments = arguments[:_],arguments[_+1:]
-	elif '-d' in arguments:
-		options = ['-d']
+	if '-d' in arguments:
+		options += ['-d']
 		del(arguments[arguments.index('-d')])
+	if any(opt in arguments for opt in {'-h','--help'}):
+		options
 	return options,arguments
 
 if __name__ == '__main__':
 	import sys
-
-	try:
-		argv0,argv = sys.argv[0],sys.argv[1:]
-	except:
-		argv0,argv = sys.argv[0],[]
-
-	options,arguments = parse_commandline(argv)
-
-	if len(arguments) < 1:
-		help(argv0)
-		sys.exit(1)
-
-	main = main_files
-	if '-d' in options:
-		main = main_directories
-	result = main(*map(unicode,arguments))
-	sys.exit(int(result is not None))
+	arguments = parse_args()
+	main = main_directories if arguments.use_dirs else main_files
+	result = main(*arguments.paths)
+	sys.exit(int(result <= 0))
