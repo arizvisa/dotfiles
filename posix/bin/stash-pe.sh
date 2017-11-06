@@ -46,6 +46,12 @@ echo "Output path determined from version was \"$outpath\"." 1>&2
 outsubdir=`dirname "$outpath"`
 outfile=`basename "$outpath"`
 
+if [ -d "$outdir/$outsubdir" -a -f "$outdir/$outsubdir/$outfile" ]; then
+    echo "Output path \"$outdir/$outsubdir\" and it's file \"$outdir/$outsubdir/$outfile\" already exists." 1>&2
+    echo "$outdir/$outsubdir/$outfile"
+    exit 0
+fi
+
 echo "Attempting to determine the machine type for \"$inpath\"" 1>&2
 machine=`"$PYTHON" "$SYRINGE/tools/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
