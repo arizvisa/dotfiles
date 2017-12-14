@@ -1,5 +1,5 @@
 #!/bin/sh
-if test "${platform}" == "msys"; then
+if test "${platform}" = "msys"; then
     path="${ProgramFiles_x86_}/Google/Chrome/Application"
     input=`readlink -f $1`
     shift

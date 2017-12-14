@@ -1,5 +1,6 @@
-#!/bin/env python
-import itertools, lxml.etree
+#!/usr/bin/env python
+import user
+import sys, itertools, lxml.etree
 
 def help():
     print "%s tag [attribute value]...\n"%sys.argv[0]

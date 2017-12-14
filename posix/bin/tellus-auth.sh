@@ -39,7 +39,7 @@ curl_post()
     host=`echo "$url" | grep -i -m1 -o '^\([a-z]\+://\)\?[^/]\+' | sed 's/.*\///'`
     session=$( curl "$url" -f -s -k --compressed -d "$data" -H "Host: $host" -H "Referer: $url" -H "Accept-Language: en-US,en;q=0.8" -H "User-Agent: $agent" -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" -H "Referer: $referer" $@ )
 
-    test "$session" == "" && return 1
+    test "$session" = "" && return 1
     echo "$session"
     return 0
 }
@@ -55,7 +55,7 @@ authenticate()
     data="user[username]=$username&user[subscriber_number]=$subscriber&user[password]=$password"
 
     ctnNotice=`curl_post "$url" "$data" "$referer" | xml-select div class ctnNotice | xml-strip`
-    if test "$ctnNotice" == ""; then
+    if test "$ctnNotice" = ""; then
         curl_post "$url" "$data" "$referer" -D - | egrep '^Set-Cookie: ' | cut -d ':' -f 2- | tr ';' '\n' | grep '_subscriber_session' | cut -d '=' -f 2
         return 0
     fi
@@ -88,7 +88,7 @@ p=$3
 
 SESSION=$(authenticate $u $s $p)
 
-if test "$?" == 0; then
+if test "$?" = 0; then
     echo "Authenticated with _subscriber_session=$SESSION" 1>&2
 else
     echo "Authentication failed : $SESSION" 1>&2

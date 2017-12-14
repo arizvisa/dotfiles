@@ -3,6 +3,11 @@ import functools, operator, itertools
 import types, user
 import __builtin__ as builtin
 
+# remove crlf from std{out,err} because CPython is pretty fucking stupid
+if sys.platform == 'win32':
+    __import__('msvcrt').setmode(sys.stdout.fileno(), os.O_BINARY) if hasattr(sys.stdout, 'fileno') else None
+    __import__('msvcrt').setmode(sys.stderr.fileno(), os.O_BINARY) if hasattr(sys.stdout, 'fileno') else None
+
 # use the current virtualenv if it exists
 builtin._ = os.path.join(user.home.replace('\\', os.sep).replace('/', os.sep), '.python-virtualenv', 'Scripts' if __import__('platform').system() == 'Windows' else 'bin', 'activate_this.py')
 if os.path.exists(builtin._): execfile(builtin._, {'__file__':builtin._})
@@ -18,7 +23,7 @@ funbox = unbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + builtin.reduce(ope
 # return a closure that will check that ``object`` is an instance of ``type``.
 finstance = lambda type: lambda object: isinstance(object, type)
 # return a closure that always returns ``object``.
-fconstant = fconst = lambda object: lambda *a, **k: object
+fconstant = fconst = falways = always = lambda object: lambda *a, **k: object
 # a closure that returns it's argument
 fpassthru = fpass = fidentity = fid = lambda object: object
 # return the first, second, or third item of a box.
@@ -59,6 +64,8 @@ def fcatch(f, *a, **k):
         except: return sys.exc_info()[1], builtin.None
     return functools.partial(fcatch, *a, **k)
 fexc = fexception = fcatch
+# boolean inversion of the result of a function
+fcomplement = fnot = complement = frpartial(fcompose, operator.not_)
 # converts a list to an iterator, or an iterator to a list
 ilist, liter = compose(list, iter), compose(iter, list)
 # converts a tuple to an iterator, or an iterator to a tuple

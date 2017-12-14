@@ -171,7 +171,7 @@ normal=`echo "$normal" | sed 's/\\\/\//g'`
 
 ## output results
 case "$FORMAT" in
-    unix) [ "${platform}" == "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
+    unix) [ "${platform}" = "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
     windows|win) default2windows "$normal" ;;
     *) echo "$normal" ;;
 esac

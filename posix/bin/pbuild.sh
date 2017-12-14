@@ -54,7 +54,7 @@ hashGet()
     field=$2
     shift 2
 
-    if test "$field" == ""; then
+    if test "$field" = ""; then
         return 1
     fi
 

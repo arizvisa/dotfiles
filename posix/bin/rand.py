@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import sys,random
+import user
+import sys, random
 
 def do_help_sequence(argv0):
     print >> sys.stderr, 'Usage: %s [-s] {min} {max} {step}\n'% argv0

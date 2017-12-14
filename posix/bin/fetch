@@ -72,7 +72,7 @@ download()
         killthis=$!
     fi
     wait $pid
-    test "$killthis" == "" || kill "$killthis"
+    test "$killthis" = "" || kill "$killthis"
 }
 
 filename=$(basename "$url")

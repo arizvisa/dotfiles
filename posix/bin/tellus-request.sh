@@ -144,11 +144,11 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if test "$USER_AGENT" == ""; then
+if test "$USER_AGENT" = ""; then
     USER_AGENT="Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.95 Safari/537.36"
 fi
 
-if test "$SESSION" == ""; then
+if test "$SESSION" = ""; then
     logerror "Need the SESSION environment variable set"
     halp "$argv0"
     exit 1
@@ -175,7 +175,7 @@ else
     filename=$(echo $summary | cut -d ':' -f 1)
 fi
 
-if test "$filename" == ""; then
+if test "$filename" = ""; then
     logerror "Unable to determine filename to write to. Failure to authenticate with SESSION hash?"
     exit 1
 fi
@@ -183,7 +183,7 @@ fi
 logverbose "Saving threat information to $filename.html | $summary"
 request_threat "$telus_id" | tidy_up >| "$filename.html"
 
-if test "$id" == ""; then
+if test "$id" = ""; then
     log "$telus_id::$summary"
     logerror "Unable to determine the recordid for $telus_id. Perhaps there's no assets to download?"
     exit 1

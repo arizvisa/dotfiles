@@ -1,4 +1,5 @@
-#!/bin/env python
+#!/usr/bin/env python
+import user
 import re, sys
 from BeautifulSoup import *
 

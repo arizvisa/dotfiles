@@ -98,7 +98,7 @@ ida_args='-pmetapc'
 
 # check to see what user is trying to write to
 ext=`echo "$filename" | sed 's/.*\.//'`
-if test "$ext" == "log"; then
+if test "$ext" = "log"; then
     output=`basename "$filename" ".$ext"`
     if test -f "$outpath/$output.$idaext"; then
         command="updating"
@@ -107,7 +107,7 @@ if test "$ext" == "log"; then
     fi
     printf "[%s] user wishes to log to \"%s\". %s \"%s\".\n" "`currentdate`" "$outpath/$output.log" "$command" "$outpath/$output.$idaext"
     ext="$idaext"
-elif test "$ext" == "$idaext"; then
+elif test "$ext" = "$idaext"; then
     output=`basename "$filename" ".$ext"`
     if test -f "$outpath/$output.$idaext"; then
         command="update"
