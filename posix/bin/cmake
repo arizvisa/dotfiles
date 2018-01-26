@@ -1,6 +1,6 @@
 #!/bin/sh
 posix=cmake
-windows=`resolvepath $HOME/tools/cmake-*`/bin/cmake.exe
+windows=`resolvepath "$HOME/tools/cmake-"*`/bin/cmake.exe
 
 ## determine which program to run
 case "$platform" in
