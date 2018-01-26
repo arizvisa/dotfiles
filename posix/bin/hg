@@ -1,6 +1,6 @@
 #!/bin/sh
 posix=hg
-windows="$PythonPath/Scripts/hg.exe"
+windows=`mount | grep posix=0 | cut -d' ' -f3 | while read n; do ls -1d "$n"/Python* 2>/dev/null; done | shuffle | xargs printf '%s/Scripts/hg\n' | while read n; do ls -1d "$n"*; done 2>/dev/null`
 
 ## determine which program to run
 case "$platform" in

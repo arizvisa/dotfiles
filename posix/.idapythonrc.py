@@ -61,6 +61,13 @@ def memberFromOp(st, ea, opnum):
     sizelookup = {1:'b',2:'w',4:'d',8:'',16:'q'}
     offset, size = ins.op(ea, opnum).offset, ins.op_size(ea, opnum)
     name = 'v'+sizelookup[size]
-    ok = st.members.add((name,offset), (int, size), offset)
-    assert ok
+    return st.members.add((name,offset), (int, size), offset)
 mop = memberFromOp
+
+dbname = fcompose(fap(fbox, fcompose(fboxed, first, fcondition(finstance(int))(db.offset, fdiscard(db.offset)), fboxed)), funbox(itertools.chain), funbox(db.name))
+fnname = fcompose(fap(fbox, fcompose(fboxed, first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fboxed)), funbox(itertools.chain), funbox(func.name))
+selectall = fcompose(db.selectcontents, partial(imap, unbox(func.select)), unbox(itertools.chain))
+
+has_immediate_ops = fcompose(fap(partial(partial, ins.op_type), ins.ops_read), unbox(map), set, fap(fcompose(len,fpartial(operator.eq, 1)), frev(operator.contains, 'immediate')), all)
+has_register_ops = fcompose(fap(partial(partial, ins.op_type), ins.ops_read), unbox(map), set, fap(fcompose(len,fpartial(operator.eq, 1)), frev(operator.contains, 'register')), all)
+previous_written = fcompose(fap(fid, fcompose(fap(partial(partial, ins.op), ins.ops_read), unbox(map), set)), tuple, fap(compose(first,box), compose(second,list)), unbox(zip), iget(1), funbox(db.a.prevreg, write=1))
