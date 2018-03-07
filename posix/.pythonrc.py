@@ -20,8 +20,12 @@ map(sys.path.append, __import__('glob').iglob(os.path.join(user.home.replace('\\
 fbox = fboxed = box = boxed = lambda *a: a
 # return a closure that executes ``f`` with the arguments unboxed.
 funbox = unbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + builtin.reduce(operator.add, builtin.map(builtin.tuple, ap), ())), **builtin.dict(k.items() + kp.items()))
-# return a closure that will check that ``object`` is an instance of ``type``.
-finstance = lambda type: lambda object: isinstance(object, type)
+# return a closure that will check that its argument is an instance of ``type``.
+finstance = lambda type: frpartial(builtin.isinstance, type)
+# return a closure that will check if its argument has an item ``key``.
+fhasitem = fitemQ = lambda key: fcompose(fcatch(frpartial(operator.getitem, key)), builtin.iter, builtin.next, fpartial(operator.eq, builtin.None))
+# return a closure that will check if its argument has an ``attribute``.
+fhasattr = fattrQ = lambda attribute: frpartial(builtin.hasattr, attribute)
 # return a closure that always returns ``object``.
 fconstant = fconst = falways = always = lambda object: lambda *a, **k: object
 # a closure that returns it's argument
@@ -69,11 +73,11 @@ fcomplement = fnot = complement = frpartial(fcompose, operator.not_)
 # converts a list to an iterator, or an iterator to a list
 ilist, liter = compose(list, iter), compose(iter, list)
 # converts a tuple to an iterator, or an iterator to a tuple
-ituple, titer = compose(tuple, iter), compose(iter, tuple)
+ituple, titer = compose(builtin.tuple, builtin.iter), compose(builtin.iter, builtin.tuple)
 # take ``count`` number of elements from an iterator
-itake = lambda count: compose(iter, fap(*(next,)*count), tuple)
+itake = lambda count: compose(builtin.iter, fap(*(builtin.next,)*count), builtin.tuple)
 # get the ``nth`` element from an iterator
-iget = lambda count: compose(iter, fap(*(next,)*(count)), tuple, operator.itemgetter(-1))
+iget = lambda count: compose(builtin.iter, fap(*(builtin.next,)*(count)), builtin.tuple, operator.itemgetter(-1))
 # copy from itertools
 imap, ifilter = itertools.imap, itertools.ifilter
 
