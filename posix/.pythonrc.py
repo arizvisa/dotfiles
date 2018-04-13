@@ -79,9 +79,11 @@ itake = lambda count: compose(builtin.iter, fap(*(builtin.next,)*count), builtin
 # get the ``nth`` element from an iterator
 iget = lambda count: compose(builtin.iter, fap(*(builtin.next,)*(count)), builtin.tuple, operator.itemgetter(-1))
 # copy from itertools
-imap, ifilter = itertools.imap, itertools.ifilter
+imap, ifilter, ichain, izip = itertools.imap, itertools.ifilter, itertools.chain, itertools.izip
+# count number of elements of a container
+count = compose(iter, list, len)
 
 __all__ = ['functools', 'operator', 'itertools', 'types', 'builtin']
 __all__+= ['first', 'second', 'third', 'last']
-__all__+= ['partial', 'fpartial', 'imap', 'ifilter']
+__all__+= ['partial', 'fpartial', 'imap', 'ifilter', 'ichain', 'izip']
 __all__+= filter( compose(fpartial(operator.getitem,locals()), finstance(types.FunctionType)), locals())
