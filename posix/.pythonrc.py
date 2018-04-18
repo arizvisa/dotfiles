@@ -40,7 +40,7 @@ fdiscard = lambda f: lambda *a, **k: f()
 fcondition = fcond = lambda crit: lambda t, f: \
     lambda *a, **k: t(*a, **k) if crit(*a, **k) else f(*a, **k)
 # return a closure that takes a list of functions to execute with the provided arguments
-fmaplist = fap = lambda *fa: lambda *a, **k: (f(*a, **k) for f in fa)
+fmaplist = fmap = fap = lambda *fa: lambda *a, **k: (f(*a, **k) for f in fa)
 #lazy = lambda f, state={}: lambda *a, **k: state[(f, a, builtin.tuple(builtin.sorted(k.items())))] if (f, a, builtin.tuple(builtin.sorted(k.items()))) in state else state.setdefault((f, a, builtin.tuple(builtin.sorted(k.items()))), f(*a, **k))
 #lazy = lambda f, *a, **k: lambda *ap, **kp: f(*(a+ap), **dict(k.items() + kp.items()))
 # return a memoized closure that's lazy and only executes when evaluated
@@ -75,9 +75,9 @@ ilist, liter = compose(list, iter), compose(iter, list)
 # converts a tuple to an iterator, or an iterator to a tuple
 ituple, titer = compose(builtin.tuple, builtin.iter), compose(builtin.iter, builtin.tuple)
 # take ``count`` number of elements from an iterator
-itake = lambda count: compose(builtin.iter, fap(*(builtin.next,)*count), builtin.tuple)
+itake = lambda count: compose(builtin.iter, fmaplist(*(builtin.next,)*count), builtin.tuple)
 # get the ``nth`` element from an iterator
-iget = lambda count: compose(builtin.iter, fap(*(builtin.next,)*(count)), builtin.tuple, operator.itemgetter(-1))
+iget = lambda count: compose(builtin.iter, fmaplist(*(builtin.next,)*(count)), builtin.tuple, operator.itemgetter(-1))
 # copy from itertools
 imap, ifilter, ichain, izip = itertools.imap, itertools.ifilter, itertools.chain, itertools.izip
 # count number of elements of a container
