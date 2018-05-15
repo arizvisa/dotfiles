@@ -20,7 +20,7 @@ fbox = fboxed = box = boxed = lambda *a: a
 # return a closure that executes ``f`` with the arguments unboxed.
 funbox = unbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + builtins.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **builtins.dict(k.items() + kp.items()))
 # return a closure that will check that its argument is an instance of ``type``.
-finstance = lambda type: frpartial(builtins.isinstance, type)
+finstance = lambda *type: frpartial(builtins.isinstance, type)
 # return a closure that will check if its argument has an item ``key``.
 fhasitem = fitemQ = lambda key: fcompose(fcatch(frpartial(operator.getitem, key)), builtins.iter, builtins.next, fpartial(operator.eq, builtins.None))
 # return a closure that will check if its argument has an ``attribute``.
@@ -35,9 +35,9 @@ first, second, third, last = operator.itemgetter(0), operator.itemgetter(1), ope
 fcompose = compose = lambda *f: builtins.reduce(lambda f1, f2: lambda *a: f1(f2(*a)), builtins.reversed(f))
 # return a closure that executes function ``f`` whilst discarding any extra arguments
 fdiscard = lambda f: lambda *a, **k: f()
-# return a closure that executes function ``crit`` and then executes ``f`` or ``t`` based on whether or not it's successful.
+# return a closure that executes function ``crit`` and then returns/executes ``f`` or ``t`` based on whether or not it's successful.
 fcondition = fcond = lambda crit: lambda t, f: \
-    lambda *a, **k: t(*a, **k) if crit(*a, **k) else f(*a, **k)
+    lambda *a, **k: (t(*a, **k) if builtins.callable(t) else t) if crit(*a, **k) else (f(*a, **k) if builtins.callable(f) else f)
 # return a closure that takes a list of functions to execute with the provided arguments
 fmap = lambda *fa: lambda *a, **k: (f(*a, **k) for f in fa)
 #lazy = lambda f, state={}: lambda *a, **k: state[(f, a, builtins.tuple(builtins.sorted(k.items())))] if (f, a, builtins.tuple(builtins.sorted(k.items()))) in state else state.setdefault((f, a, builtins.tuple(builtins.sorted(k.items()))), f(*a, **k))
@@ -70,17 +70,17 @@ fexc = fexception = fcatch
 # boolean inversion of the result of a function
 fcomplement = fnot = complement = frpartial(fcompose, operator.not_)
 # converts a list to an iterator, or an iterator to a list
-ilist, liter = compose(list, iter), compose(iter, list)
+ilist, liter = compose(builtins.list, builtins.iter), compose(builtins.iter, builtins.list)
 # converts a tuple to an iterator, or an iterator to a tuple
 ituple, titer = compose(builtins.tuple, builtins.iter), compose(builtins.iter, builtins.tuple)
 # take ``count`` number of elements from an iterator
 itake = lambda count: compose(builtins.iter, fmap(*(builtins.next,)*count), builtins.tuple)
 # get the ``nth`` element from an iterator
-iget = lambda count: compose(builtins.iter, fmap(*(builtins.next,)*count), builtins.tuple, operator.itemgetter(-1))
+iget = lambda count: compose(builtins.iter, fmap(*(builtins.next,)*(count)), builtins.tuple, operator.itemgetter(-1))
 # copy from itertools
 imap, ifilter, ichain, izip = itertools.imap, itertools.ifilter, itertools.chain, itertools.izip
 # count number of elements of a container
-count = compose(iter, list, len)
+count = compose(builtins.iter, builtins.list, builtins.len)
 
 __all__ = ['functools', 'operator', 'itertools', 'types', 'builtins']
 __all__+= ['first', 'second', 'third', 'last']
