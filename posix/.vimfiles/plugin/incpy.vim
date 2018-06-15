@@ -298,7 +298,7 @@ __incpy__.vim,__incpy__.buffer,__incpy__.spawn = __incpy__.incpy.vim,__incpy__.i
 __incpy__.state = __incpy__.builtin.tuple((__incpy__.builtin.getattr(__incpy__.sys,_) for _ in ('stdin','stdout','stderr')))
 def log(data):
     _,out,_ = __incpy__.state
-    out.write('incpy.vim : {:s}\n'.format(data))
+    out.write("incpy.vim : {:s}\n".format(data))
 __incpy__.log = log; del(log)
 
 # interpreter classes
@@ -320,11 +320,11 @@ class interpreter(object):
         return self.detach()
     def write(self, data):
         """Writes data directly into view"""
-        return self.view.write(data.encode('ascii', 'replace'))
+        return self.view.write(data)
     def __repr__(self):
         if self.view.window > -1:
-            return '<__incpy__.%s buffer:%d>'% (self.__class__.__name__, self.view.buffer.number)
-        return '<__incpy__.%s buffer:%d hidden>'% (self.__class__.__name__, self.view.buffer.number)
+            return "<__incpy__.{:s} buffer:{:d}>".format(self.__class__.__name__, self.view.buffer.number)
+        return "<__incpy__.{:s} buffer:{:d} hidden>".format(self.__class__.__name__, self.view.buffer.number)
 
     def attach(self):
         """Attaches interpreter to view"""
@@ -348,16 +348,17 @@ class interpreter_python_internal(__incpy__.interpreter):
     def attach(self):
         sys = __incpy__.sys
         self.state = sys.stdin,sys.stdout,sys.stderr
-        __incpy__.log('redirecting sys.{stdin,stdout,stderr} to %r'% self.view)
+        __incpy__.log("redirecting sys.{{stdin,stdout,stderr}} to {!r}".format(self.view))
         _,sys.stdout,sys.stderr = None,self.view,self.view
     def detach(self):
         if self.state is None: return
-        sys = __incpy__.sys
-        __incpy__.log('restoring sys.{stdin,stdout,stderr} to %r'% (self.state,))
+        sys, log = __incpy__ and __incpy__.sys or __import__('sys'), lambda message, log=self.state[1].write: log("incpy.vim : {:s}\n".format(message))
+        log("restoring sys.{{stdin,stdout,stderr}} to {!r}".format(self.state))
         sys.stdin,sys.stdout,sys.stderr = self.state
     def communicate(self, data, silent=False):
         if __incpy__.vim.gvars['incpy#ProgramEcho'] and not silent:
-            self.view.write('\n'.join('## %s'% x.encode('ascii','replace') for x in data.split('\n')) + '\n')
+            cmt = "## {:s}".format
+            self.view.write('\n'.join(map(cmt, data.split('\n'))) + '\n')
         exec data in __incpy__.builtin.globals()
     def start():
         __incpy__.log('python interpreter already started by host vim process')
@@ -375,17 +376,17 @@ class interpreter_external(__incpy__.interpreter):
         res.command,res.options = command,options
         return res
     def attach(self):
-        __incpy__.log("connecting i/o from %r to %r"% (self.command, self.view))
+        __incpy__.log("connecting i/o from {!r} to {!r}".format(self.command, self.view))
         self.instance = __incpy__.spawn(self.view.write, self.command, **self.options)
-        __incpy__.log("started process -- %d (%x) -- %s"% (self.instance.id,self.instance.id,self.command))
+        __incpy__.log("started process -- {:d} ({:#x}) -- {:s}".format(self.instance.id,self.instance.id,self.command))
     def detach(self):
         if not self.instance: return
         if not self.instance.running:
-            __incpy__.log("refusing to stop already terminated process %r"% self.instance)
+            __incpy__.log("refusing to stop already terminated process {!r}".format(self.instance))
             return
-        __incpy__.log("killing process %r"% self.instance)
+        __incpy__.log("killing process {!r}".format(self.instance))
         self.instance.stop()
-        __incpy__.log('disconnecting i/o for %r from %r'% (self.instance,self.view))
+        __incpy__.log("disconnecting i/o for {!r} from {!r}".format(self.instance,self.view))
         self.instance = None
 
     def communicate(self, data, silent=False):
@@ -395,13 +396,13 @@ class interpreter_external(__incpy__.interpreter):
     def __repr__(self):
         res = __incpy__.builtin.super(__incpy__.interpreter_external, self).__repr__()
         if self.instance.running:
-            return '{:s} {{{!r} {:s}}}'.format(res, self.instance, self.command)
-        return '{:s} {{{!s}}}'.format(res, self.instance)
+            return "{:s} {{{!r} {:s}}}".format(res, self.instance, self.command)
+        return "{:s} {{{!s}}}".format(res, self.instance)
     def start():
-        __incpy__.log("starting process %r"% self.instance)
+        __incpy__.log("starting process {!r}".format(self.instance))
         self.instance.start()
     def stop():
-        __incpy__.log("stopping process %r"% self.instance)
+        __incpy__.log("stopping process {!r}".format(self.instance))
         self.instance.stop()
 __incpy__.interpreter_external = interpreter_external; del(interpreter_external)
 
@@ -410,26 +411,26 @@ class internal(object):
     """Commands that interface with vim directly"""
     class tab(object):
         """Internal vim commands for interacting with tabs"""
-        goto = __incpy__.builtin.staticmethod(lambda n: __incpy__.vim.command('tabnext %d'% (n+1)))
-        close = __incpy__.builtin.staticmethod(lambda n: __incpy__.vim.command('tabclose %d'% (n+1)))
+        goto = __incpy__.builtin.staticmethod(lambda n: __incpy__.vim.command("tabnext {:d}".format(n+1)))
+        close = __incpy__.builtin.staticmethod(lambda n: __incpy__.vim.command("tabclose {:d}".format(n+1)))
         #def move(n, t):    # FIXME
         #    current = int(__incpy__.vim.eval('tabpagenr()'))
         #    _ = t if current == n else current if t > current else current+1
-        #    __incpy__.vim.command('tabnext %d | tabmove %d | tabnext %d'% (n+1,t,_))
+        #    __incpy__.vim.command("tabnext {:d} | tabmove {:d} | tabnext {:d}".format(n+1,t,_))
 
         getCurrent = __incpy__.builtin.staticmethod(lambda: __incpy__.builtin.int(__incpy__.vim.eval('tabpagenr()')) - 1)
         getCount = __incpy__.builtin.staticmethod(lambda: __incpy__.builtin.int(__incpy__.vim.eval('tabpagenr("$")')))
-        getBuffers = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.map(int,__incpy__.vim.eval('tabpagebuflist(%d)'% (n-1))))
+        getBuffers = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.map(int,__incpy__.vim.eval("tabpagebuflist({:d})".format(n-1))))
 
-        getWindowCurrent = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval('tabpagewinnr(%d)'% (n-1))))
-        getWindowPrevious = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval('tabpagewinnr(%d, "#")'% (n-1))))
-        getWindowCount = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval('tabpagewinnr(%d, "$")'% (n-1))))
+        getWindowCurrent = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d})".format(n-1))))
+        getWindowPrevious = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '#')".format(n-1))))
+        getWindowCount = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '$')".format(n-1))))
 
     class buffer(object):
         """Internal vim commands for getting information about a buffer"""
-        name = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.str(__incpy__.vim.eval('bufname(%d)'% id)))
-        number = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.int(__incpy__.vim.eval('bufnr(%d)'% id)))
-        window = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.int(__incpy__.vim.eval('bufwinnr(%d)'% id)))
+        name = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.str(__incpy__.vim.eval("bufname({:d})".format(id))))
+        number = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.int(__incpy__.vim.eval("bufnr({:d})".format(id))))
+        window = __incpy__.builtin.staticmethod(lambda id: __incpy__.builtin.int(__incpy__.vim.eval("bufwinnr({:d})".format(id))))
 
     class window(object):
         """Internal vim commands for doing things with a window"""
@@ -455,9 +456,9 @@ class internal(object):
             result = []
             for k,v in options.iteritems():
                 if builtin.isinstance(v, (int,long)):
-                    result.append('%s=%d'%(k,v))
+                    result.append("{:s}={:d}".format(k,v))
                 elif builtin.isinstance(v, basestring):
-                    result.append('%s=%s'%(k,v))
+                    result.append("{:s}={:s}".format(k,v))
                 else:
                     result.append(k)
                 continue
@@ -471,7 +472,7 @@ class internal(object):
         @__incpy__.builtin.staticmethod
         def select(window):
             '''Select the window with the specified id'''
-            return (__incpy__.builtin.int(__incpy__.vim.eval('winnr()')),__incpy__.vim.command('%d wincmd w'% window))[0]
+            return (__incpy__.builtin.int(__incpy__.vim.eval('winnr()')),__incpy__.vim.command("{:d} wincmd w".format(window)))[0]
         @__incpy__.builtin.staticmethod
         def currentsize(position):
             builtin = __incpy__.builtin
@@ -485,7 +486,7 @@ class internal(object):
         @__incpy__.builtin.staticmethod
         def buffer(bufferid):
             '''Return the window according to the bufferid'''
-            return __incpy__.builtin.int(__incpy__.vim.eval('winbufnr(%d)'% bufferid))
+            return __incpy__.builtin.int(__incpy__.vim.eval("winbufnr({:d})".format(bufferid)))
 
         # window actions
         @__incpy__.builtin.classmethod
@@ -494,33 +495,35 @@ class internal(object):
             last = cls.current()
             if preview:
                 if builtin.len(options) > 0:
-                    __incpy__.vim.command("noautocmd silent %s pedit! +setlocal\\ %s %s"% (cls.positionToLocation(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
+                    __incpy__.vim.command("noautocmd silent {:s} pedit! +setlocal\\ {:s} {:s}".format(cls.positionToLocation(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
                 else:
-                    __incpy__.vim.command("noautocmd silent %s pedit! %s"% (cls.positionToLocation(position), __incpy__.internal.buffer.name(bufferid)))
+                    __incpy__.vim.command("noautocmd silent {:s} pedit! {:s}".format(cls.positionToLocation(position), __incpy__.internal.buffer.name(bufferid)))
             else:
                 if builtin.len(options) > 0:
-                    __incpy__.vim.command("noautocmd silent %s %d%s! +setlocal\\ %s %s"% (cls.positionToLocation(position), size, cls.positionToSplit(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
+                    __incpy__.vim.command("noautocmd silent {:s} {:d}{:s}! +setlocal\\ {:s} {:s}".format(cls.positionToLocation(position), size, cls.positionToSplit(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
                 else:
-                    __incpy__.vim.command("noautocmd silent %s %d%s! %s"% (cls.positionToLocation(position), size, cls.positionToSplit(position), __incpy__.internal.buffer.name(bufferid)))
+                    __incpy__.vim.command("noautocmd silent {:s} {:d}{:s}! {:s}".format(cls.positionToLocation(position), size, cls.positionToSplit(position), __incpy__.internal.buffer.name(bufferid)))
 
             res = cls.current()
             cls.select(last)
             if not builtin.bool(__incpy__.vim.gvars['incpy#WindowPreview']):
                 wid = cls.buffer(bufferid)
-                assert res == wid,'Newly created window is not pointing to buffer id : {!r} != {!r}'.format(wid, res)
+                if res != wid:
+                    raise AssertionError("Newly created window is not pointing to the correct buffer id : {!r} != {!r}".format(wid, res))
             return res
 
         @__incpy__.builtin.classmethod
         def show(cls, bufferid, position, preview=False):
             last = cls.select( cls.buffer(bufferid) )
             if preview:
-                __incpy__.vim.command("noautocmd silent %s pedit! %s"% (cls.positionToLocation(position), __incpy__.internal.buffer.name(bufferid)))
+                __incpy__.vim.command("noautocmd silent {:s} pedit! {:s}".format(cls.positionToLocation(position), __incpy__.internal.buffer.name(bufferid)))
             else:
-                __incpy__.vim.command("noautocmd silent %s %s! %s"% (cls.positionToLocation(position), cls.positionToSplit(position), __incpy__.internal.buffer.name(bufferid)))
+                __incpy__.vim.command("noautocmd silent {:s} {:s}! {:s}".format(cls.positionToLocation(position), cls.positionToSplit(position), __incpy__.internal.buffer.name(bufferid)))
 
             res = cls.current()
             cls.select(last)
-            assert res == cls.buffer(bufferid)
+            if res != cls.buffer(bufferid):
+                raise AssertionError
             return res
         @__incpy__.builtin.classmethod
         def hide(cls, bufferid, preview=False):
@@ -554,7 +557,7 @@ class internal(object):
         @__incpy__.builtin.classmethod
         def restsize(cls, bufferid, state):
             window = cls.buffer(bufferid)
-            return 'vertical %d resize %d | %d resize %d'% (window, state['width'], window, state['height'])
+            return "vertical {:d} resize {:d} | {:d} resize {:d}".format(window, state['width'], window, state['height'])
 
 __incpy__.internal = internal; del(internal)
 
@@ -580,24 +583,24 @@ class view(object):
         elif builtin.isinstance(target, basestring):
             try: return __incpy__.buffer.from_name(target)
             except: return __incpy__.buffer.new(target)
-        raise __incpy__.incpy.error, "Unable to determine output buffer from parameter : %r"% target
+        raise __incpy__.incpy.error, "Unable to determine output buffer from parameter : {!r}".format(target)
 
     def write(self, data):
         """Write data directly into window contents (updating buffer)"""
-        return self.buffer.write(data.encode('ascii', 'replace'))
+        return self.buffer.write(data)
 
     def create(self, position, ratio):
         """Create window for buffer"""
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer %d does not exist"% buf.number
+            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
         if 1.0 <= ratio < 0.0:
-            raise builtin.Exception, "Specified ratio is out of bounds %r"% ratio
+            raise builtin.Exception, "Specified ratio is out of bounds {!r}".format(ratio)
 
         current = __incpy__.internal.window.current()
         sz = __incpy__.internal.window.currentsize(position) * ratio
-        result = __incpy__.internal.window.create(buf.number, position, sz, self.options, preview=self.preview)
+        result = __incpy__.internal.window.create(buf.number, position, int(sz), self.options, preview=self.preview)
         self.window = result
         return result
 
@@ -606,9 +609,9 @@ class view(object):
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer %d does not exist"% buf.number
+            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
         if __incpy__.internal.buffer.window(buf.number) != -1:
-            raise builtin.Exception, "Window for %d is already showing"% buf.number
+            raise builtin.Exception, "Window for {:d} is already showing".format(buf.number)
         __incpy__.internal.window.show(buf.number, position, preview=self.preview)
 
     def hide(self):
@@ -616,15 +619,15 @@ class view(object):
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer %d does not exist"% buf.number
+            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
         if __incpy__.internal.buffer.window(buf.number) == -1:
-            raise builtin.Exception, "Window for %d is already hidden"% buf.number
+            raise builtin.Exception, "Window for {:d} is already hidden".format(buf.number)
         __incpy__.internal.window.hide(buf.number, preview=self.preview)
 
     def __repr__(self):
         if self.preview:
-            return '<__incpy__.view buffer:%d "%s" preview>'% (self.window, self.buffer.name)
-        return '<__incpy__.view buffer:%d "%s">'% (self.window, self.buffer.name)
+            return "<__incpy__.view buffer:{:d} \"{:s}\" preview>".format(self.window, self.buffer.name)
+        return "<__incpy__.view buffer:{:d} \"{:s}\">".format(self.window, self.buffer.name)
 __incpy__.view = view; del(view)
 
 # spawn interpreter requested by user
@@ -633,7 +636,7 @@ opt = {'winfixwidth':True,'winfixheight':True} if __incpy__.vim.gvars["incpy#Win
 try:
     __incpy__.cache = __incpy__.interpreter_external.new(_, opt=opt) if len(_) > 0 else __incpy__.interpreter_python_internal.new(opt=opt)
 except:
-    __incpy__.log("Error instantiating interpreter: %s"% _)
+    __incpy__.log("Error instantiating interpreter: {:s}".format(_))
     _ = __import__('sys').exc_info()
     _ = __import__('traceback').format_exception(*_)
     __incpy__.log('\n'.join(_))
