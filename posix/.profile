@@ -3,7 +3,7 @@
 # System-wide .profile file for sh(1).
 umask 022
 
-# set a global so that .bashrc can verify this rcfile has been executed already.
+## set a global so that .bashrc can verify this rcfile has been executed already.
 export PROFILE=`[ ! -z "$USERPROFILE" ] && echo "$USERPROFILE" || echo "$HOME"`
 if [ ! -d "$PROFILE" ]; then
     # FIXME: programmatically determine the tmp directory in case $PROFILE fails.
@@ -11,18 +11,19 @@ if [ ! -d "$PROFILE" ]; then
     echo "$0 : Unable to determine profile directory. Defaulting to \"$PROFILE\"." 1>&2
 fi
 
+## Figure out the user and home directory if it hasn't been set yet
 [ -z "$USER" ] && export USER=`whoami`
 [ -z "$HOME" ] && export HOME=`( cd "$PROFILE" && pwd -P )`
 
+## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
-export PS1='[\!] \u@\h \w$ '
+export PS1='[\!] \u@\h \w\$ '
 
 #path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
 
-# decompose path, and keep only the paths that exist.
-# FIXME: figure out bourne-specific way to replace sed here so we don't have to depend on the path.
+## decompose path, and keep only the paths that exist.
 oldpath="$PATH"
-path=`echo "${path}" | while read -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
+path=`echo "${path}" | while read -r -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
 PATH="${path%:}"
 PATH="${PATH}:${oldpath}"
 unset oldpath path
@@ -52,6 +53,18 @@ case "$OS" in
 esac
 export os
 
+## detect the distribution using lsb_release
+if [ -e "/etc/os-release" ]; then
+    distro=
+    distro_version=
+    while IFS='=' read key value; do
+        [ "$key" == "ID" ] && distro="$value"
+        [ "$key" == "VERSION_ID" ] && distro_version="$value"
+    done < /etc/os-release
+    [ "$distro" == "" ] && echo "$0 : Unable to determine the platform distro from /etc/os-release." 1>&2
+    [ "$distro_version" == "" ] && echo "$0 : Unable to determine the platform distro version from /etc/os-release." 1>&2
+fi
+
 ## promote terminal to something colorful
 case "$TERM" in
     *-256color) TERM="$TERM" ;;
@@ -68,33 +81,53 @@ export TERM
 ## platform-specific variables
 case "$platform" in
     msys|cygwin)
-        # windows variables
+        # windows environment variables
         export ProgramFiles="${ProgramW6432:-$PROGRAMFILES}"
-        export ProgramFiles_x86_=`env | egrep '^ProgramFiles\(x86\)=' | cut -d= -f2-`
+
+        ProgramFiles_x86_=
+        while IFS== read -r key value; do
+            [ "$key" == "ProgramFiles(x86)" ] && ProgramFiles_x86_="$value"
+        done < <( env )
+        export ProgramFiles_x86_
+        [ "$ProgramFiles_x86_" == "" ] && echo "$0 : Unable to remap environment variable \"ProgramFiles(x86)\" to \"ProgramFiles_x86_\"." 1>&2
 
         # figure out msys/cygwin root
-        export Root=`mount | cut -d' ' -f 1,3,5 | awk '$2 == "/"' | cut -d' ' -f 1`
+        Root=
+        while IFS=' ' read source _ target _ fs options; do
+            [ "$target" == "/" ] && Root="$source"
+        done < <( mount )
+        export Root
+        [ "$Root" == "" ] && echo "$0 : Unable to determine msys/cygwin root from \"mount\" command." 1>&2
 
         # figure out mingw's root according to the arch
         case "$arch" in
-        x86_64) Mingw="${Root}/mingw64" ;;
-        x86) Mingw="${Root}/mingw32" ;;
+        x86_64) export Mingw="${Root}/mingw64" ;;
+        x86)    export Mingw="${Root}/mingw32" ;;
+        *) echo "$0 : Unable to determine path for \"Mingw\" due to unsupported architecture ($arch)." 1>&2 ;;
         esac
-        export Mingw
 
-        # fix a bug when compiling on msys2, that actually came from some older version of cygwin and still remains.
-        if [ `uname -r | cut -d. -f 1` == 2 ]; then
-            export PATH=`echo "${PATH}" | sed 's/\(:\/bin:\)/:\/usr\/bin\1/'`
+        # fix a bug with paths wrt compiling on msys2 which originated from some older version of cygwin and still remains.
+        IFS='.()' read rmajor rminor rpatch _ < <( uname -r )
+        if [ "$rmajor" -eq "2" ]; then
+            export PATH=`sed 's/\(:\/bin:\)/:\/usr\/bin\1/' <<< "$PATH"`
         fi
+        unset rmajor rminor rpatch
         ;;
-    *)
+    linux-gnu)
         if [ -d "$HOME/.perl" ]; then
-            perlver=`perl -V:VERSION | cut -d\' -f2 | cut -d. -f 1,2`
-            export PERL5LIB="$HOME/.perl/share/perl/$perlver"
-            unset perlver
+            IFS="=;'" read name q perlversion q _ < <( perl -V:version )
+            if [ "$name" == "version" ]; then
+                export PERL5LIB="$HOME/.perl/share/perl/$perlversion"
+            else
+                echo "$0 : Unable to determine Perl version" 1>&2
+            fi
+            unset name perlversion q
         fi
 
         # FIXME: add support for python's user-local site-packages
+        ;;
+    *)
+        echo "$0 : Unsupported platform \"$platform\"." 1>&2
         ;;
 esac
 
@@ -105,13 +138,14 @@ ulimit -c unlimited
 ## global limits
 case "$os" in
 posix)
-    ulimit -u 1024 >/dev/null
+    # ubuntu is fucking busted with process limits for some reason
+    [ "$distro" != "ubuntu" ] && ulimit -u 1024 >/dev/null
     ulimit -t 60
     #ulimit -v 1048576
     ;;
 
 windows)
-    ulimit -u 384 >/dev/null
+    ulimit -u 384 2>/dev/null
     ;;
 esac
 
@@ -120,10 +154,16 @@ cd "$HOME"
 
 ## continue loading stuff from .bashrc if $rcfile does not match
 _rcfile="$HOME/.bashrc"
-[ -e "$_rcfile" ] && source "$_rcfile" "$_rcfile"
+if [ -e "$_rcfile" ]; then
+    source "$_rcfile" "$_rcfile"
 
-## verify counter-assignment from rcfile
-if [ "$_rcfile" != "$rcfile" ]; then
-    [ -z "$rcfile" ] && echo "$0 : Unexpected counter-assignment received from $_rcfile." 1>&2 || echo "$0 : Unexpected counter-assignment received from $_rcfile : $rcfile" 1>&2
+    # verify counter-assignment from sourcing the rcfile
+    if [ "$rcfile" != "$_rcfile" ]; then
+        if [ -z "$rcfile" ]; then
+            echo "$0 : Unexpected counter-assignment received from $_rcfile." 1>&2
+        else
+            echo "$0 : Unexpected counter-assignment received from $_rcfile : $rcfile" 1>&2
+        fi
+    fi
 fi
 unset _rcfile
