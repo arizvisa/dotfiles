@@ -9,6 +9,9 @@
 [ "$1" != "$HOME/.bashrc" ] && return
 export rcfile="$HOME/.bashrc"
 
+# prefix $HOME/bin to PATH
+[ -e "$HOME/bin" ] && PATH="$HOME/bin:$PATH"
+
 # set some default options for bash
 set -o noclobber
 set -o ignoreeof
