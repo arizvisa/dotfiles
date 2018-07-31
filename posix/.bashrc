@@ -5,6 +5,11 @@
 # if .profile hasn't been executed yet, then do it first.
 [ -z "$PROFILE" ] && source "$HOME/.profile"
 
+# verify challenge from .profile
+[ "$1" != "$HOME/.bashrc" ] && return
+export rcfile="$HOME/.bashrc"
+
+# set some default options for bash
 set -o noclobber
 set -o ignoreeof
 set -o vi
@@ -17,7 +22,7 @@ alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 
-alias l=`type -p less || type -p more`
+alias l="`type -p less || type -p more`"
 alias info="`type -p info` --vi-keys"
 
 # because some fucks alias `ls` to `ls -g`
@@ -31,7 +36,7 @@ fi
 
 ## default files
 if [ ! -e "$HOME/.inputrc" ]; then
-    echo 'set editing-mode vi' > "$HOME/.inputrc"
+    echo 'set editing-mode vi' >| "$HOME/.inputrc"
 fi
 
 ## useful functions
