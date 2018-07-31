@@ -3,16 +3,14 @@
 ## conversions
 msys2default()
 {
-    path=$1
-    #echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\1:\//'
-    echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\/\1\//'
+    #sed 's/^\/\([a-zA-Z]\)\//\1:\//' <<< "$1"
+    sed 's/^\/\([a-zA-Z]\)\//\/\1\//' <<< "$1"
 }
 
 cygwin2default()
 {
-    path=$1
-    #echo "$path" | sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\1:\//'
-    echo "$path" | sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\/\1\//'
+    #sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\1:\//' <<< "$1"
+    sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\/\1\//' <<< "$1"
 }
 
 windows2default()
@@ -20,25 +18,22 @@ windows2default()
     #C:\path\where
     path=$1
     #echo "$path" | sed 's/^\([a-zA-Z]\):\\/\1:\//;s/\\/\//g'
-    echo "$path" | sed 's/\\/\//g;s/^\([a-zA-Z]\):\//\/\1\//'
+    sed 's/\\/\//g;s/^\([a-zA-Z]\):\//\/\1\//' <<< "$path"
 }
 
 default2msys()
 {
-    path=$1
-    echo "$path" | sed 's/^\([a-zA-Z]\):\//\/\1\//'
+    sed 's/^\([a-zA-Z]\):\//\/\1\//' <<< "$1"
 }
 
 default2cygwin()
 {
-    path=$1
-    echo "$path" | sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\1\//'
+    sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\1\//' <<< "$1"
 }
 
 default2windows()
 {
-    path=$1
-    echo "$path" | sed 's/^\/\([a-zA-Z]\)\//\1:\//;s/\//\\/g'
+    sed 's/^\/\([a-zA-Z]\)\//\1:\//;s/\//\\/g' <<< "$1"
 }
 
 ## misc
@@ -159,7 +154,7 @@ fi
 case "${platform}" in
     *bsd*)
         # XXX: freebsd has no way to really normalize paths from shell...so try our best.
-        normal=`echo "$default" | sed 's/\/\+/\//g;s/\/\.\//\//g'`
+        normal=`sed 's/\/\+/\//g;s/\/\.\//\//g' <<< "$default"`
         ;;
     *)
         normal=`type -P realpath >/dev/null && realpath -s -m "$default" 2>/dev/null || readlink -m "$default" 2>/dev/null`
@@ -167,7 +162,7 @@ case "${platform}" in
 esac
 
 # change all backslashes to forward slashes for some configure scripts
-normal=`echo "$normal" | sed 's/\\\/\//g'`
+normal=`sed 's/\\\/\//g' <<< "$normal"`
 
 ## output results
 case "$FORMAT" in

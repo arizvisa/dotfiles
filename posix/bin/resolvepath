@@ -13,6 +13,6 @@ path=`type -P realpath >/dev/null && realpath -s -m "$path" 2>/dev/null || readl
 
 # if we're cygwin/msys then transform it
 case "$platform" in
-    cygwin|msys) echo "$path" | xargs cygpath -u -- ;;
+    cygwin|msys) xargs cygpath -u -- <<< "$path" ;;
     *) echo "$path" ;;
 esac
