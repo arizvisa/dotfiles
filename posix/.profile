@@ -62,6 +62,7 @@ if [ -e "/etc/os-release" ]; then
     done < /etc/os-release
     [ "$distro" == "" ] && echo "$0 : Unable to determine the platform distro from /etc/os-release." 1>&2
     [ "$distro_version" == "" ] && echo "$0 : Unable to determine the platform distro version from /etc/os-release." 1>&2
+    export distro distro_version
 fi
 
 ## promote terminal to something colorful
