@@ -17,7 +17,6 @@ fi
 
 ## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
-export PS1='[\!] \u@\h \w\$ '
 
 #path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
 
@@ -153,17 +152,4 @@ esac
 cd "$HOME"
 
 ## continue loading stuff from .bashrc if $rcfile does not match
-_rcfile="$HOME/.bashrc"
-if [ -e "$_rcfile" ]; then
-    source "$_rcfile" "$_rcfile"
-
-    # verify counter-assignment from sourcing the rcfile
-    if [ "$rcfile" != "$_rcfile" ]; then
-        if [ -z "$rcfile" ]; then
-            echo "$0 : Unexpected counter-assignment received from $_rcfile." 1>&2
-        else
-            echo "$0 : Unexpected counter-assignment received from $_rcfile : $rcfile" 1>&2
-        fi
-    fi
-fi
-unset _rcfile
+[ -e "$HOME/.bashrc" ] && source "$HOME/.bashrc"

@@ -5,9 +5,8 @@
 # if .profile hasn't been executed yet, then do it first.
 [ -z "$PROFILE" ] && source "$HOME/.profile"
 
-# verify challenge from .profile
-[ "$1" != "$HOME/.bashrc" ] && return
-export rcfile="$HOME/.bashrc"
+# set a sane prompt
+export PS1='[\!] \u@\h \w\$ '
 
 # prefix $HOME/bin to PATH
 [ -e "$HOME/bin" ] && PATH="$HOME/bin:$PATH"
