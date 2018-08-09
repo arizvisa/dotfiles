@@ -20,19 +20,27 @@ link_directory()
     source="$2"
     destination="$3"
 
+    if [ ! -d "$destination/$name" ]; then
+        printf "%s: Destination file exists and is not a directory: %s\n" "$name" "$destination/$name" 1>&2
+        return 1
+    fi
+
     case "$os" in
     windows)
-        printf "%s: tar -cpf- -C \"%s\" \"%s\" | tar -xpf- -C \"%s\"\n" "$name" "$source" "$name" "$destination" 1>&2
+        #printf "%s: tar -cpf- -C \"%s\" \"%s\" | tar -xpf- -C \"%s\"\n" "$name" "$source" "$name" "$destination" 1>&2
         tar -cpf- -C "$source" "$name" | tar -xpf- -C "$destination" 
         ;;
     posix)
-        printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
+        #printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -snf "$source/$name" "$destination/$name"
         ;;
     *)
         printf "%s: Unable to link directory into \"%s\".\n" "$name" "$destination" 1>&2
+        return 1
         ;;
     esac
+
+    return $?
 }
 
 ## method for linking a file
@@ -42,19 +50,27 @@ link_file()
     source="$2"
     destination="$3"
 
+    if [ ! -f "$destination/$name" ]; then
+        printf "%s: Destination file exists and is not a file: %s\n" "$name" "$destination/$name" 1>&2
+        return 1
+    fi
+
     case "$os" in
     windows)
-        printf "%s: ln -sf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
+        #printf "%s: ln -sf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -sf "$source/$name" "$destination/$name"
         ;;
     posix)
-        printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
+        #printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -snf "$source/$name" "$destination/$name"
         ;;
     *)
         printf "%s: Unable to link file into \"%s\".\n" "$name" "$destination" 1>&2
+        return 1
         ;;
     esac
+
+    return $?
 }
 
 ## process everything in ./posix
