@@ -20,18 +20,16 @@ link_directory()
     source="$2"
     destination="$3"
 
-    if [ ! -d "$destination/$name" ]; then
+    if [ -e "$destination/$name" ] && [ ! -d "$destination/$name" ]; then
         printf "%s: Destination file exists and is not a directory: %s\n" "$name" "$destination/$name" 1>&2
         return 1
     fi
 
     case "$os" in
     windows)
-        #printf "%s: tar -cpf- -C \"%s\" \"%s\" | tar -xpf- -C \"%s\"\n" "$name" "$source" "$name" "$destination" 1>&2
         tar -cpf- -C "$source" "$name" | tar -xpf- -C "$destination" 
         ;;
     posix)
-        #printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -snf "$source/$name" "$destination/$name"
         ;;
     *)
@@ -50,18 +48,16 @@ link_file()
     source="$2"
     destination="$3"
 
-    if [ ! -f "$destination/$name" ]; then
+    if [ -e "$destination/$name" ] && [ ! -f "$destination/$name" ]; then
         printf "%s: Destination file exists and is not a file: %s\n" "$name" "$destination/$name" 1>&2
         return 1
     fi
 
     case "$os" in
     windows)
-        #printf "%s: ln -sf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -sf "$source/$name" "$destination/$name"
         ;;
     posix)
-        #printf "%s: ln -snf \"%s\" \"%s\"\n" "$name" "$source/$name" "$destination/$name" 1>&2
         ln -snf "$source/$name" "$destination/$name"
         ;;
     *)
@@ -73,6 +69,32 @@ link_file()
     return $?
 }
 
+## method for linking symbolically
+link_symbolic()
+{
+    name="$1"
+    source="$2"
+    destination="$3"
+
+    if [ -e "$destination/$name" ] && [ ! -L "$destination/$name" ]; then
+        printf "%s: Destination file exists and is not a symbolic link: %s\n" "$name" "$destination/$name" 1>&2
+        return 1
+    fi
+
+    case "$os" in
+    windows)
+        printf "%s: Symbolic links not supported on windows.\n" "$name" 1>&2
+        ;;
+    posix)
+        ln -snf "$source/$name" "$destination/$name"
+        ;;
+    *)
+        printf "%s: Unable to link name into \"%s\".\n" "$name" "$destination" 1>&2
+        return 1
+        ;;
+    esac
+}
+
 ## process everything in ./posix
 find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read path; do
     name=`basename "$path"`
@@ -80,6 +102,8 @@ find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read path; do
         link_directory "$name" "$fullpath/posix" "$1"
     elif [ -e "$1/$name" ] && [ -f "$1/$name" ]; then
         link_file "$name" "$fullpath/posix" "$1"
+    elif [ -L "$1/$name" ]; then
+        link_symbolic "$name" "$fullpath/$posix" "$1"
     else
         printf "Unable to link unknown file type: %s\n" "$path" 1>&2
     fi
