@@ -1,0 +1,71 @@
+#!/bin/sh
+mstsc_args='-f'
+xfreerdp_args='-dynamic-resolution +heartbeat -sec-tls -sec-nla -sec-rdp -sec-ext +sec-tls -authentication'
+
+## figure out whether a prog exists for the current platform
+case "$platform" in
+    linux-*)
+        ;;
+    msys|cygwin)
+        prog=`type -P mstsc.exe`
+        args="$mstsc_args"
+        ;;
+    *)
+        printf "RDP client not available for platform: %s\n" "$platform" 1>&2
+        exit 1
+        ;;
+esac
+
+## if platform selection didn't determine the prog to run, then figure it out
+if [ -z "$prog" ]; then
+
+    ## determine the x session type
+    session=`which-xsession`
+    session_type=`loginctl --property=Type show-session "$session"`
+
+    ## figure out which rdp (xfreerdp) client we can use
+    case "$session_type" in
+    Type=x11)
+        prog=`type -P xfreerdp`
+        ;;
+    Type=wayland)
+        prog=`type -P wlfreerdp`
+        ;;
+    Type=tty)
+        printf "Unable to run an RDP client without an X-based login session: %s\n" "$session_type" 1>&2
+        exit 1
+        ;;
+    *)
+        printf "Unable to determine RDP client for login session: %s\n" "$session_type" 1>&2
+        exit 1
+        ;;
+    esac
+
+    ## use xfreerdp arguments
+    args="$xfreerdp_args"
+fi
+
+## Verify that the RDP client was discovered properly
+if [ -z "$prog" ]; then
+    printf "Unable to locate an RDP client for platform: %s\n" "$platform" 1>&2
+    exit 1
+fi
+printf "Discovered RDP client: %s\n" "$prog" 1>&2
+
+## figure out the first argument
+server="$1"
+
+## if it's an option, then just pass through to $prog
+case "$1" in
+-*|/*)
+    echo "$prog" $args "$@"
+    exit $$
+    ;;
+esac
+
+## otherwise, assume it's the server and pass the rest through
+server="$1"
+shift 1
+
+"$prog" $args "-v:$server" "$@"
+exit $$
