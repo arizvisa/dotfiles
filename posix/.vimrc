@@ -27,6 +27,7 @@
     set shiftwidth=4
     set expandtab
     set autowrite
+    set autoindent
 
     "" no wordwrap
     set nowrap
@@ -50,7 +51,6 @@
     let &isfname = join(filter(split(&isfname,","),'v:val!~":"'),",")
 
     "" get rid of the stupid/lame (emacs-like) autoindenting
-    set noautoindent
     set nocindent
     filetype indent off
     filetype plugin off
