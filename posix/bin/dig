@@ -20,4 +20,4 @@ fi
 
 [ -z "$prog" ] && echo "Unable to locate $posix" 1>&2 && exit 1
 "$prog" "$@"
-exit $$
+exit $?
