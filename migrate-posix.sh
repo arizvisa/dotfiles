@@ -27,7 +27,7 @@ link_directory()
 
     case "$os" in
     windows)
-        tar -cpf- -C "$source" "$name" | tar -xpf- -C "$destination" 
+        tar -cpf- -C "$source" "$name" | tar -xpf- --overwrite -C "$destination"
         ;;
     posix)
         ln -snf "$source/$name" "$destination/$name"
@@ -98,13 +98,13 @@ link_symbolic()
 ## process everything in ./posix
 find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read path; do
     name=`basename "$path"`
-    if [ -d "$1/$name" ]; then
+    if [ -d "$fullpath/posix/$name" ]; then
         link_directory "$name" "$fullpath/posix" "$1"
-    elif [ -e "$1/$name" ] && [ -f "$1/$name" ]; then
+    elif [ -e "$fullpath/posix/$name" ] && [ -f "$1/$name" ]; then
         link_file "$name" "$fullpath/posix" "$1"
-    elif [ -L "$1/$name" ]; then
+    elif [ -L "$fullpath/posix/$name" ]; then
         link_symbolic "$name" "$fullpath/$posix" "$1"
     else
-        printf "Unable to link unknown file type: %s\n" "$path" 1>&2
+        printf "Unable to link unknown file type: %s\n" "$fullpath/posix/$name" 1>&2
     fi
 done
