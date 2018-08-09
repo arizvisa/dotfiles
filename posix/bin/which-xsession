@@ -1,0 +1,57 @@
+#!/bin/sh
+loginctl=`type -P loginctl`
+if [ -z "$loginctl" ]; then
+    printf "Unable to locate loginctl for %s platform: %s\n" "$os" "$platform" 1>&2
+    exit 1
+fi
+
+## figure out the display from $DISPLAY if not specified as an arg
+[ "$1" == "" ] && xdisplay="$DISPLAY" || xdisplay="$1"
+
+## use loginctl to match the display in $session
+check_display() {
+    session="$1"
+    display=`"$loginctl" '--property=Display' show-session "$session"`
+    [ "Display=$2" == "$display" ] && return 0 || return 1
+}
+
+## find session according to the display passed as $1
+by_display() {
+    display="$1"
+    "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
+        if check_display "$session" "$display"; then
+            printf "%d\n" "$session"
+        fi
+    done
+}
+
+## find session according to the tty device passed as $1
+by_tty() {
+    device="$1"
+    "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
+        if [ "$tty" == "$device" ]; then
+            printf "%d\n" "$session"
+        fi
+    done
+}
+
+## find session according to the seat id passed as #1
+by_seat() {
+    id="$1"
+    "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
+        if [ "$seat" == "$id" ]; then
+            printf "%d\n" "$session"
+        fi
+    done
+}
+
+## find the session according to $xdisplay
+session=`by_display "$xdisplay"`
+
+if [ -z "$session" ]; then
+    printf "Unable to locate session for display: \"%s\"\n" "$xdisplay" 1>&2
+    exit 1
+fi
+
+printf "%d\n" "$session"
+exit 0
