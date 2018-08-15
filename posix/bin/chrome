@@ -1,15 +1,46 @@
 #!/bin/sh
-if test "${platform}" = "msys"; then
+
+## figure out the binary
+case "${os}" in
+windows)
+    prog="chrome.exe"
     path="${ProgramFiles_x86_}/Google/Chrome/Application"
+    args=
+    ;;
+posix)
+    prog="google-chrome"
+    path=`which "$prog" | xargs dirname`
+    args=
+    ;;
+*)
+    echo $0: not implemented on this platform
+    exit 1
+esac
+
+## figure out if a uri was passed as an argument
+if [ -f "$1" ]; then
     input=`readlink -f $1`
     shift
 
-    drive="`echo $input | cut -d / -f 2`:"
-    filename=`echo $input | cut -d / -f 3-`
-
-    "$path/chrome.exe" "file://$drive/$filename" "$@"
-
-else
-    echo $0: not implemented on this platform
-    exit 1
+    case "$platform" in
+    msys|cygwin)
+        drive="`echo $input | cut -d / -f 2`:"
+        filename=`echo $input | cut -d / -f 3-`
+        uri="file://$drive/$filename"
+        ;;
+    *)
+        uri="file://$input"
+    esac
+elif [ "$#" -gt "0" ]; then
+    uri="$1"
+    shift
 fi
+
+## execute $prog
+if [ -z "$uri" ]; then
+    "$path/$prog" "$@"
+else
+    "$path/$prog" "$uri" "$@"
+fi
+exit $?
+
