@@ -1,97 +1,171 @@
 #!/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 argv0=`basename "$0"`
-RANDDEVICE=/dev/random
-WIPECOUNT=1
+ifs=$'\t'
 
-random() {
-    dd "if=$RANDDEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:xdigit:]" | dd "count=$1" bs=1 2>/dev/null
+## check if any defaults were specified
+[ -z "$DEVICE" ] && DEVICE=/dev/urandom
+[ -z "$COUNT" ] && COUNT=1
+[ -z "$DEBUG" ] && DEBUG=0
+
+## functions for getting random numbers in various formats
+randomhex() {
+    debugrng 'Generating %d random bytes.' "$1"
+    dd "if=$DEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:xdigit:]" | dd "count=$1" bs=1 2>/dev/null
 }
 
-randdec() {
-    num=`random "$1"`
-    res=`echo "scale=8;$((16#$num)) / ( 16 ^ $1 ) * (10 ^ $1)" | bc | cut -d. -f1`
-    [ -z "$res" ] && echo 0 || echo "$res"
+randomint() {
+    debugrng 'Generating random integer of length %d.' "$1"
+    number=`randomhex "$1"`
+    res=`bc 2>/dev/null <<< "scale=8;$((16#$number)) / (16 ^ $1) * (10 ^ $1)" | cut -d. -f 1`
+    [ -z "$res" ] && echo "0" || echo "$res"
 }
 
-randrange() {
+randomrange() {
+    debugrng 'Generating random number from %d to %d.' "$1" "$2"
     range=`expr $2 - $1`
-    length=`echo -n "$range" | wc -c | tr -d ' '`
-    n=`randdec "$length"`
-    res=`echo "scale=8;$n / ( 10 ^ $length ) * $range + $1" | bc | cut -d. -f 1`
-    [ -z "$res" ] && echo 0 || echo "$res"
+    length=`wc -c <<< "$range" | tr -d ' '`
+    number=`randomint "$length"`
+    res=`bc 2>/dev/null <<< "scale=8;$number / ( 10 ^ $length ) * $range + $1" | cut -d. -f 1`
+    [ -z "$res" ] && echo "$1" || echo "$res"
 }
 
-randstring() {
-    dd "if=$RANDDEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:upper:][:lower:][:digit:]" | dd "count=$1" bs=1 2>/dev/null
+randomstring() {
+    dd "if=$DEVICE" 2>/dev/null | LC_CTYPE=c tr -dc "[:upper:][:lower:][:digit:]" | dd "count=$1" bs=1 2>/dev/null
 }
 
+randomname() {
+    length=`wc -c <<< "$1" | tr -d ' '`
+    name=`randomstring "$length"`
+    debugrng 'Generated random name: %s' "$name"
+    echo "$name"
+}
+
+## general utilities
 wipe() {
-    dd "if=$RANDDEVICE" "of=$1" count=`du "$1" | cut -f 1` 2>/dev/null
+    count=`du "$1" | cut -f 1`
+    dd "if=$DEVICE" "of=$1" "count=$count" 2>/dev/null
 }
 
 tamper() {
-    e=`stat -c %W /`
-    oldest_yr=`perl -e "(\\\$_,\\\$_,\\\$_,\\\$_,\\\$_,\\\$yr,\\\$_,\\\$_)=localtime($e); print int(\\\$yr)+1900"`
+    seconds=`stat -c %W /`
+    _code='($_,$_,$_,$_,$_,$yr,$_,$_,$_)=localtime(%d); print int($yr)+1900'
+    code=`printf "$_code" "$seconds"`
+    oldest_yr=`perl -e "$code"`
+    current_yr=`date +%Y`
+    debugrng 'Oldest year on filesystem was discovered as %d.' "$oldest_yr"
+    debugrng 'Current year on filesystem is %d.' "$current_yr"
 
-    for opt in "" m a; do
-        yr=`randrange $oldest_yr $(date +%Y)`
-        mo=`randrange 1 12`
-        dy=`randrange 1 30`
-        hr=`randrange 0 24`
-        mn=`randrange 0 60`
+    for option in "" m a; do
+        yr=`randomrange "$oldest_yr" "$current_yr"`
+        mo=`randomrange "1" "12"`
+        dy=`randomrange "1" "30"`
+        hr=`randomrange "0" "24"`
+        mn=`randomrange "0" "60"`
         ts=`printf "%04d%02d%02d%02d%02d" "$yr" "$mo" "$dy" "$hr" "$mn"`
-        if [ -z "$opt" ]; then
-            touch -ft $ts "$1" || exit 1
+
+        debug 'Adjusting the timestamp for file "%s" using option "%s": %s' "$1" "$option" "$ts"
+        if [ -z "$option" ]; then
+            touch -ft "$ts" "$1" || return 1
         else
-            touch -ft $ts -$opt "$1" || exit 1
+            touch -ft "$ts" "-$option" "$1" || return 1
         fi
     done
 }
 
-randname() {
-    length=`echo -n "$1" | wc -c | tr -d ' '`
-    name=`randstring "$length"`
-    mv -f "$1" "$name" || exit 1
-    echo "$name"
+range() {
+    yes $'\t' | nl | tr -d $' \t' | head -n "$1"
+}
+
+## message i/o
+info() {
+    msg="$1"
+    shift
+    printf "%s: $msg\n" "$argv0" "$@" 1>&2
 }
 
 log() {
-    echo "$argv0:" $* 1>&2
+    level="$1"
+    msg="$2"
+    shift 2
+    printf "%s: (%s) $msg\n" "$argv0" "$level" "$@" 1>&2
 }
 
-range() {
-    echo `yes count | head -n "$1"`
+debug() {
+    [ "$DEBUG" -gt 0 ] && log "debug" "$@"
 }
 
-for f in "$@"; do
-    if [ ! -e "$f" ]; then
-        log "$f: No such file or directory"
+debugrng() {
+    [ "$DEBUG" -gt 1 ] && log "prng" "$@"
+}
+
+warn() {
+    log "warning" "$@"
+}
+
+error() {
+    log "fatal" "$@"
+}
+
+## loop that wipes each argument
+for path in "$@"; do
+    if [ ! -e "$path" ]; then
+        warn '%s: No such file or directory.' "$path"
+        continue
+    elif [ ! -f "$path" ]; then
+        warn '%s: Not a valid file.' "$path"
         continue
     fi
 
+    # extract each of its pieces
+    file=`basename "$path"`
+    directory=`dirname "$path"`
+
     # read some input
-    echo "Are you SURE you wish to wipe: $f? [no]"
+    printf 'Are you SURE you wish to wipe: %s? [no] ' "$path" 1>&2
     read response
+    [ -z "$response" ] && response="no"
 
-    if [ -z "$response" ]; then
-        response="no"
+    if [ "$response" != "yes" ]; then
+        error '%s: File not overwritten; user refused.' "$path"
+        continue
     fi
 
-    if [ "$response" = "yes" ]; then
-        for c in `range "$WIPECOUNT"`; do
-            wipe "$f"
-        done
-        log "$f: File overwritten $WIPECOUNT times"
+    # wipe the file like we were asked to
+    for c in `range "$COUNT"`; do
+        debug 'Overwriting file %d time(s).' "$c"
+        wipe "$path"
+    done
+    [ "$COUNT" -eq 1 ] && _='s' || _=''
+    info '%s: File overwritten %d time%s.' "$path" "$COUNT" "$_"
 
-        tamper "$f" && log "$f: Successfully tampered with creation, modification, and access times" || ( log "$f: Unable to tamper file" && continue )
-
-        rn=`randname "$f"`
-        [ "$?" -eq 0 ] && log "$f: Renamed file to $rn" || ( log "$f: Unable to rename file" && continue )
-
-        rm -f "$rn" && log "$f: Removed file $rn" || ( log "$f: Unable to remove file $rn" && continue )
-    else
-
-        log "$f: File not overwritten; user refused"
+    # tamper with the timestamps
+    debug 'Tampering with the timestamps for file: %s' "$path"
+    tamper "$path"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to tamper with file metadata.' "$path"
+        continue
     fi
+    info '%s: Successfully tampered with creation, modification, and access times.' "$path"
+
+    # rename the file to something random
+    name=`randomname "$file"`
+    debug 'Renaming file in directory "%s": "%s" -> "%s"' "$directory" "$file" "$name"
+    mv -f "$directory/$file" "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to rename file to random filename.' "$path"
+        continue
+    fi
+    info '%s: Renamed file to random name "%s".' "$path" "$name"
+
+    # finally remove the requested file
+    debug 'Removing file in directory "%s": "%s"' "$directory" "$name"
+    rm -f "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to remove file "%s".' "$path" "$name"
+        continue
+    fi
+    info '%s: Successfully removed file "%s".' "$path" "$name"
+
+    printf "%s%c%s\n" "$directory/$file" "$ifs" "$directory/$name"
 done
