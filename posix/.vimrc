@@ -72,8 +72,8 @@
 
         if has("gui_win32")
             set guifont=Courier_New:h10:cANSI
-        elseif has("gui_gtk2")
-            set guifont=Courier\ 10\ Pitch\ 10
+        elseif has("gui_gtk")
+            set guifont=Courier\ New\ 12
         else
             echoerr "Unknown gui. Unable to set guifont to Courier 10."
         endif
@@ -86,9 +86,9 @@
     endif
 
 """ globals
-    let g:HOME = has("windows")? $USERPROFILE : $HOME
-    let g:rcfilename_global = join([g:HOME, s:rcfilename], s:pathsep)
-    let g:rcfilename_site = join([g:HOME, s:rcfilename_site], s:pathsep)
+    let g:home = has("unix")? $HOME : $USERPROFILE
+    let g:rcfilename_global = join([g:home, s:rcfilename], s:pathsep)
+    let g:rcfilename_site = join([g:home, s:rcfilename_site], s:pathsep)
 
 """ utility functions
     function! Which(program)
@@ -191,6 +191,6 @@
 
 """ directory-local .vimrc
     augroup vimrc-directory-local
-        exec printf("autocmd BufRead,BufNewFile * if expand('%%:p:h') != g:HOME && filereadable(join([expand('%%:p:h'),\"%s\"], s:pathsep)) | exec printf(\"source %%s\", join([expand('%%:p:h'), \"%s\"], s:pathsep)) | endif", s:rcfilename_local, s:rcfilename_local)
+        exec printf("autocmd BufRead,BufNewFile * if expand('%%:p:h') != g:home && filereadable(join([expand('%%:p:h'),\"%s\"], s:pathsep)) | exec printf(\"source %%s\", join([expand('%%:p:h'), \"%s\"], s:pathsep)) | endif", s:rcfilename_local, s:rcfilename_local)
     augroup end
 
