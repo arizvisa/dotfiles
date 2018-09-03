@@ -1,0 +1,64 @@
+## options
+set editor = "vim"
+set header_cache = "~/.mutt_cache"
+set message_cachedir = "~/.mutt_cache"
+
+set charset = "utf-8"
+set send_charset = "utf-8"
+
+set sort = "threads"
+set sort_aux = "reverse-date-received"
+
+set menu_scroll
+set sidebar_visible = yes
+set sidebar_width = 12
+set sidebar_indent_string = " "
+set sidebar_divider_char = "▕"
+set index_format = "%[%m/%d %H:%M]▏%30.30L ⟾ %?M?<%03M> & ?%s"
+
+push <collapse-all><first-entry>
+
+## keybindings
+bind index J next-thread
+bind index K previous-thread
+
+bind index \037 help
+bind index \177 help
+bind pager \037 help
+bind pager \177 help
+
+bind index za collapse-thread
+bind index zA collapse-all
+bind index zo collapse-thread
+bind index zO collapse-all
+bind index zc collapse-thread
+bind index zC collapse-all
+bind index zr collapse-thread
+bind index zR collapse-all
+
+# vim keybindings (index)
+bind index j next-entry
+bind index k previous-entry
+bind index gg first-entry
+bind index G last-entry
+bind index \Cf half-down
+bind index \Cb half-up
+
+bind index / search
+bind index ? search-reverse
+bind index n search-next
+bind index N search-opposite
+
+# vim keybindings (pager)
+bind pager j next-line
+bind pager k previous-line
+bind pager gg top
+bind pager G bottom
+bind pager \Cf half-down
+bind pager \Cb half-up
+
+bind pager / search
+bind pager ? search-reverse
+bind pager n search-next
+bind pager N search-opposite
+
