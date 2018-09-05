@@ -100,7 +100,7 @@ find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read path; do
     name=`basename "$path"`
     if [ -d "$fullpath/posix/$name" ]; then
         link_directory "$name" "$fullpath/posix" "$1"
-    elif [ -e "$fullpath/posix/$name" ] && [ -f "$1/$name" ]; then
+    elif [ -e "$fullpath/posix/$name" ] && ([ -f "$1/$name" ] || [ ! -e "$1/$name" ]); then
         link_file "$name" "$fullpath/posix" "$1"
     elif [ -L "$fullpath/posix/$name" ]; then
         link_symbolic "$name" "$fullpath/$posix" "$1"
