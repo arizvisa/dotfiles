@@ -27,8 +27,10 @@ fhasitem = fitemQ = lambda key: fcompose(fcatch(frpartial(operator.getitem, key)
 fhasattr = fattrQ = lambda attribute: frpartial(builtins.hasattr, attribute)
 # return a closure that always returns ``object``.
 fconstant = fconst = falways = always = lambda object: lambda *a, **k: object
-# a closure that returns it's argument
+# a closure that returns it's argument always
 fpassthru = fpass = fidentity = fid = lambda object: object
+# a closure that returns a default value if its object is false-y
+fdefault = lambda default: lambda object: object or default
 # return the first, second, or third item of a box.
 first, second, third, last = operator.itemgetter(0), operator.itemgetter(1), operator.itemgetter(2), operator.itemgetter(-1)
 # return a closure that executes a list of functions one after another from left-to-right
