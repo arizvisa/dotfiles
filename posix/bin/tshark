@@ -1,8 +1,31 @@
 #!/bin/sh
-args="-n -2"
-if "${platform}" == "msys"; then
-    dir="$HOME/tools/WiresharkPortable"
-    exec "$dir/App/Wireshark/tshark.exe" $args "$@"
-else
-    exec tshark $args "$@"
+posix=tshark
+dir="$HOME/tools/WiresharkPortable"
+windows="$dir/App/Wireshark/tshark.exe"
+
+args="-n -F pcapng"
+
+## figure out which one to run based on the platform
+case "${platform}" in
+    msys|cygwin)
+        prog=`[ -x "$windows" ] && echo "$windows"`
+        ;;
+    *)
+        posix=`basename "$posix"`
+esac
+
+## if we're on a posixy platform, then search the path
+if [ -z "$prog" ]; then
+    argv0=`readlink -f "$0"`
+    IFS=:
+    for p in $PATH; do
+        rp=`readlink -f "$p/$posix"`
+        [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+    done
 fi
+
+## now try and run shit
+[ -z "$prog" ] && echo "Unable to locate $prog" 1>&2 && exit 1
+
+eval "$prog" $args "$@"
+exit $?

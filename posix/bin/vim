@@ -13,7 +13,7 @@ case "$platform" in
         posix=`basename "$posix"`
 esac
 
-## if it's not found, then search the path
+## if we're on a posixy platform, then search the path
 if [ -z "$prog" ]; then
     argv0=`readlink -f "$0"`
     IFS=:
