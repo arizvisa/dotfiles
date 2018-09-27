@@ -139,13 +139,12 @@ ulimit -c unlimited
 case "$os" in
 posix)
     # ubuntu is fucking busted with process limits for some reason
-    [ "$distro" != "ubuntu" ] && ulimit -u 1024 >/dev/null
-    ulimit -t 60
-    #ulimit -v 1048576
+    [ "$distro" != "ubuntu" ] && ulimit -Su 8192 2>/dev/null
+    ulimit -Sv 104857600 2>/dev/null
     ;;
 
 windows)
-    ulimit -u 384 2>/dev/null
+    ulimit -Su 512 2>/dev/null
     ;;
 esac
 
