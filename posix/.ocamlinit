@@ -1,10 +1,10 @@
-let interactive = !Sys.interactive ;;
-Sys.interactive := false ;;
-# use "topfind" ;;
-Sys.interactive := interactive ;;
-
 let () =
   try Topdirs.dir_directory (Sys.getenv "OCAML_TOPLEVEL_PATH")
   with Not_found -> ()
 ;;
+
+let interactive = !Sys.interactive ;;
+Sys.interactive := false ;;
+# use "topfind" ;;
+Sys.interactive := interactive ;;
 
