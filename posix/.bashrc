@@ -31,9 +31,32 @@ alias info="`type -p info` --vi-keys"
 alias ls 2>/dev/null && unalias ls
 
 ## platform-specific fixes
+# darwin
 if [ "$platform" == "Darwin" ]; then
     readlink() { greadlink "$@"; }
     export -f readlink
+fi
+
+# posix
+if [ "$os" == "posix" ]; then
+    # disable google-chrome's automatic synchronization of google account information
+    chrome_config="$HOME/.config/google-chrome"
+    if [ -e "$chrome_config/Default/Preferences" ] && type -P jq >/dev/null; then
+        chrome_prefs="$chrome_config/Default/Preferences"
+        case `jq '.SyncDisabled' "$chrome_prefs"` in
+            true) ;;
+            null|false)
+                echo "$0 : Fixing Google Chrome's policies ($chrome_prefs) to disable automatic sychronization of account information." 1>&2
+                jq -c '.SyncDisabled=true' "$chrome_prefs" >| "$chrome_prefs-"
+                mv -f "$chrome_prefs-" "$chrome_prefs"
+                ;;
+            *)
+                echo "$0 : Refusing to modify Google Chrome's policies ($chrome_prefs) due to unexpected value specified for \"SyncDisabled\"." 1>&2
+                ;;
+        esac
+        unset chrome_prefs
+    fi
+    unset chrome_config
 fi
 
 ## default files
