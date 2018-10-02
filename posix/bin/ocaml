@@ -1,0 +1,38 @@
+#!/bin/sh
+posix=`basename "$0"`
+windows="$SYSTEMDRIVE/OCaml/bin/$posix.exe"
+args="-I \"$OCAML_TOPLEVEL_PATH\""
+
+## determine which program to run
+case "$platform" in
+    msys|cygwin)
+        prog=`[ -x "$windows" ] && echo "$windows"`
+        ;;
+    *)
+        posix=`basename "$posix"`
+esac
+
+## if we're on a posixy platform, then search the path
+if [ -z "$prog" ]; then
+    argv0=`readlink -f "$0"`
+    IFS=:
+    for p in $PATH; do
+        rp=`readlink -f "$p/$posix"`
+        [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+    done
+    unset IFS
+fi
+
+# setup the opam environment
+opam=`type -p "opam"`
+if [ -z "$opam" ]; then
+    echo "Skipping initialization of opam environment due to it missing" 1>&2
+else
+    eval `$opam env`
+fi
+
+# go for it...or not.
+[ -z "$prog" ] && echo "Unable to locate $prog" 1>&2 && exit 1
+
+eval "$prog" $args "$@"
+exit $?
