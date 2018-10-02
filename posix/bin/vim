@@ -21,9 +21,11 @@ if [ -z "$prog" ]; then
         rp=`readlink -f "$p/$posix"`
         [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
     done
+    unset IFS
 fi
 
 # go for it...or not.
 [ -z "$prog" ] && echo "Unable to locate $prog" 1>&2 && exit 1
+
 "$prog" "$@"
 exit $?
