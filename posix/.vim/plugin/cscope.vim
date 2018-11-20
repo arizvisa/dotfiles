@@ -1,5 +1,5 @@
 " cscope w/ custom .vimrc files
-" by salc@gmail.com
+" by arizvisa@gmail.com
 "
 " more often than anything when I'm auditing code, people use
 " different settings than I do. so my ts=4 will fuck up when I'm viewing
@@ -12,32 +12,35 @@
 " [1] it reads a ':'-separated list of db's from an environment variable: CSCOPE_DB
 " [2] it sources a .vimrc from the directory of each CSCOPE_DB
 "
-" CSCOPE_DB is the paths to each cscope.out file you want to use.
+" CSCOPE_DB is the list of paths to each database file you want to use.
 " if the variable isn't specified, the current directory is checked
 
 if has("cscope")
     let s:rcfilename = ".vimrc"
-    let s:csfilename = "cscope"
     let s:pathsep = (has("unix") || &shellslash)? '/' : '\'
     let s:listsep = has("unix")? ':' : ';'
+
+    let s:cstype = v:none
+    let s:cstype_description = { 'gtags-cscope' : 'GNU Global', 'cscope' : 'Cscope' }
+    let s:cstype_database = { 'gtags-cscope' : 'GTAGS', 'cscope' : 'cscope.out' }
 
     let &cscopeverbose=1
 
     function! s:which(program)
-        let sep = has("unix")? ':' : ';'
-        let pathsep = (has("unix") || &shellslash)? '/' : '\'
-        for p in split($PATH, sep)
-            let path = join([substitute(p, s:pathsep, pathsep, 'g'), a:program], pathsep)
-            if executable(path)
-                return path
+        let l:sep = has("unix")? ':' : ';'
+        let l:pathsep = (has("unix") || &shellslash)? '/' : '\'
+        for l:p in split($PATH, l:sep)
+            let l:path = join([substitute(l:p, s:pathsep, l:pathsep, 'g'), a:program], l:pathsep)
+            if executable(l:path)
+                return l:path
             endif
         endfor
-        throw printf("Unable to locate %s in $PATH", a:program)
+        throw printf('Unable to locate %s in $PATH', a:program)
     endfunction
 
     function! s:basedirectory(path)
         if !isdirectory(a:path) && !filereadable(a:path)
-            throw printf("%s does not exist", a:path)
+            throw printf('%s does not exist', a:path)
         endif
         if isdirectory(a:path)
             return a:path
@@ -71,21 +74,21 @@ if has("cscope")
 
     function! s:add_cscope(path)
         if !filereadable(a:path)
-            throw printf("File \"%s\" does not exist", a:path)
+            throw printf('File "%s" does not exist', a:path)
         endif
 
-        let directory=s:basedirectory(a:path)
-        let path=fnamemodify(a:path, printf(":p:gs?%s?/?", s:pathsep))
+        let l:directory=s:basedirectory(a:path)
+        let l:path=fnamemodify(a:path, printf(':p:gs?%s?/?', s:pathsep))
 
         " if a database is available, then add the cscope_db
-        execute printf("silent cscope add %s %s", fnameescape(path), fnameescape(fnamemodify(directory,":p:h")))
-        exec printf("echomsg \"Using cscope database \" | echohl MoreMsg | echon \"%s\" | echohl None", path)
+        execute printf('silent cscope add %s %s', fnameescape(l:path), fnameescape(fnamemodify(l:directory,":p:h")))
+        exec printf('echomsg "Found a %s database at " | echohl MoreMsg | echon "%s" | echohl None', s:csdescription, l:path)
 
         " also add the autocmd for setting mappings and sourcing a local .vimrc
         augroup cscope
-            let base=fnamemodify(directory, printf(":p:gs?%s?/?", s:pathsep))
-            exec printf("autocmd BufEnter,BufRead,BufNewFile %s* call s:map_cscope() | if filereadable(\"%s%s\") | source %s%s | endif", base, base, s:rcfilename, base, s:rcfilename)
-            exec printf("autocmd BufDelete %s* call s:unmap_cscope()", base)
+            let l:base=fnamemodify(l:directory, printf(':p:gs?%s?/?', s:pathsep))
+            exec printf('autocmd BufEnter,BufRead,BufNewFile %s* call s:map_cscope() | if filereadable("%s%s") | source %s%s | endif', l:base, l:base, s:rcfilename, l:base, s:rcfilename)
+            exec printf('autocmd BufDelete %s* call s:unmap_cscope()', l:base)
         augroup end
     endfunction
 
@@ -93,13 +96,55 @@ if has("cscope")
     command! -nargs=1 -complete=file AddCscope call s:add_cscope(<f-args>)
 
     set cscopetagorder=0
-    " cheat and use `which` to find out where cscope is
-    if empty(&cscopeprg)
-        try
-            let &cscopeprg=s:which(s:csfilename)
-        catch
-            let &cscopeprg=s:which(s:csfilename . ".exe")
-        endtry
+
+    " try and find a valid executable for cscope
+    if empty(&cscopeprg) || !filereadable(&cscopeprg)
+        echoerr printf('The tool specified as &cscopeprg (%s) is either undefined or not found!', &cscopeprg)
+
+        if empty(&cscopeprg)
+            let s:csprog_types = keys(s:cstype_database)
+        else
+            let s:csprog_type = fnamemodify(&cscopeprg, ':t:r')
+            if has_key(s:cstype_database, s:csprog_type)
+                let s:csprog_types = [ s:csprog_type ] + keys(s:cstype_database)
+            else
+                let s:csprog_types = keys(s:cstype_database)
+            endif
+        endif
+
+        echomsg printf('Searching for a replacement for &cscopeprg: %s', s:csprog_types)
+        for s:csfilename in s:csprog_types
+            let s:cscopeprg = v:none
+            try
+                let s:cscopeprg=s:which(s:csfilename)
+            catch
+                let s:cscopeprg=v:none
+            endtry
+            if s:cscopeprg != v:none | break | endif
+        endfor
+
+    else
+        " if the user specified a valid program, then we should be able
+        " to safely use it.
+        let s:cscopeprg=&cscopeprg
+    endif
+
+    " now we have a valid program, lets use it to determine what database type we should be using
+    if !empty(s:cscopeprg)
+        let s:cstype = fnamemodify(s:cscopeprg, ':t:r')
+        if !has_key(s:cstype_database, s:cstype)
+            throw printf('Unable to determine the cscope database type for "%s".', s:csprog_key)
+        endif
+
+        let s:csdescription = s:cstype_description[s:cstype]
+        let s:csdatabase = s:cstype_database[s:cstype]
+
+        " let the user know if we had to figure out the right program
+        if s:cscopeprg != &cscopeprg
+            echomsg printf('Decided upon a %s (%s) database for navigation: %s', s:csdescription, s:cstype, s:cscopeprg)
+        endif
+    else
+        throw printf('Unable to determine a valid program for &cscopeprg!')
     endif
 
     " check if tmpdir was defined. if not set it to something
@@ -109,23 +154,23 @@ if has("cscope")
     endif
 
     " pass the environment variable to a local variable
-    let cscope_db=$CSCOPE_DB
+    let s:cscope_db=$CSCOPE_DB
 
     " if db wasn't specified check current dir for cscope.out
-    if empty(cscope_db) && filereadable("cscope.out")
-        let cscope_db=join([getcwd(),"cscope.out"], s:pathsep)
+    if empty(s:cscope_db) && filereadable(s:csdatabase)
+        let s:cscope_db=join([getcwd(),s:csdatabase], s:pathsep)
     endif
 
     " iterate through each cscope_db
-    for db in split(cscope_db, s:listsep)
-        let verbosity = &cscopeverbose
+    for s:db in split(s:cscope_db, s:listsep)
+        let s:verbosity = &cscopeverbose
         let &cscopeverbose = 0
         try
-            call s:add_cscope(db)
+            call s:add_cscope(s:db)
         catch
-            echoerr printf("cscope database %s does not exist", db)
+            echoerr printf('%s database %s does not exist', s:csdescription, s:db)
         endtry
-        let &cscopeverbose = verbosity
+        let &cscopeverbose = s:verbosity
     endfor
 endif
 
