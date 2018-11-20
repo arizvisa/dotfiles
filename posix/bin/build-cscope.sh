@@ -28,15 +28,29 @@ if [ "$filter" = "" ]; then
     printf "%s: using filter : %s\n" "$arg0" "$filter"
 fi
 
-if [ "$CSPROG" = "" ]; then
-    cscope=$(which cscope)
-    command="$cscope -b -v -i-"
-else
-    command="$CSPROG"
+if [ -z "$CSPROG" ]; then
+    CSPROG=`type -P gtags || type -P cscope`
 fi
 
+csprog=`basename "$CSPROG"`
+case "$csprog" in
+cscope|cscope.*)
+    description="cscope"
+    printf "%s: using cscope to build database\n" "$arg0"
+    command="$csprog -b -v -i-"
+    ;;
+gtags|gtags.*)
+    description="gnu global"
+    printf "%s: using gtags to build database\n" "$arg0"
+    command="$csprog --accept-dotfiles --explain -c -v -f-"
+    ;;
+*)
+    printf "%s: unsupported tag program was specified : %s\n" "$arg0" "$CSPROG"
+    exit 1
+esac
+
 if [ "$#" -eq 0 ]; then
-    printf "%s: building cscope database : %s\n" "$arg0" "$filter"
+    printf "%s: building %s database : %s\n" "$arg0" "$description" "$filter"
     ( echo "$filter " | while read -d' ' glob; do find ./ -type f -a -name "$glob"; done ) | $command
     exit $?
 fi
@@ -46,7 +60,7 @@ for path in "$@"; do
         printf "%s: skipping invalid path : %s\n" "$arg0" "$path"
         continue
     fi
-    printf "%s: building cscope database : %s\n" "$arg0" "$path"
+    printf "%s: building %s database : %s\n" "$arg0" "$description" "$path"
     ( cd -- "$path" && echo "$filter " | while read -d' ' glob; do
         find ./ -type f -a -name "$glob"
     done | $command )
