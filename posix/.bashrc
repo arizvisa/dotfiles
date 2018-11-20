@@ -75,30 +75,74 @@ termdump()
      infocmp -1 | grep -ve '^#' | ( read n; cat ) | cut -d= -f1 | tr -cd '[:alpha:][:digit:]\n' | while read n; do printf "%s -- %s\n" "$n" "`man -w 5 terminfo | xargs zcat | egrep -A 2 \"\b$n[^[:print:]]\" | tr -d '\n' | sed 's/T{/{/g;s/T}/}/g' | egrep -m1 -o '\{[^}]+\}' | tr -d '\n'`"; done
 }
 
+__typecscope()
+{
+    path="$1"
+
+    descriptions=("cscope" "global")
+    databases=("cscope.out" "GTAGS:GPATH:GRTAGS")
+    for index in `seq ${#descriptions[*]}`; do
+        i=$(( $index - 1 ))
+        description="${descriptions[$i]}"
+
+        local -a filenames
+        IFS=: read -a filenames <<< "${databases[$i]}"
+
+        local -i count=0
+        for filename in "${filenames[@]}"; do
+            [ -f "$path"/"$filename" ] && count="$count + 1"
+        done
+
+        if [ "${#filenames[@]}" == "$count" ]; then
+            echo "$path/${filenames[0]}"$'\t'"$description"
+            return `true`
+        fi
+
+        unset -v count filenames
+    done
+    return `false`
+}
+
 __addcscope()
 {
     local listsep
     [ "${os}" = "windows" ] && listsep=";" || listsep=":"
 
-    [ "$#" -eq "0" ] && path="`pwd`/cscope.out" || path="$@"
+    [ "$#" -eq "0" ] && path="`pwd`" || path="$@"
     local current_db p
     current_db="$CSCOPE_DB"
     for p in $path; do
-        [ -d "$p" ] && p="$p/cscope.out"
-        p=`readlink -m "$p"`
-        if [ ! -e "$p" ]; then
-            printf "Unable to locate cscope database: %s\n" "$p" 1>&2
-            continue
+        local fp
+        if [ -d "$p" ]; then
+            read filename description < <( __typecscope "$p" )
+            if (( "$?" > 0 )); then
+                echo -n 'Unable to locate a tags database: '"$p"$'\n' 1>&2
+                continue
+            fi
+
+            echo -n 'Found a '"$description"' database: '"$filename"$'\n'
+            rp="$filename"
+
+        elif [ -f "$p" ]; then
+            filename=`basename "$p"`
+            ext="${filename##*.}"
+            case "$filename" in
+            cscope.out)
+                echo -n 'Found a cscope database: '"$filename"$'\n'
+                ;;
+            GTAGS|GPATH|GRTAGS)
+                echo -n 'Found a global database: '"$filename"$'\n'
+                ;;
+            *)
+                echo -n 'Unknown database type specified by user: '"$filename"$'\n'
+            esac
+            rp="$filename"
+
         fi
-        ft=`file -b "$p" | grep -oe "^[^ ]\+"`
-        if [ "$ft" != "cscope" ]; then
-            printf "Invalid file magic for %s: %s\n" "$p" "$ft" 1>&2
-            continue
-        fi
-        local np
-        [ "${os}" = "windows" ] && np=`cygpath -w "$p"` || np="$p"
-        printf "Adding path to CSCOPE_DB: %s\n" "$np" 1>&2
-        [ "$current_db" = "" ] && current_db="$np" || current_db="$current_db""${listsep}""$np"
+
+        [ "${os}" = "windows" ] && ap=`cygpath -w "$rp"` || ap=`cygpath "$rp"`
+        echo 'Adding path to CSCOPE_DB: '"$ap"$'\n' 1>&2
+        [ "$current_db" = "" ] && current_db="$ap" || current_db="$current_db""${listsep}""$ap"
     done
     export CSCOPE_DB="$current_db"
     return 0
@@ -118,7 +162,7 @@ __rmcscope()
         [ "${os}" = "windows" ] && n=`cygpath "$nn"` || n="$nn"
 
         if [ ! -e "$n" ]; then
-            printf "Removing missing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
+            echo -n 'Removing missing database from CSCOPE_DB: '"$n"$'\n' 1>&2
             continue
         fi
 
@@ -127,9 +171,14 @@ __rmcscope()
             local p
             [ "${os}" = "windows" ] && p=`cygpath "$np"` || p="$np"
 
-            [ -d "$p" ] && p="$p/cscope.out"
-            nabs=`readlink -f "$n"`
-            pabs=`readlink -f "$p"`
+            if [ -d "$p" ]; then
+                read filename description < <( __typecscope "$p" )
+                (( "$?" > 0 )) && continue
+                p="${filename}"
+            fi
+
+            [ "${os}" = "windows" ] && nabs=`cygpath -w "$n"` || nabs=`cygpath "$n"`
+            [ "${os}" = "windows" ] && pabs=`cygpath -w "$p"` || pabs=`cygpath "$p"`
 
             if [ "$nabs" == "$pabs" ]; then
                 found=`expr "$found" + 1`
@@ -137,7 +186,7 @@ __rmcscope()
         done
 
         if [ "$found" -gt 0 ]; then
-            printf "Removing cscope database from CSCOPE_DB: %s\n" "$n" 1>&2
+            echo -n 'Removing database from CSCOPE_DB: '"$n"$'\n' 1>&2
         else
             [ "$current_db" = "" ] && current_db="$nn" || current_db="$current_db""${listsep}""$nn"
         fi
