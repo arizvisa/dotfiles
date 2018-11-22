@@ -1,0 +1,18 @@
+# paths = []
+
+[cargo-new]
+vcs = "none"
+
+[build]
+jobs = 1
+rustc = "rustc"
+rustdoc = "rustdoc"
+target-dir = "target"
+incremental = true
+
+[term]
+verbose = true
+color = "never"
+
+[target.'cfg(target_env="msvc")']
+rustflags = ["-Clink-arg=/DEBUG:NONE"]
