@@ -73,16 +73,25 @@ if has("cscope")
     endfunction
 
     function! s:add_cscope(path)
-        if !filereadable(a:path)
-            throw printf('File "%s" does not exist', a:path)
+        " check if we were given a directory or just a straight-up path
+        if isdirectory(a:path)
+            let l:argpath=join([a:path,s:csdatabase], s:pathsep)
+        else
+            let l:argpath=a:path
         endif
 
-        let l:directory=s:basedirectory(a:path)
-        let l:path=fnamemodify(a:path, printf(':p:gs?%s?/?', s:pathsep))
+        " make sure the path we determined is readable
+        if !filereadable(l:argpath)
+            throw printf('File "%s" does not exist', l:argpath)
+        endif
+
+        " break the path into its directory and filename components
+        let l:directory=s:basedirectory(l:argpath)
+        let l:path=fnamemodify(l:argpath, printf(':p:gs?%s?/?', s:pathsep))
 
         " if a database is available, then add the cscope_db
         execute printf('silent cscope add %s %s', fnameescape(l:path), fnameescape(fnamemodify(l:directory,":p:h")))
-        exec printf('echomsg "Found a %s database at " | echohl MoreMsg | echon "%s" | echohl None', s:csdescription, l:path)
+        exec printf('echomsg "Added %s database at " | echohl MoreMsg | echon "%s" | echohl None', s:csdescription, l:path)
 
         " also add the autocmd for setting mappings and sourcing a local .vimrc
         augroup cscope
@@ -163,6 +172,8 @@ if has("cscope")
 
     " iterate through each cscope_db
     for s:db in split(s:cscope_db, s:listsep)
+        echomsg printf('Trying %s path specified in environment CSCOPE_DB: %s', s:csdescription, s:db)
+
         let s:verbosity = &cscopeverbose
         let &cscopeverbose = 0
         try
