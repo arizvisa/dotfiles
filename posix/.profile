@@ -132,7 +132,7 @@ case "$platform" in
 esac
 
 ## global variables
-export EDITOR=`type -p vim || type -p vi`
+export EDITOR=`type -P vim || type -P vi`
 ulimit -c unlimited
 
 ## global limits

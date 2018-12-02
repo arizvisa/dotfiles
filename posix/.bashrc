@@ -24,8 +24,9 @@ alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 
-alias l="`type -p less || type -p more`"
-alias info="`type -p info` --vi-keys"
+alias l="`type -P less || type -P more`"
+alias info="`type -P info` --vi-keys"
+alias strings="`type -P stringsext || type -P strings`"
 
 # because some fucks alias `ls` to `ls -g`
 alias ls 2>/dev/null && unalias ls
