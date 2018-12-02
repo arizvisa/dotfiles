@@ -37,6 +37,10 @@ if [ "$platform" == "Darwin" ]; then
     export -f readlink
 fi
 
+if [ "$platform" == "linux-gnu" ]; then
+    alias tar='tar --force-local'
+fi
+
 # posix
 if [ "$os" == "posix" ]; then
     # disable google-chrome's automatic synchronization of google account information
