@@ -191,6 +191,8 @@ function! incpy#SetupOptions()
     " let defopts["EvalFormat"] = printf("__incpy__.sys.displayhook({})')")
     " let defopts["EvalFormat"] = printf("__incpy__.builtin._={};print __incpy__.__builtin__._")
     let defopts["EvalFormat"] = printf("%s._={};print %s.repr(%s._)", python_builtins, python_builtins, python_builtins)
+    let defopts["InputFormat"] = "{}\n"
+    let defopts["EchoFormat"] = "# >>> {}"
 
     " If any of these options aren't defined during evaluation, then go through and assign them as defaults
     for o in keys(defopts)
@@ -314,10 +316,10 @@ class interpreter(object):
     def communicate(self, command, silent=False):
         """Sends commands to interpreter"""
         raise __incpy__.builtin.NotImplementedError
-    def start():
+    def start(self):
         """Starts the interpreter"""
         raise __incpy__.builtin.NotImplementedError
-    def stop():
+    def stop(self):
         """Stops the interpreter"""
         raise __incpy__.builtin.NotImplementedError
 __incpy__.interpreter = interpreter; del(interpreter)
@@ -329,7 +331,7 @@ class interpreter_python_internal(__incpy__.interpreter):
         self.state = sys.stdin,sys.stdout,sys.stderr,logger
 
         # notify the user
-        logger.debug("redirecting sys.{{stdin,stdout,stderr}} to {!r}".format(self.view))
+        logger.debug("redirecting sys.stdin, sys.stdout, and sys.stderr to {!r}".format(self.view))
 
         # add a handler for python output window so that it catches everything
         res = logging.StreamHandler(self.view)
@@ -338,34 +340,40 @@ class interpreter_python_internal(__incpy__.interpreter):
 
         _,sys.stdout,sys.stderr = None,self.view,self.view
     def detach(self):
-        if self.state is None: return
+        if self.state is None:
+            logger = __import__('logging').getLogger('incpy').getChild('vim')
+            logger.fatal("refusing to detach internal interpreter as it was already previously detached")
+            return
 
         sys, logging = __incpy__ and __incpy__.sys or __import__('sys'), __import__('logging')
         _, _, err, logger = self.state
 
-        # notify the user
-        logger.debug("restoring sys.{{stdin,stdout,stderr}} to {!r}".format(self.state))
-
         # remove the python output window formatter from the root logger
+        logger.debug("removing window handler from root logger")
         try:
             logger.root.removeHandler(next(L for L in logger.root.handlers if isinstance(L, logging.StreamHandler) and type(L.stream).__name__ == 'view'))
         except StopIteration:
             pass
 
-        sys.stdin,sys.stdout,sys.stderr,_ = self.state
+        logger.warn("detaching internal interpreter from sys.stdin, sys.stdout, and sys.stderr.")
+
+        # notify the user that we're restoring the original state
+        logger.debug("restoring sys.stdin, sys.stdout, and sys.stderr from: {!r}".format(self.state))
+        (sys.stdin, sys.stdout, sys.stderr, _), self.state = self.state, None
+
     def communicate(self, data, silent=False):
-        inputformat = __incpy__.vim.gvars.get('incpy#InputFormat', '{}\n')
+        inputformat = __incpy__.vim.gvars['incpy#InputFormat']
         if __incpy__.vim.gvars['incpy#Echo'] and not silent:
-            echoformat = __incpy__.vim.gvars.get('incpy#EchoFormat', "# >>> {}")
+            echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
             echo = '\n'.join(map(echoformat.format, data.split('\n')))
             echo = inputformat.format(echo)
             self.view.write(echo)
         input = data
         exec input in __incpy__.builtin.globals()
-    def start():
-        __incpy__.logger.warn("vim's internal python interpreter has already been started")
-    def stop():
-        __incpy__.logger.fatal("refusing to stop vim's internal python interpreter")
+    def start(self):
+        __incpy__.logger.warn("internal interpreter has already been (implicitly) started")
+    def stop(self):
+        __incpy__.logger.fatal("unable to stop internal interpreter as it is always running")
 __incpy__.interpreter_python_internal = interpreter_python_internal; del(interpreter_python_internal)
 
 # external interpreter (newline delimited)
@@ -378,24 +386,32 @@ class interpreter_external(__incpy__.interpreter):
         res.command,res.options = command,options
         return res
     def attach(self):
-        __incpy__.logger.debug("connecting i/o from {!r} to {!r}".format(self.command, self.view))
+        logger, = __incpy__.logger,
+
+        logger.debug("connecting i/o from {!r} to {!r}".format(self.command, self.view))
         self.instance = __incpy__.spawn(self.view.write, self.command, **self.options)
-        __incpy__.logger.info("started process {:d} ({:#x}): {:s}".format(self.instance.id,self.instance.id,self.command))
+        logger.info("started process {:d} ({:#x}): {:s}".format(self.instance.id,self.instance.id,self.command))
+
+        self.state = logger,
     def detach(self):
+        logger, = self.state
         if not self.instance:
+            logger.fatal("refusing to detach external interpreter as it was already previous detached")
             return
         if not self.instance.running:
-            __incpy__.logger.fatal("refusing to stop already terminated process {!r}".format(self.instance))
+            logger.fatal("refusing to stop already terminated process {!r}".format(self.instance))
+            self.instance = None
             return
-        __incpy__.logger.info("killing process {!r}".format(self.instance))
+        logger.info("killing process {!r}".format(self.instance))
         self.instance.stop()
-        __incpy__.logger.debug("disconnecting i/o for {!r} from {!r}".format(self.instance,self.view))
+
+        logger.debug("disconnecting i/o for {!r} from {!r}".format(self.instance,self.view))
         self.instance = None
 
     def communicate(self, data, silent=False):
-        inputformat = __incpy__.vim.gvars.get('incpy#InputFormat', '{}\n')
+        inputformat = __incpy__.vim.gvars['incpy#InputFormat']
         if __incpy__.vim.gvars['incpy#Echo'] and not silent:
-            echoformat = __incpy__.vim.gvars.get('incpy#EchoFormat', "{}")
+            echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
             echo = echoformat.format(data)
             echo = inputformat.format(data)
             self.view.write(echo)
@@ -406,10 +422,10 @@ class interpreter_external(__incpy__.interpreter):
         if self.instance.running:
             return "{:s} {{{!r} {:s}}}".format(res, self.instance, self.command)
         return "{:s} {{{!s}}}".format(res, self.instance)
-    def start():
+    def start(self):
         __incpy__.logger.info("starting process {!r}".format(self.instance))
         self.instance.start()
-    def stop():
+    def stop(self):
         __incpy__.logger.info("stopping process {!r}".format(self.instance))
         self.instance.stop()
 __incpy__.interpreter_external = interpreter_external; del(interpreter_external)
