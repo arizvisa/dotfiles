@@ -107,10 +107,10 @@ if has("cscope")
     set cscopetagorder=0
 
     " try and find a valid executable for cscope
-    if empty(&cscopeprg) || !filereadable(&cscopeprg)
+    if !exists("&cscopeprg") || !filereadable(&cscopeprg)
         echoerr printf("The tool specified as &cscopeprg (%s) is either undefined or not found.", &cscopeprg)
 
-        if empty(&cscopeprg)
+        if !exists("&cscopeprg") || empty(&cscopeprg)
             let s:csprog_types = keys(s:cstype_database)
         else
             let s:csprog_type = fnamemodify(&cscopeprg, ":t:r")
@@ -158,7 +158,7 @@ if has("cscope")
 
     " check if tmpdir was defined. if not set it to something
     " because cscope requires it.
-    if empty($TMPDIR) && has("win32")
+    if has("win32") && (!exists("$TMPDIR") || empty($TMPDIR))
         let $TMPDIR=$TEMP
     endif
 
