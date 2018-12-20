@@ -115,15 +115,26 @@
     endfunction
 
 """ autocommand configuration
+
+    "" match and then jump to a specified regex whilst updating the +jumplist
+    function! s:matchjump(query, ...)
+        let [l:l, l:c] = call('searchpos', [a:query] + a:000)
+        execute printf('normal %dgg0%dl', l:l, l:c + 1)
+    endfunction
+
+    "" assign mappings that deal with braces for languages where vim support is weird
     function! s:map_braces()
-            map <buffer> [m :execute '?\%' . col(".") . 'c{\_.\\|\%<' . col(".") . 'c{\_.'<CR>
-            map <buffer> ]m :execute '/\%' . col(".") . 'c{\_.\\|\%<' . col(".") . 'c{\_.'<CR>
+        " find the next brace at the current column
+        map <buffer> [m :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
+        map <buffer> ]m :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
 
-            map <buffer> [[ :execute '?\%<' . col(".") . 'c\zs{\_.'<CR>
-            map <buffer> ]] :execute '/\%>' . col(".") . 'c\zs{\_.'<CR>w
+        " find the enclosing block/brace or the next block
+        map <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        map <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
 
-            map <buffer> [] :execute '?\%<' . col(".") . 'c\zs{\_.'<CR>%
-            map <buffer> ][ :execute '/\%>' . col(".") . 'c\zs{\_.'<CR>w%
+        " aliases for the prior two mappings
+        map <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        map <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
     endfunction
 
     augroup cs
