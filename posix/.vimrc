@@ -138,13 +138,13 @@
     endfunction
 
     augroup cs
-            autocmd!
-            autocmd BufEnter,BufRead,BufNewFile *.cs call s:map_braces()
+        autocmd!
+        autocmd BufEnter,BufRead,BufNewFile *.cs call s:map_braces()
     augroup end
 
     augroup java
-            autocmd!
-            autocmd BufEnter,BufRead,BufNewFile *.cs call s:map_braces()
+        autocmd!
+        autocmd BufEnter,BufRead,BufNewFile *.java call s:map_braces()
     augroup end
 
     autocmd BufNewFile,BufRead *.go setf go
