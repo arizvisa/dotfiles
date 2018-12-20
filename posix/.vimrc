@@ -136,11 +136,11 @@
 
     "" assign mappings that deal with braces for languages where vim support is weird
     function! s:map_braces()
-        " find the next brace at the current column
-        noremap <buffer> [m :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        vnoremap <buffer> [m :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        noremap <buffer> ]m :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
-        vnoremap <buffer> ]m :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
+        " find the previous/next brace at the current column
+        noremap <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
+        vnoremap <buffer> { :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
+        noremap <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
+        vnoremap <buffer> } :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
 
         " find the enclosing block/brace or the next block
         noremap <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
