@@ -125,34 +125,26 @@
         execute printf('normal %dgg0%dl', l:l, l:c + 1)
     endfunction
 
-    "" same as prior function but for visual mode
-    function! s:vmatchjump(regexp, ...)
-        let [l:l, l:c] = call('searchpos', [a:regexp] + a:000)
-        if [l:l, l:c] == [0, 0]
-            throw printf('Unable to locate the specified query: %s', a:regexp)
-        endif
-        execute printf('normal %s%dgg0%dl', visualmode(), l:l, l:c + 1)
-    endfunction
-
     "" assign mappings that deal with braces for languages where vim support is weird
     function! s:map_braces()
+
         " find the previous/next brace at the current column
-        noremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        vnoremap <silent> <buffer> { :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        noremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
-        vnoremap <silent> <buffer> } :call <SID>vmatchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
+        onoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
+        nnoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
+        onoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
 
         " find the enclosing block/brace or the next block
-        noremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        vnoremap <silent> <buffer> [[ :call <SID>vmatchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        noremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
-        vnoremap <silent> <buffer> ]] :call <SID>vmatchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        onoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        nnoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        onoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
 
         " aliases for the prior two mappings
-        noremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        vnoremap <silent> <buffer> [] :call <SID>vmatchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        noremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
-        vnoremap <silent> <buffer> ][ :call <SID>vatchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        onoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
+        nnoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        onoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
     endfunction
 
     augroup cs
