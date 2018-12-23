@@ -48,7 +48,7 @@ if has("cscope")
         return s:basedirectory(fnamemodify(a:path, ":h"))
     endfunction
 
-    function! s:map_cscope()
+    function! cscope#map()
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         nnoremap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
         nnoremap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
@@ -60,7 +60,7 @@ if has("cscope")
         nnoremap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
     endfunction
 
-    function! s:unmap_cscope()
+    function! cscope#unmap()
         "echomsg "Disabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         silent! nunmap <buffer> <C-_>c
         silent! nunmap <buffer> <C-_>d
@@ -93,11 +93,13 @@ if has("cscope")
         execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(l:directory,":p:h")))
         exec printf("echomsg \"Added %s database at \" | echohl MoreMsg | echon \"%s\" | echohl None", s:csdescription, l:path)
 
-        " also add the autocmd for setting mappings and sourcing a local .vimrc
+        " add an autocmd for setting keyboard mappings when in a sub-directory
+        " relative to the database, and sourcing a .vimrc in the same directory
+        " if one exists
         augroup cscope
             let l:base=fnamemodify(l:directory, printf(":p:gs?%s?/?", s:pathsep))
-            exec printf("autocmd BufEnter,BufRead,BufNewFile %s* call s:map_cscope() | if filereadable(\"%s%s\") | source %s%s | endif", l:base, l:base, s:rcfilename, l:base, s:rcfilename)
-            exec printf("autocmd BufDelete %s* call s:unmap_cscope()", l:base)
+            exec printf("autocmd BufEnter,BufRead,BufNewFile %s* call cscope#map() | if filereadable(\"%s%s\") | source %s%s | endif", l:base, l:base, s:rcfilename, l:base, s:rcfilename)
+            exec printf("autocmd BufDelete %s* call cscope#unmap()", l:base)
         augroup end
     endfunction
 
