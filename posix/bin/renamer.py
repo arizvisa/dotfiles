@@ -53,15 +53,17 @@ def rename(source,target):
 		continue
 	return count
 
-def listing(p):
-	for dirpath,_,filenames in os.walk(unicode(os.path.relpath(p), encoding=sys.getfilesystemencoding())):
+def listing(path):
+	p = path if isinstance(path, unicode) else unicode(path, encoding=sys.getfilesystemencoding())
+	for dirpath,_,filenames in os.walk(p):
 		for name in sorted(filenames):
 			yield os.path.join(dirpath,name)
 		continue
 	return
 
-def dirlisting(p):
-	for dirpath,dirnames,_ in os.walk(unicode(os.path.relpath(p), encoding=sys.getfilesystemencoding())):
+def dirlisting(path):
+	p = path if isinstance(path, unicode) else unicode(path, encoding=sys.getfilesystemencoding())
+	for dirpath,dirnames,_ in os.walk(p):
 		for name in sorted(dirnames):
 			yield os.path.join(dirpath,name)
 	return
