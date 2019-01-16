@@ -7,6 +7,22 @@ if test "$#" -ne 1; then
 fi
 fullpath=`readlink -f "$path"`
 
+## check if os is defined
+case "$os" in
+windows|posix)
+    ;;
+*)
+    printf 'Environment variable "%s" is not defined. Attempting to determine operating system..\n' "os" 1>&2
+
+    # we can cheat when detecting the os because Windows defines a variable "OS"
+    case "$OS" in
+    Windows*) os="windows" ;;
+    *) os="posix" ;;
+    esac
+    printf 'Determined operating system: %s\n' "$os" 1>&2
+    ;;
+esac
+
 ## check that the argument is a directory
 if [ ! -d "$1" ]; then
     printf "Target path is not a directory: %s\n" "$1" 1>&2
