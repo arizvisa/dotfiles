@@ -124,3 +124,5 @@ find "$fullpath/posix" -mindepth 1 -maxdepth 1 -print | while read path; do
         printf "Unable to link unknown file type: %s\n" "$fullpath/posix/$name" 1>&2
     fi
 done
+
+printf 'Done linking files from posix into "%s".\n' "$fullpath" 1>&2
