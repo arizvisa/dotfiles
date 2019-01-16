@@ -1,58 +1,71 @@
-""" general vi options (-eval)
-    set nocp
-    set encoding=utf-8
-    set fileformat=unix
-    set fileformats=unix,dos
-    set formatoptions=
+""" general vim options (-eval)
+set nocp
+set encoding=utf-8
+set fileformat=unix
+set fileformats=unix,dos
+set formatoptions=
 
-    "" specify the default temp directory for swap files
-    set directory=$TMP,$TMPDIR
+"" specify the default temp directory for swap files (overwritten when +eval)
+set directory=$TMP,$TMPDIR
 
-    "" enforce 4 space tabbing
-    set ts=4
-    set shiftwidth=4
-    set expandtab
-    set autowrite
-    set autoindent
+"" enforce 4 space tabbing
+set ts=4
+set shiftwidth=4
+set expandtab
+set autowrite
+set autoindent
 
-    "" no wordwrap
-    set nowrap
-    set textwidth=0
+"" no wordwrap
+set nowrap
+set textwidth=0
 
-    set nostartofline
+set nostartofline
 
-    set hlsearch
-    set visualbell
+set hlsearch
+set visualbell
 
-    "" overall appearance
-    set laststatus=2
-    set ruler
-    set number
-    "set relativenumber
+"" overall appearance
+set laststatus=2
+set ruler
+set number
+" set relativenumber
 
-    "" get rid of any c indentation
-    set nocindent
+"" get rid of any c indentation
+set nocindent
 
-    "" execute shell command in a new window
-    map <C-w>! :new\|%!
+"" mapping that executes a shell command in a new window
+map <C-w>! :new\|%!
 
-""" everything that needs evaluation to work
+"" source the .vimrc.local in the home-directory when +eval is disabled (taken from *no-eval-feature*)
+silent! while 0
+    silent! source $HOME/.vimrc.local
+silent! endwhile
+
+""" everything after this needs evaluation to work
 if has("eval")
 
-    """ If we can evaluate things, then add the user's temp directory
+""" default configuration
+
+    "" site-local script paths
+    if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
+    let s:rcfilename = ".vimrc"
+    let s:rcfilename_site = ".vimrc.local"
+    let s:rcfilename_local = ".vimrc"
+
+    " copy them into global variables that the user can access
+    let g:home = has("unix")? $HOME : $USERPROFILE
+    let g:rcfilename_global = join([g:home, s:rcfilename], s:pathsep)
+    let g:rcfilename_site = join([g:home, s:rcfilename_site], s:pathsep)
+
+    "" set the swap directory to point to the working directory
     set directory=.
+
+    " if the linux or windows temp variable is set, then add those too
     if ! empty($TMP)
         set directory+=$TMP
     elseif ! empty($TMPDIR)
         set directory+=$TMPDIR
     endif
-
-    """ script locals and default configs
-    if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
-    let s:rcfilename = ".vimrc"
-    let s:rcfilename_site = ".vimrc.local"
-    let s:rcfilename_local = ".vimrc"
-    let s:state = ".vim.session"
 
     "" coloring (syntax and filetype)
     set colorcolumn=81
@@ -67,15 +80,7 @@ if has("eval")
     filetype indent off
     filetype plugin off
 
-    """ useful mappings
-
-    "" copy current locations into the default register
-    nmap ,cc :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')<CR>:let @*=@"<CR>
-    nmap ,cf :let @"=substitute(expand('%'),'\\','/','g')<CR>:let @*=@"<CR>
-    nmap ,cp :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @*=@"<CR>
-    nmap ,.  :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')."\n"<CR>
-
-    "" for gvim
+    "" gvim-specific settings
     if has("gui_running")
         colorscheme darkblue
         set guioptions=rL
@@ -87,6 +92,8 @@ if has("eval")
         else
             echoerr "Unknown gui. Unable to set guifont to Courier 10."
         endif
+
+    "" regular vim-specific settings
     else
         try
             colorscheme distinguished
@@ -95,10 +102,23 @@ if has("eval")
         endtry
     endif
 
-""" globals
-    let g:home = has("unix")? $HOME : $USERPROFILE
-    let g:rcfilename_global = join([g:home, s:rcfilename], s:pathsep)
-    let g:rcfilename_site = join([g:home, s:rcfilename_site], s:pathsep)
+    "" default plugin options
+
+    " for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
+    let g:MultipleSearchMaxColors=16
+    let w:PHStatusLine = ''
+
+    " for vim-incpy [ http://github.com/arizvisa/vim-incpy ]
+    let g:incpy#Name = "interpreter"
+    let g:incpy#WindowRatio = 1.0/8
+
+""" useful key mappings
+
+    "" copy current locations into the default register
+    nmap ,cc :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')<CR>:let @*=@"<CR>
+    nmap ,cf :let @"=substitute(expand('%'),'\\','/','g')<CR>:let @*=@"<CR>
+    nmap ,cp :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @*=@"<CR>
+    nmap ,.  :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')."\n"<CR>
 
 """ utility functions
     function! Which(program)
@@ -174,6 +194,8 @@ if has("eval")
 
 """ session auto-saving and things
     if has("mksession") && has("autocmd")
+        let s:state = ".vim.session"
+
         set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
         let g:session_state = join([getcwd(),s:state], s:pathsep)
 
@@ -202,15 +224,6 @@ if has("eval")
             autocmd VimLeave * call Session_save(g:session_state)
         augroup end
     endif
-
-""" default plugin options
-    "" for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
-    let g:MultipleSearchMaxColors=16
-    let w:PHStatusLine = ''
-
-    "" for vim-incpy [ http://github.com/arizvisa/vim-incpy ]
-    let g:incpy#Name = "interpreter"
-    let g:incpy#WindowRatio = 1.0/8
 
 """ site-local .vimrc
     if !exists("g:vimrc_site") | let g:vimrc_site = 0 | endif
