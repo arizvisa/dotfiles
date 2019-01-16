@@ -46,6 +46,8 @@ IFS=- read arch model platform <<< "${MACHTYPE}"
 export arch model platform
 
 ## os detection
+
+# Windows defines the OS environment variable, so we can do this pretty cheaply
 case "$OS" in
     Windows*) os="windows" ;;
     *) os="posix" ;;
