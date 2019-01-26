@@ -26,8 +26,8 @@ case "$TERM" in
         PS1+='\[\033K\]'                            # clear out everything till the end of line
         ;;
 
-    # windows
-    ansi)
+    # native terminals
+    ansi|linux)
         PS1+='\[\033[01;37m\][\!]\[\033[0m\] '      # command number in white
         PS1+='\[\033[01;32m\]\u@\h\[\033[0m\] '     # user@host in green
         PS1+='\[\033[0m\]\w\$ '                     # directory and prompt in default
