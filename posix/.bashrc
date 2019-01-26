@@ -5,8 +5,20 @@
 # if .profile hasn't been executed yet, then do it first.
 [ -z "$PROFILE" ] && source "$HOME/.profile"
 
-# set a sane prompt
-export PS1='[\!] \u@\h \w\$ '
+# set a sane prompt (based on $TERM)
+case "$TERM" in
+    *-256color)
+        PS1='\[\033]0;\u@\H\007\]'                  # set the window title to the user and the full hostname
+        PS1+='\[\033K\]'                            # clear out everything till the end of line
+        PS1+='\[\033[01;37m\][\!]\[\033[0m\] '      # command number in white
+        PS1+='\[\033[01;32m\]\u@\h\[\033[0m\] '     # user@host in green
+        PS1+='\[\033[0m\]\w\$ '                     # directory and prompt in default
+        ;;
+    *)
+        PS1='[\!] \u@\h \w\$ '
+        ;;
+esac
+export PS1
 
 # prefix $HOME/bin to PATH
 [ -e "$HOME/bin" ] && PATH="$HOME/bin:$PATH"
