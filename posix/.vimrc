@@ -180,16 +180,29 @@ if has("eval")
     if has("autocmd")
         augroup cs
             autocmd!
-            autocmd BufEnter,BufRead,BufNewFile *.cs call s:map_braces()
+            autocmd FileType cs call s:map_braces()
         augroup end
 
         augroup java
             autocmd!
-            autocmd BufEnter,BufRead,BufNewFile *.java call s:map_braces()
+            autocmd FileType java call s:map_braces()
         augroup end
 
-        autocmd BufNewFile,BufRead *.go setf go
-        autocmd FileType go setlocal noexpandtab shiftwidth=4 tabstop=4
+        augroup javascript
+            autocmd!
+            autocmd FileType javascript setlocal expandtab tabstop=2 shiftwidth=2
+        augroup end
+
+        augroup make
+            autocmd!
+            autocmd FileType make set noexpandtab
+        augroup end
+
+        augroup golang
+            autocmd!
+            autocmd BufNewFile,BufRead *.go setf go
+            autocmd FileType go setlocal noexpandtab shiftwidth=4 tabstop=4
+        augroup end
     endif
 
 """ session auto-saving and things
