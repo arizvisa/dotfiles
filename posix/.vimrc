@@ -201,7 +201,7 @@ if has("eval")
         augroup golang
             autocmd!
             autocmd BufNewFile,BufRead *.go setf go
-            autocmd FileType go setlocal noexpandtab shiftwidth=4 tabstop=4
+            autocmd FileType go setlocal expandtab shiftwidth=4 tabstop=4
         augroup end
     endif
 
