@@ -195,7 +195,7 @@ if has("eval")
 
         augroup make
             autocmd!
-            autocmd FileType make set noexpandtab
+            autocmd FileType make setlocal noexpandtab
         augroup end
 
         augroup golang
