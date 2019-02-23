@@ -150,7 +150,7 @@ if has("eval")
     function! s:matchjump(regexp, ...)
         let [l:l, l:c] = call('searchpos', [a:regexp] + a:000)
         if [l:l, l:c] == [0, 0]
-            throw printf('Unable to locate the specified query: %s', a:regexp)
+            throw printf('E486: Pattern not found: %s', a:regexp)
         endif
         execute printf('normal %dgg0%dl', l:l, l:c + 1)
     endfunction
