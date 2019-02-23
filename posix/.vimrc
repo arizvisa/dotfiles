@@ -203,6 +203,12 @@ if has("eval")
             autocmd BufNewFile,BufRead *.go setf go
             autocmd FileType go setlocal expandtab shiftwidth=4 tabstop=4
         augroup end
+
+        augroup actionscript
+            autocmd!
+            autocmd BufNewFile,BufRead *.as setf actionscript
+            autocmd FileType actionscript setlocal noexpandtab fileformat=dos shiftwidth=4 tabstop=4
+        augroup end
     endif
 
 """ session auto-saving and things
