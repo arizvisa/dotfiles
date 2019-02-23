@@ -217,6 +217,7 @@ if has("eval")
             autocmd FileType go setlocal expandtab shiftwidth=4 tabstop=4
         augroup end
 
+        autocmd! filetypedetect * *.as
         augroup actionscript
             autocmd!
             autocmd BufNewFile,BufRead *.as setf actionscript
