@@ -121,6 +121,8 @@ if has("eval")
     nmap ,.  :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')."\n"<CR>
 
 """ utility functions
+
+    " Return the full path for the specified program by searching through $PATH
     function! Which(program)
         let sep = has("unix")? ':' : ';'
         let pathsep = (has("unix") || &shellslash)? '/' : '\'
@@ -133,15 +135,16 @@ if has("eval")
         throw printf("Unable to locate %s in $PATH", a:program)
     endfunction
 
-    function! Catfiles(files)
+    " Replace the current buffer with the contents of the specified files concatenated together
+    function! CatFiles(files)
         execute "%!cat " . join(a:files, ' ')
     endfunction
 
-    function! MapCtrlG()
-        let p = getpos('.')
-        let x = p[1] * p[2]
-        execute 'python findTag("' . expand("%") . '", ' . x . ')'
-        execute 'echo "' . escape(w:PHStatusLine, '"') . '"'
+    " Output the syntax identifier that is used for the highlighter
+    function! SyntaxId(expr)
+        let pos = getpos(a:expr)
+        let id = synID(pos[1], pos[2], 1)
+        return synIDattr(id, "name")
     endfunction
 
 """ autocommand configuration
