@@ -147,34 +147,44 @@ if has("eval")
 """ autocommand configuration
 
     "" match and then jump to a specified regex whilst updating the +jumplist
-    function! s:matchjump(regexp, ...)
-        let [l:l, l:c] = call('searchpos', [a:regexp] + a:000)
+    " XXX: look into using searchpair or searchpairpos to deal with nested braces
+    function! s:matchjump_internal(pattern, ...)
+        let [l:l, l:c] = call('searchpos', [a:pattern] + a:000)
         if [l:l, l:c] == [0, 0]
-            throw printf('E486: Pattern not found: %s', a:regexp)
+            throw printf('E486: Pattern not found: %s', a:pattern)
         endif
         execute printf('normal %dgg0%dl', l:l, l:c + 1)
+    endfunction
+
+    function s:matchjump(pattern, ...)
+        let F = function('s:matchjump_internal')
+        try
+            let _ =  call(F, [a:pattern] + a:000)
+        catch /^E486:/
+            echoerr v:exception
+        endtry
     endfunction
 
     "" assign mappings that deal with braces for languages where vim support is weird
     function! s:map_braces()
 
         " find the previous/next brace at the current column
-        nnoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        onoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'nb')<CR>
-        nnoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
-        onoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wnb')<CR>
+        onoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wnb')<CR>
+        nnoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wn')<CR>
+        onoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wn')<CR>
 
         " find the enclosing block/brace or the next block
-        nnoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        onoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        nnoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
-        onoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
+        onoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
+        nnoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
+        onoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
 
         " aliases for the prior two mappings
-        nnoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        onoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'nb')<CR>
-        nnoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
-        onoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'n')<CR>
+        nnoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
+        onoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
+        nnoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
+        onoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
     endfunction
 
     if has("autocmd")
