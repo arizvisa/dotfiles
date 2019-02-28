@@ -203,6 +203,7 @@ if has("eval")
 
         augroup javascript
             autocmd!
+            autocmd BufNewFile,BufRead Jakefile setf javascript
             autocmd FileType javascript setlocal expandtab tabstop=2 shiftwidth=2
         augroup end
 
