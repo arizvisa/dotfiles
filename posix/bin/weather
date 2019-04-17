@@ -1,0 +1,45 @@
+#!/bin/sh
+arg0=`basename "$0"`
+uri="http://wttr.in/"
+
+usage()
+{
+    printf "u\nsage: %s [-h] [-?] [-s] [zipcode]\n" "$1"
+    printf "outputs the weather for the specified zipcode or current location as determined by the address\n\n"
+    printf "    -h or -?   output this help\n"
+    printf "    -s         output the weather in a single line\n"
+    printf "    -f format  specify the explicit format for the single line output\n"
+    printf "\ndepends on curl and http://wttr.in\n"
+}
+
+zipcode=""
+format=
+while getopts hf:s opt; do
+    case "$opt" in
+        h|\?)
+            usage "$arg0"
+            exit 0
+            ;;
+        f)
+            format="$OPTARG"
+            ;;
+        s)
+            format=4
+            ;;
+    esac
+done
+shift `expr "$OPTIND" - 1`
+
+# Check if a zipcode was provided
+if [ ! -z "$1" ]; then
+    url=`printf "%s/%d" "$uri" "$1"`
+else
+    url=`printf "%s/" "$uri"`
+fi
+
+# Check if an alternative format was specified
+if [ ! -z "$format" ]; then
+    url=`printf "%s?format=%d" "$url" "$format"`
+fi
+
+curl -H "User-Agent: curl" "$url"
