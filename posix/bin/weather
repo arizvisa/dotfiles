@@ -4,15 +4,14 @@ uri="http://wttr.in/"
 
 usage()
 {
-    printf "usage: %s [-h] [-?] [-s] [-f format] [zipcode]\n" "$1"
-    printf "outputs the weather for the specified zipcode or current geolocation if not specified\n\n"
+    printf "usage: %s [-h] [-?] [-s] [-f format] [location]\n" "$1"
+    printf "outputs the weather for the location (name or zipcode) or current geolocation if not specified\n\n"
     printf "    -h or -?   output this help\n"
     printf "    -s         output the weather in a single line\n"
     printf "    -f format  specify the explicit format for the single line output\n"
     printf "\ndepends on curl and the ability to query the url at http://wttr.in to fetch the results\n"
 }
 
-zipcode=
 format=
 while getopts hf:s opt; do
     case "$opt" in
@@ -30,9 +29,9 @@ while getopts hf:s opt; do
 done
 shift `expr "$OPTIND" - 1`
 
-# Check if a zipcode was provided
+# Check if a location was provided
 if [ ! -z "$1" ]; then
-    url=`printf "%s/%d" "$uri" "$1"`
+    url=`printf "%s/%s" "$uri" "$1"`
 else
     url=`printf "%s/" "$uri"`
 fi
