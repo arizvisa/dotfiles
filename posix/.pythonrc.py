@@ -1,6 +1,5 @@
 import os, sys, user, logging
-import functools, operator, itertools, types
-import __builtin__ as builtins
+import functools, itertools, types, builtins, operator, six
 
 # remove crlf from std{out,err} because CPython is pretty fucking stupid
 if sys.platform == 'win32':
@@ -19,6 +18,10 @@ map(sys.path.append, __import__('glob').iglob(os.path.join(user.home.replace('\\
 fbox = fboxed = lambda *a: a
 # return a closure that executes ``f`` with the arguments unboxed.
 funbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + builtins.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **builtins.dict(k.items() + kp.items()))
+# return the first argument
+fcar = lambda *a: a[:1][0]
+# return the rest of the arguments
+fcdr = lambda *a: a[1:]
 # return a closure that will check that its argument is an instance of ``type``.
 finstance = lambda *type: frpartial(builtins.isinstance, type)
 # return a closure that will check if its argument has an item ``key``.
