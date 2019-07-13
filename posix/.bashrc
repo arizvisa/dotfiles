@@ -56,6 +56,7 @@ complete -r
 alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
+alias cat='cat -v'
 
 alias l="`type -P less || type -P more`"
 alias info="`type -P info` --vi-keys"
