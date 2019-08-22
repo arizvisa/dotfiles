@@ -43,7 +43,7 @@ transferstatus()
 filestatus()
 {
     filename=$1
-    size = 0
+    size=0
     while true; do
         size=$( filesize "$filename" )
         echo "$filename $size"
