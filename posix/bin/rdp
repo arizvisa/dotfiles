@@ -1,6 +1,10 @@
 #!/bin/sh
 mstsc_args='-f'
-xfreerdp_args='-dynamic-resolution +auto-reconnect +heartbeat -sec-tls -sec-nla -sec-rdp -sec-ext +sec-tls -authentication'
+xfreerdp_args=""
+xfreerdp_args="$xfreerdp_args +heartbeat +auto-reconnect"
+xfreerdp_args="$xfreerdp_args +sec-tls +sec-rdp -sec-nla -sec-ext +authentication"
+xfreerdp_args="$xfreerdp_args +dynamic-resolution +home-drive"
+xfreerdp_args="$xfreerdp_args +offscreen-cache +bitmap-cache +glyph-cache +gfx +nscodec +home-drive"
 
 ## figure out whether a prog exists for the current platform
 case "$platform" in
