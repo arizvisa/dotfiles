@@ -15,6 +15,8 @@ randomhex() {
 }
 
 randomint() {
+    local number res
+
     debugrng 'Generating random integer of length %d.' "$1"
     number=`randomhex "$1"`
     res=`bc 2>/dev/null <<< "scale=8;$((16#$number)) / (16 ^ $1) * (10 ^ $1)" | cut -d. -f 1`
@@ -22,6 +24,8 @@ randomint() {
 }
 
 randomrange() {
+    local range length number res
+
     debugrng 'Generating random number from %d to %d.' "$1" "$2"
     range=`expr $2 - $1`
     length=`wc -c <<< "$range" | tr -d ' '`
@@ -35,6 +39,8 @@ randomstring() {
 }
 
 randomname() {
+    local length name
+
     length=`wc -c <<< "$1" | tr -d ' '`
     name=`randomstring "$length"`
     debugrng 'Generated random name: %s' "$name"
@@ -43,14 +49,16 @@ randomname() {
 
 ## general utilities
 wipe() {
-    count=`du "$1" | cut -f 1`
+    local count=`du "$1" | cut -f 1`
     dd "if=$DEVICE" "of=$1" "count=$count" 2>/dev/null
 }
 
 tamper() {
+    local seconds perlcode code oldest_yr current_yr
+
     seconds=`stat -c %W /`
-    _code='($_,$_,$_,$_,$_,$yr,$_,$_,$_)=localtime(%d); print int($yr)+1900'
-    code=`printf "$_code" "$seconds"`
+    perlcode='($_,$_,$_,$_,$_,$yr,$_,$_,$_)=localtime(%d); print int($yr)+1900'
+    code=`printf "$perlcode" "$seconds"`
     oldest_yr=`perl -e "$code"`
     current_yr=`date +%Y`
     debugrng 'Oldest year on filesystem was discovered as %d.' "$oldest_yr"
@@ -73,20 +81,103 @@ tamper() {
     done
 }
 
-range() {
-    yes $'\t' | nl | tr -d $' \t' | head -n "$1"
+## commands
+wipefile() {
+    local path="$1" count="$2"
+    local file directory name
+
+    # extract each of its pieces
+    file=`basename "$path"`
+    directory=`dirname "$path"`
+
+    # wipe the file like we were asked to
+    for c in `seq "$count"`; do
+        debug 'Overwriting file %d time(s).' "$c"
+        wipe "$path"
+    done
+    [ "$count" -eq 1 ] && _='s' || _=''
+    info '%s: File overwritten %d time%s.' "$path" "$count" "$_"
+
+    # tamper with the timestamps
+    debug 'Tampering with the timestamps for file: %s' "$path"
+    tamper "$path"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to tamper with file metadata.' "$path"
+        continue
+    fi
+    info '%s: Successfully tampered with creation, modification, and access times.' "$path"
+
+    # rename the file to something random
+    name=`randomname "$file"`
+    debug 'Renaming file in path "%s": "%s" -> "%s"' "$directory" "$file" "$name"
+    mv -f "$directory/$file" "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to rename file to random filename.' "$path"
+        continue
+    fi
+    info '%s: Renamed file to random name "%s".' "$path" "$name"
+
+    # finally remove the requested file
+    debug 'Removing file in path "%s": "%s"' "$directory" "$name"
+    rm -f "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to remove file "%s".' "$path" "$name"
+        continue
+    fi
+    info '%s: Successfully removed file "%s".' "$path" "$name"
+
+    printf "%s%c%s\n" "$directory/$file" "$ifs" "$directory/$name"
 }
+
+wipedirectory() {
+    local path="$1"
+    local file directory name
+
+    # extract each of its pieces
+    file=`basename "$path"`
+    directory=`dirname "$path"`
+
+    # tamper with the timestamps
+    debug 'Tampering with the timestamps for directory: %s' "$path"
+    tamper "$path"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to tamper with directory metadata.' "$path"
+        continue
+    fi
+    info '%s: Successfully tampered with creation, modification, and access times.' "$path"
+
+    # rename the file to something random
+    name=`randomname "$file"`
+    debug 'Renaming directory in path "%s": "%s" -> "%s"' "$directory" "$file" "$name"
+    mv -f "$directory/$file" "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to rename directory to random name.' "$path"
+        continue
+    fi
+    info '%s: Renamed directory to random name "%s".' "$path" "$name"
+
+    # finally remove the requested file
+    debug 'Removing directory in path "%s": "%s"' "$directory" "$name"
+    rmdir "$directory/$name"
+    if [ "$?" -gt "0" ]; then
+        error '%s: Unable to remove directory "%s".' "$path" "$name"
+        continue
+    fi
+    info '%s: Successfully removed directory "%s".' "$path" "$name"
+
+    printf "%s%c%s\n" "$directory/$file" "$ifs" "$directory/$name"
+}
+
 
 ## message i/o
 info() {
-    msg="$1"
+    local msg="$1"
     shift
     printf "%s: $msg\n" "$argv0" "$@" 1>&2
 }
 
 log() {
-    level="$1"
-    msg="$2"
+    local level="$1" msg="$2"
     shift 2
     printf "%s: (%s) $msg\n" "$argv0" "$level" "$@" 1>&2
 }
@@ -112,14 +203,10 @@ for path in "$@"; do
     if [ ! -e "$path" ]; then
         warn '%s: No such file or directory.' "$path"
         continue
-    elif [ ! -f "$path" ]; then
-        warn '%s: Not a valid file.' "$path"
+    elif [ ! -f "$path" ] && [ ! -d "$path" ]; then
+        warn '%s: Not a valid file or directory.' "$path"
         continue
     fi
-
-    # extract each of its pieces
-    file=`basename "$path"`
-    directory=`dirname "$path"`
 
     # read some input
     printf 'Are you SURE you wish to wipe: %s? [no] ' "$path" 1>&2
@@ -127,45 +214,15 @@ for path in "$@"; do
     [ -z "$response" ] && response="no"
 
     if [ "$response" != "yes" ]; then
-        error '%s: File not overwritten; user refused.' "$path"
+        error '%s: File or directory not overwritten; user refused.' "$path"
         continue
     fi
 
-    # wipe the file like we were asked to
-    for c in `range "$COUNT"`; do
-        debug 'Overwriting file %d time(s).' "$c"
-        wipe "$path"
-    done
-    [ "$COUNT" -eq 1 ] && _='s' || _=''
-    info '%s: File overwritten %d time%s.' "$path" "$COUNT" "$_"
-
-    # tamper with the timestamps
-    debug 'Tampering with the timestamps for file: %s' "$path"
-    tamper "$path"
-    if [ "$?" -gt "0" ]; then
-        error '%s: Unable to tamper with file metadata.' "$path"
-        continue
+    if [ -d "$path" ]; then
+        wipedirectory "$path"
+    elif [ -f "$path" ]; then
+        wipefile "$path" "$COUNT"
+    else
+        error '%s: File or directory not overwritten; unknown type.' "$path"
     fi
-    info '%s: Successfully tampered with creation, modification, and access times.' "$path"
-
-    # rename the file to something random
-    name=`randomname "$file"`
-    debug 'Renaming file in directory "%s": "%s" -> "%s"' "$directory" "$file" "$name"
-    mv -f "$directory/$file" "$directory/$name"
-    if [ "$?" -gt "0" ]; then
-        error '%s: Unable to rename file to random filename.' "$path"
-        continue
-    fi
-    info '%s: Renamed file to random name "%s".' "$path" "$name"
-
-    # finally remove the requested file
-    debug 'Removing file in directory "%s": "%s"' "$directory" "$name"
-    rm -f "$directory/$name"
-    if [ "$?" -gt "0" ]; then
-        error '%s: Unable to remove file "%s".' "$path" "$name"
-        continue
-    fi
-    info '%s: Successfully removed file "%s".' "$path" "$name"
-
-    printf "%s%c%s\n" "$directory/$file" "$ifs" "$directory/$name"
 done
