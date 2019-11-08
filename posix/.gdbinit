@@ -1,6 +1,6 @@
 python import operator,itertools,functools
 
-## python helpers
+### python helpers
 python
 import re,string
 class function(gdb.Function):
@@ -274,7 +274,7 @@ hexdump(),itemdump(),bindump()
 
 end
 
-## 32-bit / 64-bit functions
+### 32-bit / 64-bit functions
 define show_regs32
     emit "\n-=[registers]=-\n"
     emit $sprintf("[eax: 0x%08x] [ebx: 0x%08x] [ecx: 0x%08x] [edx: 0x%08x]\n", $eax, $ebx, $ecx, $edx)
@@ -344,7 +344,7 @@ define show_flags
     set variable $_if = ($eflags& 64)? "IF" : "NI"
     set variable $_df = ($eflags&128)? "DF" : "ND"
     set variable $_of = ($eflags&256)? "OF" : "NO"
-#    set variable $_ipol = ($eflags&512)? "IOPL"
+#    set variable $_iopl = ($eflags&512)? "IOPL"
 #    set variable $_nt = ($eflags&1024)? "NT"
 #    set variable $_nothing = ($eflags&2048)
 #    set variable $_rf = ($eflags&4096)? "RF"
@@ -364,7 +364,7 @@ define h64
     show_code64
 end
 
-## stepping
+### stepping
 define n
     ni
     h
@@ -375,7 +375,7 @@ define s
     h
 end
 
-## conditional definitions based on the arch
+### conditional definitions based on the arch
 define show_regs
     if sizeof(void*) == 4
         show_regs32
@@ -412,7 +412,7 @@ define h
     end
 end
 
-## shortcuts
+### shortcuts
 define maps
     info proc mappings
 end
@@ -478,7 +478,7 @@ define bl
     info breakpoints
 end
 
-## breakpoints with wildcards
+### breakpoints with wildcards
 python
 class bc(command):
     def invoke(self, s, from_tty):
@@ -529,6 +529,8 @@ class bp(command):
 bc(),bd(),be(),ba(),bp()
 end
 
+### defaults
+
 ## catchpoints
 catch exec
 catch fork
@@ -542,5 +544,21 @@ set input-radix 0x10
 set output-radix 0x10
 #set width unlimited
 #set height unlimited
+
+## registers ($ps)
+set variable $cf = 1 << 0
+set variable $pf = 1 << 1
+set variable $af = 1 << 2
+set variable $zf = 1 << 3
+set variable $sf = 1 << 4
+#set variable $tf = 1 << 5
+set variable $if = 1 << 6
+set variable $df = 1 << 7
+set variable $of = 1 << 8
+#set variable $iopl = 1 << 9
+#set variable $nt = 1 << 10
+#set variable $nothing = 1 << 11
+#set variable $rf = 1 << 12
+#set variable $vm = 1 << 13
 
 #source /usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py
