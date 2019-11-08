@@ -93,42 +93,42 @@ class Memory(object):
     @classmethod
     def _gfilter(cls, iterable, itemsize):
         if itemsize < 8:
-            for n in iterable: yield n
+            for item in iterable:
+                yield item
             return
-        while True:
-            nl,nh = next(iterable),next(iterable)
-            yield (nh << (8*itemsize/2)) | nl
+        try:
+            while True:
+                iteml, itemh = next(iterable), next(iterable)
+                yield (itemh << (8 * itemsize / 2)) | iteml
+        except StopIteration:
+            pass
         return
 
     @classmethod
     def _hex_generator(cls, iterable, itemsize):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(0x10))
-        while True:
-            n = next(iterable)
-            yield '{:0{:d}x}'.format(n, int(maxlength))
+        for item in iterable:
+            yield '{:0{:d}x}'.format(item, int(maxlength))
         return
 
     @classmethod
     def _bin_generator(cls, iterable, itemsize):
-        while True:
-            n = next(iterable)
-            yield '{:0{:d}b}'.format(n, itemsize)
+        for item in iterable:
+            yield '{:0{:d}b}'.format(item, itemsize)
         return
 
     @classmethod
     def _int_generator(cls, iterable, itemsize):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(10))
-        while True:
-            n = next(iterable)
-            yield '{:{:d}d}'.format(n, int(maxlength))
+        for item in iterable:
+            yield '{:{:d}d}'.format(item, int(maxlength))
         return
 
     @classmethod
     def _float_generator(cls, iterable, itemsize):
         maxlength = 32
-        while True:
-            n = next(iterable)
-            yield '{:{:d}.5f}'.format(n, int(maxlength))
+        for item in iterable:
+            yield '{:{:d}.5f}'.format(item, int(maxlength))
         return
 
     @classmethod
