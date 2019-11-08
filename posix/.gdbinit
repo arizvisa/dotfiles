@@ -335,20 +335,29 @@ end
 #        +------  VM  Virtual Mode Flag (386+ only)
 
 define show_flags
-    set variable $_cf = ($ps&  1)? "CF" : "NC"
-    set variable $_pf = ($ps&  2)? "PF" : "NP"
-    set variable $_af = ($ps&  4)? "AF" : "NA"
-    set variable $_zf = ($ps&  8)? "ZF" : "NZ"
-    set variable $_sf = ($ps& 16)? "SF" : "NS"
-#    set variable $_tf = ($ps& 32)? "TF" : "NT"
-    set variable $_if = ($ps& 64)? "IF" : "NI"
-    set variable $_df = ($ps&128)? "DF" : "ND"
-    set variable $_of = ($ps&256)? "OF" : "NO"
-#    set variable $_iopl = ($ps&512)? "IOPL"
-#    set variable $_nt = ($ps&1024)? "NT"
-#    set variable $_nothing = ($ps&2048)
-#    set variable $_rf = ($ps&4096)? "RF"
-#    set variable $_vm = ($ps&8192)? "VM"
+    set variable $_cf   = ($ps& 0x000001)?  "CF" : "NC"
+    set variable $_r1   = ($ps& 0x000002)?  ""   : "R1"
+    set variable $_pf   = ($ps& 0x000004)?  "PF" : "NP"
+    set variable $_r2   = ($ps& 0x000008)?  "R2" : ""
+    set variable $_af   = ($ps& 0x000010)?  "AF" : "NA"
+    set variable $_r3   = ($ps& 0x000020)?  "R3" : ""
+    set variable $_zf   = ($ps& 0x000040)?  "ZF" : "NZ"
+    set variable $_sf   = ($ps& 0x000080)?  "SF" : "NS"
+    set variable $_tf   = ($ps& 0x000100)?  "TF" : "NT"
+    set variable $_if   = ($ps& 0x000200)?  "IF" : "NI"
+    set variable $_df   = ($ps& 0x000400)?  "DF" : "ND"
+    set variable $_of   = ($ps& 0x000800)?  "OF" : "NO"
+    set variable $_iopl = ($ps& 0x003000)? $sprintf("IOPL%d",($ps&0x3000)>>0x1000) : ""
+    set variable $_nt   = ($ps& 0x004000)?  "NT" : ""
+    set variable $_r4   = ($ps& 0x008000)?  "R8" : ""
+    set variable $_rf   = ($ps& 0x010000)?  "RF" : ""
+    set variable $_vm   = ($ps& 0x020000)?  "VM" : ""
+
+    ## rflags
+    set variable $_ac   = ($ps& 0x040000)?  "AC" : ""
+    set variable $_vif  = ($ps& 0x080000)? "VIF" : ""
+    set variable $_vip  = ($ps& 0x100000)? "VIP" : ""
+    set variable $_id   = ($ps& 0x200000)?  "ID" : ""
     emit $sprintf("[eflags: %s %s %s %s %s %s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_if)
 end
 
@@ -547,18 +556,21 @@ set output-radix 0x10
 
 ## registers ($ps)
 set variable $cf = 1 << 0
-set variable $pf = 1 << 1
-set variable $af = 1 << 2
-set variable $zf = 1 << 3
-set variable $sf = 1 << 4
-#set variable $tf = 1 << 5
-set variable $if = 1 << 6
-set variable $df = 1 << 7
-set variable $of = 1 << 8
-#set variable $iopl = 1 << 9
-#set variable $nt = 1 << 10
-#set variable $nothing = 1 << 11
-#set variable $rf = 1 << 12
-#set variable $vm = 1 << 13
+#set variable $r1 = 1 << 1
+set variable $pf = 1 << 2
+#set variable $r2 = 1 << 3
+set variable $af = 1 << 4
+#set variable $r3 = 1 << 5
+set variable $zf = 1 << 6
+set variable $sf = 1 << 7
+#set variable $tf = 1 << 8
+set variable $if = 1 << 9
+set variable $df = 1 << 10
+set variable $of = 1 << 11
+#set variable $iopl = 3 << 12
+#set variable $nt = 1 << 14
+#set variable $r4 = 1 << 15
+#set variable $rf = 1 << 16
+#set variable $vm = 1 << 17
 
 #source /usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py
