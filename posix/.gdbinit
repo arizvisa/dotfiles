@@ -289,7 +289,7 @@ define show_regs64
     emit $sprintf("[rsp: 0x%016x] [rbp: 0x%016x] [ pc: 0x%016x]\n", (unsigned long long)$rsp, (unsigned long long)$rbp, (unsigned long long)$pc)
     emit $sprintf("[ r8: 0x%016x] [ r9: 0x%016x] [r10: 0x%016x]\n", $r8, $r9, $r10)
     emit $sprintf("[r11: 0x%016x] [r12: 0x%016x] [r13: 0x%016x]\n", $r11, $r12, $r13)
-    emit $sprintf("[r14: 0x%016x] [r15: 0x%016x] [efl: 0x%08x]\n", $r14, $r15, (unsigned int)$eflags)
+    emit $sprintf("[r14: 0x%016x] [r15: 0x%016x] [efl: 0x%08x]\n", $r14, $r15, (unsigned int)$ps)
     show_flags
 end
 
@@ -335,20 +335,20 @@ end
 #        +------  VM  Virtual Mode Flag (386+ only)
 
 define show_flags
-    set variable $_cf = ($eflags&  1)? "CF" : "NC"
-    set variable $_pf = ($eflags&  2)? "PF" : "NP"
-    set variable $_af = ($eflags&  4)? "AF" : "NA"
-    set variable $_zf = ($eflags&  8)? "ZF" : "NZ"
-    set variable $_sf = ($eflags& 16)? "SF" : "NS"
-#    set variable $_tf = ($eflags& 32)? "TF" : "NT"
-    set variable $_if = ($eflags& 64)? "IF" : "NI"
-    set variable $_df = ($eflags&128)? "DF" : "ND"
-    set variable $_of = ($eflags&256)? "OF" : "NO"
-#    set variable $_iopl = ($eflags&512)? "IOPL"
-#    set variable $_nt = ($eflags&1024)? "NT"
-#    set variable $_nothing = ($eflags&2048)
-#    set variable $_rf = ($eflags&4096)? "RF"
-#    set variable $_vm = ($eflags&8192)? "VM"
+    set variable $_cf = ($ps&  1)? "CF" : "NC"
+    set variable $_pf = ($ps&  2)? "PF" : "NP"
+    set variable $_af = ($ps&  4)? "AF" : "NA"
+    set variable $_zf = ($ps&  8)? "ZF" : "NZ"
+    set variable $_sf = ($ps& 16)? "SF" : "NS"
+#    set variable $_tf = ($ps& 32)? "TF" : "NT"
+    set variable $_if = ($ps& 64)? "IF" : "NI"
+    set variable $_df = ($ps&128)? "DF" : "ND"
+    set variable $_of = ($ps&256)? "OF" : "NO"
+#    set variable $_iopl = ($ps&512)? "IOPL"
+#    set variable $_nt = ($ps&1024)? "NT"
+#    set variable $_nothing = ($ps&2048)
+#    set variable $_rf = ($ps&4096)? "RF"
+#    set variable $_vm = ($ps&8192)? "VM"
     emit $sprintf("[eflags: %s %s %s %s %s %s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_if)
 end
 
