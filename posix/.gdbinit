@@ -72,6 +72,11 @@ def parsenum(string):
     elif string.startswith('0o'):
         return int(string[2:], 8)
     return int(string, 10)
+
+def evaluate_address(string):
+    res = gdb.parse_and_eval(string)
+    type = gdb.lookup_type(intcast(res))
+    return res.cast(type)
 end
 
 ## hexdump helpers
