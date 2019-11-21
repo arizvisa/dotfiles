@@ -521,8 +521,8 @@ class ba(command):
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-        if any(map(addr.startswith, string.digits)):
-            addr = '*'+addr
+        if not addr.startswith('*'):
+            addr = "*({})".format(addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -535,8 +535,8 @@ class bp(command):
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-        if any(map(addr.startswith, string.digits)):
-            addr = '*'+addr
+        if not addr.startswith('*'):
+            addr = "*({})".format(addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -549,8 +549,8 @@ class go(command):
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-        if any(map(addr.startswith, string.digits)):
-            addr = '*'+addr
+        if not addr.startswith('*'):
+            addr = "*({})".format(addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
