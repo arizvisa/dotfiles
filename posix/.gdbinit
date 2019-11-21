@@ -535,10 +535,29 @@ class bp(command):
             thread = '' if th is None else ' thread %d'% th.num
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
         gdb.execute("break " + addr + thread + rest)
-bc(),bd(),be(),ba(),bp()
+class go(command):
+    def invoke(self, s, from_tty):
+        args = gdb.string_to_argv(s)
+        addr = args.pop(0)
+        if any(map(addr.startswith, string.digits)):
+            addr = '*'+addr
+        if len(args) > 0 and args[0].startswith('~'):
+            t=args.pop(0)[1:]
+            thread = '' if t == '*' else (' thread %s'% t)
+        else:
+            th = gdb.selected_thread()
+            thread = '' if th is None else ' thread %d'% th.num
+        rest = (' if '+' '.join(args)) if len(args) > 0 else ''
+        gdb.execute("tbreak " + addr + thread + rest)
+        gdb.execute("continue")
+
+bc(),bd(),be(),ba(),bp(),go()
 end
 
 ### defaults
+
+## aliases
+alias -- g = go
 
 ## catchpoints
 catch exec
