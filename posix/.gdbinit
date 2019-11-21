@@ -361,13 +361,13 @@ define show_flags
     emit $sprintf("[eflags: %s %s %s %s %s %s %s %s%s%s%s%s%s%s%s%s%s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_pf, $_af, $_if, $_tf, $_nt, $_rf, $_vm, $_ac, $_vif, $_vip, $_id, $_iopl)
 end
 
-define h32
+define here32
     show_regs32
     show_stack32
     show_code32
 end
 
-define h64
+define here64
     show_regs64
     show_stack64
     show_code64
@@ -375,13 +375,13 @@ end
 
 ### stepping
 define n
-    ni
-    h
+    nexti
+    here
 end
 
 define s
-    si
-    h
+    stepi
+    here
 end
 
 ### conditional definitions based on the arch
@@ -412,13 +412,18 @@ define show_code
     end
 end
 
-define h
+define here
     if sizeof(void*) == 4
-        h32
+        here32
     end
     if sizeof(void*) == 8
-        h64
+        here64
     end
+end
+
+# needs to be defined in order to replace the help command
+define h
+    here
 end
 
 ### shortcuts
@@ -549,7 +554,8 @@ class go(command):
             thread = '' if th is None else ' thread %d'% th.num
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
         gdb.execute("tbreak " + addr + thread + rest)
-        gdb.execute("continue")
+        gdb.execute("run" if gdb.selected_thread() is None else "continue")
+        gdb.execute("here")
 
 bc(),bd(),be(),ba(),bp(),go()
 end
@@ -558,6 +564,8 @@ end
 
 ## aliases
 alias -- g = go
+alias -- h32 = here32
+alias -- h64 = here64
 
 ## catchpoints
 catch exec
