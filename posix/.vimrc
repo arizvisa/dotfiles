@@ -21,6 +21,7 @@ set textwidth=0
 
 set nostartofline
 
+set noincsearch
 set hlsearch
 set visualbell
 
