@@ -36,7 +36,7 @@ import idaapi,time
 print "~"*110
 _ = time.time()
 print "$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime()))
-idaapi.autoWait()
+idaapi.auto_wait()
 print "$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime()))
 print "~"*110
 print "%s:saving to %s"% (r"$arg0", r"$output")

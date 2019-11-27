@@ -100,7 +100,7 @@ for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils'):
         print "$arg0:unable to import module %s. skipping."% _
     continue
 #print "%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime()))
-#idaapi.autoWait()
+#idaapi.auto_wait()
 print "~"*110
 __builtin__._ = time.time()
 print "%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv)
