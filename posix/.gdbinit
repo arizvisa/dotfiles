@@ -81,7 +81,7 @@ end
 
 ## hexdump helpers
 python
-import sys,math,array,string
+import sys,math,array,struct,string
 
 class Memory(object):
     printable = set().union(string.printable).difference(string.whitespace).union(' ')
@@ -187,35 +187,36 @@ class Memory(object):
 
     @classmethod
     def _dump(cls, target, address, count, width, kind, content):
-        data = cls.read(target, address, count)
-        countup = int((count // width) * width)
-        offset = ('{:0{:d}x}'.format(a, int(math.floor(math.log(address+count)/math.log(0x10) + 1))) for a in range(address, address+countup, width))
+        data = cls.read(target, address, struct.calcsize(kind) * count)
+        countup = struct.calcsize(kind) * count
+        print(hex(int(countup)))
+        offset = ('{:0{:d}x}'.format(a, int(math.floor(math.log(address + count) / math.log(0x10) + 1))) for a in range(address, address + math.trunc(countup), width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
             row = cls._row(width, cols)
             if len(row[0].strip()) == 0: break
-            maxcols = tuple(max((n,len(r))) for n,r in zip(maxcols,row))
-            yield tuple('{:{:d}s}'.format(col, colsize) for col,colsize in zip(row,maxcols))
+            maxcols = tuple(max(item, len(r)) for item, r in zip(maxcols, row))
+            yield tuple('{:{:d}s}'.format(col, colsize) for col, colsize in zip(row, maxcols))
         return
 
     @classmethod
     def hexdump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._hexdump)))
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._hexdump)))
 
     @classmethod
     def itemdump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._itemdump)))
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._itemdump)))
 
     @classmethod
-    def binarydump(cls, target, address, count, kind, width=16):
-        return '\n'.join(map(' | '.join, cls._dump(target, address, count*width, width, kind, cls._bindump)))
+    def binarydump(cls, target, address, count, kind, width=8):
+        return '\n'.join(map(' | '.join, cls._dump(target, address, count, width, kind, cls._bindump)))
 
 ## commands
 class __dump__(command):
     COMMAND = gdb.COMMAND_DATA
     method = kind = None
-    def invoke(self, string, from_tty, count=6):
+    def invoke(self, string, from_tty, count=None):
         args = gdb.string_to_argv(string)
         if any(n.startswith('L') for n in args):
             res = (i for i,n in enumerate(args) if n.startswith('L'))
@@ -225,7 +226,8 @@ class __dump__(command):
                 raise gdb.error("SyntaxError : Unexpected arguments after row count : {!r}".format(' '.join(args[idx:])))
             count = parsenum(count_s[1:])
         else:
-            expr = string
+            itemsize = struct.calcsize(self.kind)
+            expr, count = string, 6 * (16 / itemsize)
 
         inf, val = gdb.selected_inferior(), gdb.parse_and_eval(expr).cast( gdb.lookup_type("long") )
         res = self.method(inf, int(val.cast(gdb.lookup_type(intcast(val)))), count, self.kind)
