@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys
 
 # FIXME: determine path to scapy and then add it to sys.path

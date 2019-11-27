@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 def do_help(argv0):
     print >> sys.stderr, 'Usage: %s duration\n'% argv0
