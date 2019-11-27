@@ -111,9 +111,9 @@ class Memory(object):
 
     @classmethod
     def _hex_generator(cls, iterable, itemsize):
-        maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(0x10))
+        maxlength = math.ceil(math.log(2 ** (8 * itemsize)) / math.log(0x10))
         for item in iterable:
-            yield '{:0{:d}x}'.format(item, int(maxlength))
+            yield '{:0{:d}x}'.format(item, math.trunc(maxlength))
         return
 
     @classmethod
@@ -124,16 +124,16 @@ class Memory(object):
 
     @classmethod
     def _int_generator(cls, iterable, itemsize):
-        maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(10))
+        maxlength = math.ceil(math.log(2 ** (8 * itemsize)) / math.log(10))
         for item in iterable:
-            yield '{:{:d}d}'.format(item, int(maxlength))
+            yield '{:{:d}d}'.format(item, math.trunc(maxlength))
         return
 
     @classmethod
     def _float_generator(cls, iterable, itemsize):
         maxlength = 32
         for item in iterable:
-            yield '{:{:d}.5f}'.format(item, int(maxlength))
+            yield '{:{:d}.5f}'.format(item, math.trunc(maxlength))
         return
 
     @classmethod
@@ -189,8 +189,7 @@ class Memory(object):
     def _dump(cls, target, address, count, width, kind, content):
         data = cls.read(target, address, struct.calcsize(kind) * count)
         countup = struct.calcsize(kind) * count
-        print(hex(int(countup)))
-        offset = ('{:0{:d}x}'.format(a, int(math.floor(math.log(address + count) / math.log(0x10) + 1))) for a in range(address, address + math.trunc(countup), width))
+        offset = ('{:0{:d}x}'.format(a, math.trunc(math.floor(math.log(address + count) / math.log(0x10) + 1))) for a in range(address, address + math.trunc(countup), width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
