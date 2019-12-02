@@ -1,11 +1,83 @@
-import sys, logging
+import six, sys, logging
 logger = logging.getLogger('incpy').getChild('py')
 
 try:
-    import vim as _vim,exceptions
+    import vim as _vim
+
+    # Try python2's exceptions module first
+    try:
+        import exceptions
+
+    # Otherwise we're using Python3 and it's a builtin
+    except ImportError:
+        import builtins as exceptions
 
     # vim wrapper
     class vim(object):
+        try:
+            import collections.abc as collections
+        except ImportError:
+            import collections
+
+        class _autofixlist(collections.MutableMapping):
+            def __init__(self, backing):
+                self.__backing__ = backing
+            def __len__(self):
+                return len(self.__backing__)
+            def __iter__(self):
+                for item in self.__backing__:
+                    if isinstance(res, bytes):
+                        yield item.decode('ascii')
+                    elif hasattr(_vim, 'Dictionary') and isinstance(res, _vim.Dictionary):
+                        yield vim._autofixdict(item)
+                    elif hasattr(_vim, 'List') and isinstance(res, _vim.List):
+                        yield vim._autofixlist(item)
+                    else:
+                        yield item
+                    continue
+                return
+            def __insert__(self, index, value):
+                self.__backing__.insert(index, value)
+            def __getitem__(self, index):
+                res = self.__backing__[index]
+                if isinstance(res, bytes):
+                    return res.decode('ascii')
+                elif hasattr(_vim, 'Dictionary') and isinstance(res, _vim.Dictionary):
+                    return vim._autofixdict(res)
+                elif hasattr(_vim, 'List') and isinstance(res, _vim.List):
+                    return vim._autofixlist(res)
+                return res
+            def __setitem__(self, index, value):
+                self.__backing__[index] = value
+            def __delitem__(self, index):
+                del self.__backing__[index]
+
+        class _autofixdict(collections.MutableMapping):
+            def __init__(self, backing):
+                self.__backing__ = backing
+            def __iter__(self):
+                for name in self.__backing__.keys():
+                    yield name.decode('ascii') if isinstance(name, bytes) else name
+                return
+            def __len__(self):
+                return len(self.__backing__)
+            def __getitem__(self, name):
+                rname = name.encode('ascii')
+                res = self.__backing__[rname]
+                if isinstance(res, bytes):
+                    return res.decode('ascii')
+                elif hasattr(_vim, 'Dictionary') and isinstance(res, _vim.Dictionary):
+                    return vim._autofixdict(res)
+                elif hasattr(_vim, 'List') and isinstance(res, _vim.List):
+                    return vim._autofixlist(res)
+                return res
+            def __setitem__(self, name, value):
+                rname = name.encode('ascii')
+                self.__backing__[rname] = value
+            def __delitem__(self, name):
+                realname = name.encode('ascii')
+                del self.__backing__[rname]
+
         class _accessor(object):
             def __init__(self, result): self.result = result
             def __get__(self, obj, objtype): return self.result
@@ -13,10 +85,10 @@ try:
 
         class _vars(object):
             def __new__(cls, prefix="", name=None):
-                ns = dict(cls.__dict__)
-                ns.setdefault('prefix', (prefix+':') if len(prefix)> 0 else prefix)
-                map(lambda n,d=ns: d.pop(n,None), ('__new__','__dict__','__weakref__'))
-                result = type( (prefix+cls.__name__[1:]) if name is None else name, (object,), ns)
+                ns = cls.__dict__.copy()
+                ns.setdefault('prefix', (prefix + ':') if len(prefix) > 0 else prefix)
+                [ ns.pop(item, None) for item in ['__new__', '__dict__', '__weakref__'] ]
+                result = type( (prefix + cls.__name__[1:]) if name is None else name, (object,), ns)
                 return result()
             def __getitem__(self, name):
                 try: return vim.eval(self.prefix + name)
@@ -28,21 +100,21 @@ try:
         # converters
         @classmethod
         def _to(cls, n):
-            if type(n) in (int,long):
+            if isinstance(n, six.integer_types):
                 return str(n)
-            if type(n) is float:
+            if isinstance(n, float):
                 return "{:f}".format(n)
-            if type(n) is str:
+            if isinstance(n, six.string_types):
                 return "{!r}".format(n)
-            if type(n) is list:
-                return "[{:s}]".format(','.join(map(cls._to,n)))
-            if type(n) is dict:
-                return "{{{:s}}}".format(','.join((':'.join((cls._to(k),cls._to(v))) for k,v in n.iteritems())))
-            raise Exception, "Unknown type {:s} : {!r}".format(type(n),n)
+            if isinstance(n, list):
+                return "[{:s}]".format(','.join(map(cls._to, n)))
+            if isinstance(n, dict):
+                return "{{{:s}}}".format(','.join((':'.join((cls._to(k), cls._to(v))) for k, v in six.iteritems(n))))
+            raise Exception("Unknown type {:s} : {!r}".format(type(n),n))
 
         @classmethod
         def _from(cls, n):
-            if type(n) is str:
+            if isinstance(n, six.string_types):
                 if n.startswith('['):
                     return cls._from(eval(n))
                 if n.startswith('{'):
@@ -52,10 +124,10 @@ try:
                 try: return int(n)
                 except ValueError: pass
                 return str(n)
-            if type(n) is list:
-                return map(cls._from, n)
-            if type(n) is dict:
-                return dict((str(k),cls._from(v)) for k,v in n.iteritems())
+            if isinstance(n, list):
+                return [ cls._from(item) for item in n ]
+            if isinstance(n, dict):
+                return { str(k) : cls._from(v) for k, v in six.iteritems(n) }
             return n
 
         # error class
@@ -86,10 +158,13 @@ try:
             def eval(cls, string): return cls._from(_vim.eval(string))
 
         # global variables
-        gvars = _accessor(_vim.vars) if hasattr(_vim, 'vars') else _vars('g')
+        if hasattr(_vim, 'vars'):
+            gvars = _autofixdict(_vim.vars) if hasattr(_vim, 'Dictionary') and isinstance(_vim.vars, _vim.Dictionary) else _vim.vars
+        else:
+            gvars = _vars('g')
 
         # misc variables (buffer, window, tab, script, vim)
-        bvars,wvars,tvars,svars,vvars = map(_vars, 'bwtsv')
+        bvars, wvars, tvars, svars, vvars = map(_vars, 'bwtsv')
 
         # functions
         if hasattr(_vim, 'Function'):
@@ -100,7 +175,7 @@ try:
             @classmethod
             def Function(cls, name):
                 def caller(*args):
-                    return cls.command("call {:s}({:s})".format(name,','.join(map(cls._to,args))))
+                    return cls.command("call {:s}({:s})".format(name, ','.join(map(cls._to, args))))
                 caller.__name__ = name
                 return caller
 
@@ -114,6 +189,8 @@ try:
             self.buffer = buffer
             #self.writing = threading.Lock()
         def __del__(self):
+            if sys.version_info.major >= 3:
+                return
             self.__destroy(self.buffer)
 
         # creating a buffer from various input
@@ -171,13 +248,13 @@ try:
         ## editing buffer
         def write(self, data):
             result = iter(data.split('\n'))
-            self.buffer[-1] += result.next()
-            map(self.buffer.append, result)
+            self.buffer[-1] += six.next(result)
+            [ self.buffer.append(item) for item in result ]
 
         def clear(self): self.buffer[:] = ['']
 
 except ImportError:
-    logger.warn('unable to import the vim module for python-vim. skipping the definition of its wrappers.')
+    logger.warning('unable to import the vim module for python-vim. skipping the definition of its wrappers.')
 
 try:
     # make sure the user has selected the gevent-based version by importing gevent
@@ -235,11 +312,18 @@ except ImportError:
         import threading
         Thread, Event = map(staticmethod, (threading.Thread, threading.Event))
 
-        import Queue
-        Queue, QueueEmptyException = map(staticmethod, (Queue.Queue, Queue.Empty))
-
         import subprocess
         spawn, spawn_options = map(staticmethod, (subprocess.Popen, subprocess))
+
+        # Try importing with Python3's name first
+        try:
+            import queue as Queue
+
+        # Otherwise we'll try Python2's name
+        except ImportError:
+            import Queue
+
+        Queue, QueueEmptyException = map(staticmethod, (Queue.Queue, Queue.Empty))
 
 ### asynchronous process monitor
 import sys, os, weakref, time, itertools, shlex
@@ -268,8 +352,8 @@ class process(object):
     id = property(fget=lambda self: self.program and self.program.pid or -1)
     running = property(fget=lambda self: False if self.program is None else self.program.poll() is None)
     working = property(fget=lambda self: self.running and not self.eventWorking.is_set())
-    threads = property(fget=lambda self: list(self.__threads))
-    updater = property(fget=lambda self: self.__updater)
+    threads = property(fget=lambda self: list(self.__threads__))
+    updater = property(fget=lambda self: self.__updater__)
 
     taskQueue = property(fget=lambda self: self.__taskQueue)
     exceptionQueue = property(fget=lambda self: self.__exceptionQueue)
@@ -287,11 +371,11 @@ class process(object):
         timeout<float> = -1 -- if positive, then raise a Asynchronous.Empty exception at the specified interval.
         """
         ## default properties
-        self.__updater = None
-        self.__threads = weakref.WeakSet()
+        self.__updater__ = None
+        self.__threads__ = weakref.WeakSet()
         self.__kwds = kwds
 
-        args = shlex.split(command) if isinstance(command, basestring) else command[:]
+        args = shlex.split(command) if isinstance(command, six.string_types) else command[:]
         command = args.pop(0)
         self.command = command, args[:]
 
@@ -378,7 +462,7 @@ class process(object):
             return
 
         ## actually create and start our update threads
-        self.__updater = updater = Asynchronous.Thread(target=update, name="thread-{:x}.update".format(self.id), args=(self, timeout))
+        self.__updater__ = updater = Asynchronous.Thread(target=update, name="thread-{:x}.update".format(self.id), args=(self, timeout))
         updater.daemon = daemon
         updater.start()
         return updater
@@ -394,12 +478,12 @@ class process(object):
             res = process.monitorPipe(self.taskQueue, (stdout, self.program.stdout), name=name)
 
         ## attach a friendly method that allows injection of data into the monitor
-        res = map(None, res)
+        res = list(res)
         for t, q in res: t.send = q.send
         threads, senders = zip(*res)
 
         ## update our set of threads for destruction later
-        self.__threads.update(threads)
+        self.__threads__.update(threads)
 
         ## set everything off
         for t in threads: t.start()
@@ -420,30 +504,36 @@ class process(object):
             options.update(dict(close_fds=False, startupinfo=si, creationflags=cf))
         else:
             options['close_fds'] = True
+        options['bufsize'] = 0
         options['cwd'] = cwd
         options['env'] = environment
         options['shell'] = shell
 
         ## split our arguments out if necessary
-        command = shlex.split(program) if isinstance(program, basestring) else program[:]
+        command = shlex.split(program) if isinstance(program, six.string_types) else program[:]
 
         ## finally hand it off to subprocess.Popen
         try: return Asynchronous.spawn(command, **options)
         except OSError: raise OSError("Unable to execute command: {!r}".format(command))
 
     @staticmethod
-    def monitorPipe(q, (id, pipe), *more, **options):
-        """Attach a coroutine to a monitoring thread for stuffing queue `q` with data read from `pipe`
+    def monitorPipe(q, target, *more, **options):
+        """Attach a coroutine to a monitoring thread for stuffing queue `q` with data read from `target`.
+
+        The tuple `target` is composed of two values, `id` and `pipe`.
 
         Yields a list of (thread, coro) tuples given the arguments provided.
         Each thread will read from `pipe`, and stuff the value combined with `id` into `q`.
         """
         def stuff(q, *key):
-            while True: q.put(key + ((yield),))
+            while True:
+                item = (yield),
+                q.put(key + item)
+            return
 
-        for id, pipe in itertools.chain([(id, pipe)], more):
+        for id, pipe in itertools.chain([target], more):
             res, name = stuff(q, id), "{:s}<{!r}>".format(options.get('name', ''), id)
-            yield process.monitor(res.next() or res.send, pipe, name=name), res
+            yield process.monitor(six.next(res) or res.send, pipe, name=name), res
         return
 
     @staticmethod
@@ -472,7 +562,7 @@ class process(object):
                     # determine why (cause...y'know..python), stop dancing so
                     # the parent will actually be able to terminate us
                     break
-                map(send, data)
+                [ send(item) for item in data ]
             return
 
         ## create our shuffling thread
@@ -535,7 +625,7 @@ class process(object):
             while self.running and self.eventWorking.is_set() and time.time() - t < timeout:
                 if not self.exceptionQueue.empty():
                     res = self.exception()
-                    raise res[0], res[1], res[2]
+                    six.reraise(res[0], res[1], res[2])
                 continue
             return self.program.returncode if self.eventWorking.is_set() else self.__terminate()
 
@@ -546,7 +636,7 @@ class process(object):
         while self.running and self.eventWorking.is_set():
             if not self.exceptionQueue.empty():
                 res = self.exception()
-                raise res[0], res[1], res[2]
+                six.reraise(res[0], res[1], res[2])
             continue    # ugh...poll-forever (and kill-cpu) until program terminates...
 
         if not self.eventWorking.is_set():
@@ -562,7 +652,7 @@ class process(object):
         pid = self.program.pid
         try:
             self.program.kill()
-        except OSError, e:
+        except OSError as e:
             logger.fatal("{:s}.__terminate : Exception {!r} was raised while trying to kill process {:d}. Terminating its management threads regardless.".format('.'.join((__name__, self.__class__.__name__)), e, pid), exc_info=True)
         finally:
             while self.running: continue
@@ -572,7 +662,7 @@ class process(object):
             return self.program.returncode
 
         res = self.exception()
-        raise res[0], res[1], res[2]
+        six.reraise(res[0], res[1], res[2])
 
     def __stop_monitoring(self):
         '''Cleanup monitoring threads.'''
@@ -599,12 +689,12 @@ class process(object):
         import operator
 
         # XXX: there should be a better way to block until all threads have joined
-        map(operator.methodcaller('join'), self.threads)
+        [ th.join() for th in self.threads ]
 
         # now spin until none of them are alive
         while len(self.threads) > 0:
             for th in self.threads[:]:
-                if not th.is_alive(): self.__threads.discard(th)
+                if not th.is_alive(): self.__threads__.discard(th)
                 del(th)
             continue
 
@@ -613,7 +703,7 @@ class process(object):
         self.updater.join()
         if self.updater.is_alive():
             raise AssertionError
-        self.__updater = None
+        self.__updater__ = None
         return
 
     def __repr__(self):
@@ -638,10 +728,10 @@ def spawn(stdout, command, **options):
 
     # empty out the first generator result if a coroutine is passed
     if hasattr(stdout, 'send'):
-        res = stdout.next()
+        res = six.next(stdout)
         res and P.write(res)
     if hasattr(stderr, 'send'):
-        res = stderr.next()
+        res = six.next(stderr)
         res and P.write(res)
 
     # spawn the sub-process

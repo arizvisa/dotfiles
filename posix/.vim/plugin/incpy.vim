@@ -95,7 +95,7 @@
 "   buffer so that management of multiple program buffers would be local to
 "   whatever the user is currently editing.
 
-if has("python")
+if has("python") || has("python3")
 
 """ Utility functions for indentation stuff
 function! s:count_indent(string)
@@ -218,7 +218,7 @@ function! incpy#SetupOptions()
     let defopts["WindowOptions"] = {"buftype":"nowrite", "noswapfile":[], "updatecount":0, "nobuflisted":[], "filetype":"python"}
     let defopts["WindowPreview"] = 0
     let defopts["WindowFixed"] = 0
-    let python_builtins = "__import__(\"__builtin__\")"
+    let python_builtins = "__import__(\"builtins\")"
     let defopts["HelpFormat"] = printf("try:exec(\"%s.help({0})\")\nexcept SyntaxError:%s.help(\"{0}\")", escape(python_builtins, "\"\\"), python_builtins)
     " let defopts["EvalFormat"] = printf("_={};print _')", python_builtins, python_builtins, python_builtins)
     " let defopts["EvalFormat"] = printf("__incpy__.sys.displayhook({})')")
@@ -243,14 +243,14 @@ function! incpy#SetupPython(currentscriptpath)
     " FIXME: use sys.meta_path
 
     " setup the default logger
-    python __import__('logging').basicConfig()
-    python __import__('logging').getLogger('incpy')
+    pythonx __import__('logging').basicConfig()
+    pythonx __import__('logging').getLogger('incpy')
 
     " add the python path using the runtimepath directory that this script is contained in
     for p in split(&runtimepath, ",")
         let p = substitute(p, "\\", "/", "g")
         if stridx(m, p, 0) == 0
-            execute printf("python __import__('sys').path.append('%s/python')", p)
+            execute printf("pythonx __import__('sys').path.append('%s/python')", p)
             return
         endif
     endfor
@@ -258,7 +258,7 @@ function! incpy#SetupPython(currentscriptpath)
     " otherwise, look up from our current script's directory for a python sub-directory
     let p = finddir("python", m . ";")
     if isdirectory(p)
-        execute printf("python __import__('sys').path.append('%s')", p)
+        execute printf("pythonx __import__('sys').path.append('%s')", p)
         return
     endif
 
@@ -298,22 +298,22 @@ function! incpy#Setup()
     " Set any the options for the python module part.
     if g:incpy#Greenlets > 0
         " If greenlets were specified, then enable it by importing 'gevent' into the current python environment
-        python __import__('gevent')
+        pythonx __import__('gevent')
     elseif g:incpy#Program != ""
         " Otherwise we only need to warn the user that they should use it if they're trying to run an external program
         echohl WarningMsg | echomsg "WARNING:incpy.vim:Using vim-incpy to run an external program without support for greenlets will be unstable" | echohl None
     endif
 
     " Initialize the python __incpy__ namespace
-    python <<EOF
+    pythonx <<EOF
 
 # create a pseudo-builtin module
 __incpy__ = __builtins__.__class__('__incpy__', 'Internal state module for vim-incpy')
-__incpy__.sys,__incpy__.incpy,__incpy__.builtin = __import__('sys'),__import__('incpy'),__import__('__builtin__')
-__incpy__.vim,__incpy__.buffer,__incpy__.spawn = __incpy__.incpy.vim,__incpy__.incpy.buffer,__incpy__.incpy.spawn
+__incpy__.sys, __incpy__.incpy, __incpy__.builtin, __incpy__.six = __import__('sys'), __import__('incpy'), __import__('builtins'), __import__('six')
+__incpy__.vim, __incpy__.buffer, __incpy__.spawn = __incpy__.incpy.vim, __incpy__.incpy.buffer, __incpy__.incpy.spawn
 
 # save initial state
-__incpy__.state = __incpy__.builtin.tuple((__incpy__.builtin.getattr(__incpy__.sys,_) for _ in ('stdin','stdout','stderr')))
+__incpy__.state = __incpy__.builtin.tuple(__incpy__.builtin.getattr(__incpy__.sys, _) for _ in ['stdin', 'stdout', 'stderr'])
 __incpy__.logger = __import__('logging').getLogger('incpy').getChild('vim')
 
 # interpreter classes
@@ -330,8 +330,10 @@ class interpreter(object):
         opt.update(kwds.pop('opt',{}))
         kwds.setdefault('preview', __incpy__.vim.gvars['incpy#WindowPreview'])
         kwds.setdefault('tab', __incpy__.internal.tab.getCurrent())
-        self.view = __incpy__.view(kwds.pop('buffer',None) or __incpy__.vim.gvars['incpy#WindowName'], opt, **kwds)
+        self.view = __incpy__.view(kwds.pop('buffer', None) or __incpy__.vim.gvars['incpy#WindowName'], opt, **kwds)
     def __del__(self):
+        if __incpy__.sys.version_info.major >= 3:
+            return
         return self.detach()
     def write(self, data):
         """Writes data directly into view"""
@@ -362,7 +364,7 @@ class interpreter_python_internal(__incpy__.interpreter):
     state = None
     def attach(self):
         sys, logging, logger = __incpy__.sys, __import__('logging'), __incpy__.logger
-        self.state = sys.stdin,sys.stdout,sys.stderr,logger
+        self.state = sys.stdin, sys.stdout, sys.stderr, logger
 
         # notify the user
         logger.debug("redirecting sys.stdin, sys.stdout, and sys.stderr to {!r}".format(self.view))
@@ -385,11 +387,11 @@ class interpreter_python_internal(__incpy__.interpreter):
         # remove the python output window formatter from the root logger
         logger.debug("removing window handler from root logger")
         try:
-            logger.root.removeHandler(next(L for L in logger.root.handlers if isinstance(L, logging.StreamHandler) and type(L.stream).__name__ == 'view'))
+            logger.root.removeHandler(__incpy__.six.next(L for L in logger.root.handlers if isinstance(L, logging.StreamHandler) and type(L.stream).__name__ == 'view'))
         except StopIteration:
             pass
 
-        logger.warn("detaching internal interpreter from sys.stdin, sys.stdout, and sys.stderr.")
+        logger.warning("detaching internal interpreter from sys.stdin, sys.stdout, and sys.stderr.")
 
         # notify the user that we're restoring the original state
         logger.debug("restoring sys.stdin, sys.stdout, and sys.stderr from: {!r}".format(self.state))
@@ -402,10 +404,9 @@ class interpreter_python_internal(__incpy__.interpreter):
             echo = '\n'.join(map(echoformat.format, data.split('\n')))
             echo = inputformat.format(echo)
             self.view.write(echo)
-        input = data
-        exec input in __incpy__.builtin.globals()
+        __incpy__.six.exec_(data, __incpy__.builtin.globals())
     def start(self):
-        __incpy__.logger.warn("internal interpreter has already been (implicitly) started")
+        __incpy__.logger.warning("internal interpreter has already been (implicitly) started")
     def stop(self):
         __incpy__.logger.fatal("unable to stop internal interpreter as it is always running")
 __incpy__.interpreter_python_internal = interpreter_python_internal; del(interpreter_python_internal)
@@ -416,7 +417,7 @@ class interpreter_external(__incpy__.interpreter):
     @__incpy__.builtin.classmethod
     def new(cls, command, **options):
         res = cls(**options)
-        __incpy__.builtin.map(lambda n,d=options:d.pop(n,None), cls.view_options)
+        [ options.pop(item, None) for item in cls.view_options ]
         res.command,res.options = command,options
         return res
     def attach(self):
@@ -478,11 +479,11 @@ class internal(object):
 
         getCurrent = __incpy__.builtin.staticmethod(lambda: __incpy__.builtin.int(__incpy__.vim.eval('tabpagenr()')) - 1)
         getCount = __incpy__.builtin.staticmethod(lambda: __incpy__.builtin.int(__incpy__.vim.eval('tabpagenr("$")')))
-        getBuffers = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.map(int,__incpy__.vim.eval("tabpagebuflist({:d})".format(n-1))))
+        getBuffers = __incpy__.builtin.staticmethod(lambda n: [ __incpy__.builtin.int(item) for item in __incpy__.vim.eval("tabpagebuflist({:d})".format(n - 1)) ])
 
-        getWindowCurrent = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d})".format(n-1))))
-        getWindowPrevious = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '#')".format(n-1))))
-        getWindowCount = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '$')".format(n-1))))
+        getWindowCurrent = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d})".format(n - 1))))
+        getWindowPrevious = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '#')".format(n - 1))))
+        getWindowCount = __incpy__.builtin.staticmethod(lambda n: __incpy__.builtin.int(__incpy__.vim.eval("tabpagewinnr({:d}, '$')".format(n - 1))))
 
     class buffer(object):
         """Internal vim commands for getting information about a buffer"""
@@ -500,22 +501,22 @@ class internal(object):
                 return 'leftabove'
             if position in ('right','below'):
                 return 'rightbelow'
-            raise __incpy__.builtin.ValueError, position
+            raise __incpy__.builtin.ValueError(position)
         @__incpy__.builtin.staticmethod
         def positionToSplit(position):
             if position in ('left','right'):
                 return 'vsplit'
             if position in ('above','below'):
                 return 'split'
-            raise __incpy__.builtin.ValueError, position
+            raise __incpy__.builtin.ValueError(position)
         @__incpy__.builtin.staticmethod
         def optionsToCommandLine(options):
             builtin = __incpy__.builtin
             result = []
-            for k,v in options.iteritems():
-                if builtin.isinstance(v, (int,long)):
+            for k, v in __incpy__.six.iteritems(options):
+                if builtin.isinstance(v, __incpy__.six.integer_types):
                     result.append("{:s}={:d}".format(k,v))
-                elif builtin.isinstance(v, basestring):
+                elif builtin.isinstance(v, __incpy__.six.string_types):
                     result.append("{:s}={:s}".format(k,v))
                 else:
                     result.append(k)
@@ -530,15 +531,15 @@ class internal(object):
         @__incpy__.builtin.staticmethod
         def select(window):
             '''Select the window with the specified id'''
-            return (__incpy__.builtin.int(__incpy__.vim.eval('winnr()')),__incpy__.vim.command("{:d} wincmd w".format(window)))[0]
+            return (__incpy__.builtin.int(__incpy__.vim.eval('winnr()')), __incpy__.vim.command("{:d} wincmd w".format(window)))[0]
         @__incpy__.builtin.staticmethod
         def currentsize(position):
             builtin = __incpy__.builtin
-            if position in ('left','right'):
+            if position in ('left', 'right'):
                 return builtin.int(__incpy__.vim.eval('winwidth(0)'))
-            if position in ('above','below'):
+            if position in ('above', 'below'):
                 return builtin.int(__incpy__.vim.eval('winheight(0)'))
-            raise builtin.ValueError, position
+            raise builtin.ValueError(position)
 
         # properties
         @__incpy__.builtin.staticmethod
@@ -609,7 +610,7 @@ class internal(object):
         @__incpy__.builtin.classmethod
         def savesize(cls, bufferid):
             last = cls.select( cls.buffer(bufferid) )
-            w,h = __incpy__.builtin.map(__incpy__.vim.eval, ('winwidth(0)','winheight(0)'))
+            w, h = __incpy__.builtin.map(__incpy__.vim.eval, ['winwidth(0)', 'winheight(0)'])
             cls.select(last)
             return { 'width':w, 'height':h }
         @__incpy__.builtin.classmethod
@@ -635,13 +636,13 @@ class view(object):
         # FIXME: creating a view in another tab is not supported yet
 
     def __get_buffer(self, target):
-        builtin = __incpy__.builtin
-        if builtin.isinstance(target, int):
+        six, builtin = __incpy__.six, __incpy__.builtin
+        if builtin.isinstance(target, six.integer_types):
             return __incpy__.buffer.from_id(target)
-        elif builtin.isinstance(target, basestring):
+        elif builtin.isinstance(target, six.string_types):
             try: return __incpy__.buffer.from_name(target)
             except: return __incpy__.buffer.new(target)
-        raise __incpy__.incpy.error, "Unable to determine output buffer from parameter : {!r}".format(target)
+        raise __incpy__.incpy.vim.error("Unable to determine output buffer from parameter : {!r}".format(target))
 
     def write(self, data):
         """Write data directly into window contents (updating buffer)"""
@@ -652,13 +653,13 @@ class view(object):
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
+            raise builtin.Exception("Buffer {:d} does not exist".format(buf.number))
         if 1.0 <= ratio < 0.0:
-            raise builtin.Exception, "Specified ratio is out of bounds {!r}".format(ratio)
+            raise builtin.Exception("Specified ratio is out of bounds {!r}".format(ratio))
 
         current = __incpy__.internal.window.current()
         sz = __incpy__.internal.window.currentsize(position) * ratio
-        result = __incpy__.internal.window.create(buf.number, position, int(sz), self.options, preview=self.preview)
+        result = __incpy__.internal.window.create(buf.number, position, __incpy__.builtin.int(sz), self.options, preview=self.preview)
         self.window = result
         return result
 
@@ -667,9 +668,9 @@ class view(object):
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
+            raise builtin.Exception("Buffer {:d} does not exist".format(buf.number))
         if __incpy__.internal.buffer.window(buf.number) != -1:
-            raise builtin.Exception, "Window for {:d} is already showing".format(buf.number)
+            raise builtin.Exception("Window for {:d} is already showing".format(buf.number))
         __incpy__.internal.window.show(buf.number, position, preview=self.preview)
 
     def hide(self):
@@ -677,9 +678,9 @@ class view(object):
         builtin = __incpy__.builtin
         buf = self.buffer
         if __incpy__.internal.buffer.number(buf.number) == -1:
-            raise builtin.Exception, "Buffer {:d} does not exist".format(buf.number)
+            raise builtin.Exception("Buffer {:d} does not exist".format(buf.number))
         if __incpy__.internal.buffer.window(buf.number) == -1:
-            raise builtin.Exception, "Window for {:d} is already hidden".format(buf.number)
+            raise builtin.Exception("Window for {:d} is already hidden".format(buf.number))
         __incpy__.internal.window.hide(buf.number, preview=self.preview)
 
     def __repr__(self):
@@ -690,12 +691,12 @@ __incpy__.view = view; del(view)
 
 # spawn interpreter requested by user
 _ = __incpy__.vim.gvars["incpy#Program"]
-opt = {'winfixwidth':True,'winfixheight':True} if __incpy__.vim.gvars["incpy#WindowFixed"]>0 else {}
+opt = {'winfixwidth':True,'winfixheight':True} if __incpy__.vim.gvars["incpy#WindowFixed"] > 0 else {}
 try:
     __incpy__.cache = __incpy__.interpreter_external.new(_, opt=opt) if len(_) > 0 else __incpy__.interpreter_python_internal.new(opt=opt)
 except:
     __incpy__.logger.fatal("error starting external interpreter: {:s}".format(_), exc_info=True)
-    __incpy__.logger.warn("falling back to internal python interpreter")
+    __incpy__.logger.warning("falling back to internal python interpreter")
     __incpy__.cache = __incpy__.interpreter_python_internal.new(opt=opt)
 del(opt)
 
@@ -713,23 +714,23 @@ endfunction
 """ Plugin management interface
 function! incpy#Start()
     " Start the target program and attach it to a buffer
-    python __incpy__.cache.start()
+    pythonx __incpy__.cache.start()
 endfunction
 
 function! incpy#Stop()
     " Stop the target program and detach it from its buffer
-    python __incpy__.cache.stop()
+    pythonx __incpy__.cache.stop()
 endfunction
 
 function! incpy#Restart()
     " Restart the target program
-    python __incpy__.cache.stop()
-    python __incpy__.cache.start()
+    pythonx __incpy__.cache.stop()
+    pythonx __incpy__.cache.start()
 endfunction
 
 """ Plugin interaction interface
 function! incpy#Execute(line)
-    execute printf("python __incpy__.cache.communicate('%s')", escape(a:line, "'\\"))
+    execute printf("pythonx __incpy__.cache.communicate('%s')", escape(a:line, "'\\"))
     if g:incpy#OutputFollow
         call s:windowtail(g:incpy#BufferId)
     endif
@@ -747,7 +748,7 @@ function! incpy#Range(begin, end)
 
     " Execute the lines in our target
     let code_s = join(map(lines, 'escape(v:val, "''\\")'), "\\n")
-    execute printf("python __incpy__.cache.communicate('%s')", code_s)
+    execute printf("pythonx __incpy__.cache.communicate('%s')", code_s)
 
     " If the user configured us to follow the output, then do as we were told.
     if g:incpy#OutputFollow
@@ -757,7 +758,7 @@ endfunction
 
 function! incpy#Evaluate(expr)
     " Evaluate and emit an expression in the target using the plugin
-    execute printf("python __incpy__.cache.communicate(\"%s\".format(\"%s\"))", s:singleline(g:incpy#EvalFormat, "\"\\"), escape(a:expr, "\"\\"))
+    execute printf("pythonx __incpy__.cache.communicate(\"%s\".format(\"%s\"))", s:singleline(g:incpy#EvalFormat, "\"\\"), escape(a:expr, "\"\\"))
 
     if g:incpy#OutputFollow
         call s:windowtail(g:incpy#BufferId)
@@ -769,7 +770,7 @@ function! incpy#Halp(expr)
     let LetMeSeeYouStripped = substitute(a:expr, '^[ \t\n]\+\|[ \t\n]\+$', '', 'g')
 
     " Execute g:incpy#HelpFormat in the target using the plugin's cached communicator
-    execute printf("python __incpy__.cache.communicate(\"%s\".format(\"%s\"))", s:singleline(g:incpy#HelpFormat, "\"\\"), escape(LetMeSeeYouStripped, "\"\\"))
+    execute printf("pythonx __incpy__.cache.communicate(\"%s\".format(\"%s\"))", s:singleline(g:incpy#HelpFormat, "\"\\"), escape(LetMeSeeYouStripped, "\"\\"))
 endfunction
 
 """ Actual execution and setup of the plugin
@@ -781,15 +782,15 @@ endfunction
     call incpy#SetupKeys()
 
     " on entry, silently import the user module to honor any user-specific configurations
-    autocmd VimEnter * python hasattr(__incpy__, 'cache') and __incpy__.cache.attach()
-    autocmd VimLeavePre * python hasattr(__incpy__, 'cache') and __incpy__.cache.detach()
+    autocmd VimEnter * pythonx hasattr(__incpy__, 'cache') and __incpy__.cache.attach()
+    autocmd VimLeavePre * pythonx hasattr(__incpy__, 'cache') and __incpy__.cache.detach()
 
     " if greenlets were specifed then make sure to update them during cursor movement
     if g:incpy#Greenlets > 0
-        autocmd CursorHold * python __import__('gevent').idle(0.0)
-        autocmd CursorHoldI * python __import__('gevent').idle(0.0)
-        autocmd CursorMoved * python __import__('gevent').idle(0.0)
-        autocmd CursorMovedI * python __import__('gevent').idle(0.0)
+        autocmd CursorHold * pythonx __import__('gevent').idle(0.0)
+        autocmd CursorHoldI * pythonx __import__('gevent').idle(0.0)
+        autocmd CursorMoved * pythonx __import__('gevent').idle(0.0)
+        autocmd CursorMovedI * pythonx __import__('gevent').idle(0.0)
     endif
 
 else
