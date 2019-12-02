@@ -10,8 +10,6 @@ case "${platform}" in
     msys|cygwin)
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
-    *)
-        posix=`basename "$posix"`
 esac
 
 ## if we're on a posixy platform, then search the path
@@ -26,7 +24,7 @@ if [ -z "$prog" ]; then
 fi
 
 ## now try and run shit
-[ -z "$prog" ] && echo "Unable to locate $prog" 1>&2 && exit 1
+[ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
 eval "$prog" $args "$@"
 exit $?
