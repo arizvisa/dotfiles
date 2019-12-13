@@ -301,14 +301,14 @@ end
 
 define show_stack32
     emit "\n-=[stack]=-\n"
-    emit $hexdump($esp, 4, 'I')
+    emit $hexdump($esp, 4 * sizeof(long), 'I')
     #x/6wx $esp
 end
 
 define show_stack64
     emit "\n-=[stack]=-\n"
     #x/6gx $rsp
-    emit $hexdump($rsp, 4, 'L')
+    emit $hexdump($rsp, 1 * sizeof(long), 'L')
 end
 
 define show_code32
