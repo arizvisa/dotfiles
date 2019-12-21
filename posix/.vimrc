@@ -20,6 +20,7 @@ set nowrap
 set textwidth=0
 
 set nostartofline
+set nofixendofline
 
 set noincsearch
 set hlsearch
