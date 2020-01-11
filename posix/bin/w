@@ -18,6 +18,11 @@ if [ $(uname) = "FreeBSD" ]; then
         _return=$( /usr/bin/stat -f %Su -- /dev/$1 )
     }
 
+    get_process_by_tty()
+    {
+        _return=$( ps -t /dev/$1 -o pid,command | grep -v "PID COMMAND" | tail -n 1 )
+    }
+
 elif [ $(uname) = "Linux" ]; then
     all_ttys=$( /bin/ls -1 /dev/pts/* )
 
@@ -29,6 +34,11 @@ elif [ $(uname) = "Linux" ]; then
     get_dev_stats()
     {
         _return=$( /usr/bin/stat -c %U -- /dev/$1 )
+    }
+
+    get_process_by_tty()
+    {
+        _return=$( ps -t /dev/$1 -o pid='' -o cmd='' | tail -n 1 )
     }
 
 elif [ ${platform} = 'msys' ]; then
@@ -73,3 +83,22 @@ echo "$pid_tty" | while read res; do
 
     echo "$pid	$stats	$tty	$command" | expand -t 7,20,30
 done
+
+### print out each process+tty (inefficiently)
+#for i in $all_ttys; do
+#    tty=$( echo $i | cut -f3- -d / )
+#    pid=$( echo $process | cut -f 1 -d ' ' )
+#    command=$( echo $process | cut -f 2- -d ' ' )
+#
+#    get_process_by_tty $tty
+#    process=$_return
+#    pid=$( echo $process | cut -f 1 -d ' ' )
+#    command=$( echo $process | cut -f 2- -d ' ' )
+#
+#    get_dev_stats $tty
+#    stats=$_return
+#
+#    if [ ! -z "$process" ]; then
+#        echo "$pid	$stats	$tty	$command" | grep -v $ourtty | expand -t 7,20,30
+#    fi
+#done
