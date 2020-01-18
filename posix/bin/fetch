@@ -10,7 +10,7 @@ curl_get()
 httpsize()
 {
     url=$1
-    curl_get --head "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^Content-Length: *//;s/ *$//'
+    curl_get --head "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//'
 }
 
 filesize()
