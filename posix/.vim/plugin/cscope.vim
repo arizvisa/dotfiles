@@ -89,8 +89,12 @@ if has("cscope")
         let l:directory=s:basedirectory(l:argpath)
         let l:path=fnamemodify(l:argpath, printf(":p:gs?%s?/?", s:pathsep))
 
+        " store the path in GTAGSROOT in order to deal with gtags-cscope which
+        " doesn't take the target tag database as a parameter
+        let $GTAGSROOT = fnameescape(l:directory)
+
         " if a database is available, then add the cscope_db
-        execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(l:directory,":p:h")))
+        execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(l:directory, ":p:h")))
         exec printf("echomsg \"Added %s database: \" | echohl MoreMsg | echon \"%s\" | echohl None", s:csdescription, l:path)
 
         " add an autocmd for setting keyboard mappings when in a sub-directory
