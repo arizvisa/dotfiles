@@ -75,7 +75,7 @@ if has("cscope")
     function! s:add_cscope(path)
         " check if we were given a directory or just a straight-up path
         if isdirectory(a:path)
-            let l:argpath=join([a:path,s:csdatabase], s:pathsep)
+            let l:argpath=join([a:path, s:csdatabase], s:pathsep)
         else
             let l:argpath=a:path
         endif
@@ -91,7 +91,7 @@ if has("cscope")
 
         " if a database is available, then add the cscope_db
         execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(l:directory,":p:h")))
-        exec printf("echomsg \"Added %s database at \" | echohl MoreMsg | echon \"%s\" | echohl None", s:csdescription, l:path)
+        exec printf("echomsg \"Added %s database: \" | echohl MoreMsg | echon \"%s\" | echohl None", s:csdescription, l:path)
 
         " add an autocmd for setting keyboard mappings when in a sub-directory
         " relative to the database, and sourcing a .vimrc in the same directory
@@ -169,12 +169,17 @@ if has("cscope")
 
     " if db wasn't specified check current dir for cscope.out
     if empty(s:cscope_db) && filereadable(s:csdatabase)
-        let s:cscope_db=join([getcwd(),s:csdatabase], s:pathsep)
+        let s:cscope_db=join([getcwd(), s:csdatabase], s:pathsep)
+        echomsg printf("Found %s database in current working directory: %s", s:csdescription, s:cscope_db)
+    else
+        for s:db in split(s:cscope_db, s:listsep)
+            echomsg printf("Found %s database specified in environment CSCOPE_DB: %s", s:csdescription, s:db)
+        endfor
     endif
 
     " iterate through each cscope_db
     for s:db in split(s:cscope_db, s:listsep)
-        echomsg printf("Trying %s path specified in environment CSCOPE_DB: %s", s:csdescription, s:db)
+        echomsg printf("Loading %s database: %s", s:csdescription, s:db)
 
         let s:verbosity = &cscopeverbose
         let &cscopeverbose = 0
