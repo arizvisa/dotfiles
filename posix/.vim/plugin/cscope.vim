@@ -186,7 +186,7 @@ if has("cscope")
         try
             call s:add_cscope(s:db)
         catch
-            echoerr printf("%s database %s does not exist", s:csdescription, s:db)
+            echoerr printf("Error loading %s database at %s -> %s", s:csdescription, s:db, v:exception)
         endtry
         let &cscopeverbose = s:verbosity
     endfor
