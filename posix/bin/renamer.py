@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-import sys,os
-import functools,itertools,types,builtins,operator,six
-import argparse,tempfile,logging,time
+import sys, os
+import functools, itertools, types, builtins, operator, six
+import argparse, tempfile, logging, time
 import codecs
 logging.basicConfig(level=logging.INFO)
 editor = 'vim'
 
-executable = lambda _: os.path.isfile(_) and os.access(_,os.X_OK)
-which = lambda _,envvar="PATH",extvar='PATHEXT':_ if executable(_) else iter(filter(executable,itertools.starmap(os.path.join,itertools.product(os.environ.get(envvar,os.defpath).split(os.pathsep),(_+e for e in os.environ.get(extvar,'').split(os.pathsep)))))).next()
+executable = lambda _: os.path.isfile(_) and os.access(_, os.X_OK)
+which = lambda _, envvar="PATH", extvar='PATHEXT': _ if executable(_) else six.next(iter(filter(executable, itertools.starmap(os.path.join, itertools.product(os.environ.get(envvar, os.defpath).split(os.pathsep), (_ + e for e in os.environ.get(extvar, '').split(os.pathsep)))))))
 
 #hate python devers
 WIN32=True if sys.platform == 'win32' else False
@@ -16,7 +16,7 @@ WIN32=True if sys.platform == 'win32' else False
 try:
 	EDITOR = os.environ['EDITOR'] if 'EDITOR' in os.environ else which(editor)
 except StopIteration:
-	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR',editor)))
+	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR', editor)))
 	sys.exit(1)
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
@@ -32,34 +32,34 @@ def parse_args():
 	res.add_argument(dest='paths', metavar='path', nargs='*', action='store', type=six.ensure_text)
 	return res.parse_args()
 
-def rename_file(a,b):
+def rename_file(a, b):
 	try:
 		parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 		if not os.path.isdir(parentdir):
-			logging.info("creating base directory {!r} to contain {!r}".format(parentdir,b))
+			logging.info("creating base directory {!r} to contain {!r}".format(parentdir, b))
 			os.makedirs(parentdir)
 	except Exception as e:
-		logging.warning("os.makedirs({!r}) raised {!r}".format(a,b,e))
+		logging.warning("os.makedirs({!r}) raised {!r}".format(a, b, e))
 		return False
 
 	try:
-		result = os.rename(a,b)
+		result = os.rename(a, b)
 	except Exception as e:
-		logging.warning("os.rename({!r},{!r}) raised {!r}".format(a,b,e))
+		logging.warning("os.rename({!r}, {!r}) raised {!r}".format(a, b, e))
 		return False
-	logging.info("renamed {!r} to {!r}".format(a,b))
+	logging.info("renamed {!r} to {!r}".format(a, b))
 	return True
 
-def rename_output(a,b):
+def rename_output(a, b):
 	parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 	if not os.path.isdir(parentdir):
-		logging.info("creating base directory {!r} to contain {!r}".format(parentdir,b))
+		logging.info("creating base directory {!r} to contain {!r}".format(parentdir, b))
 		six.print_("mkdir -p \"{:s}\"".format(parentdir))
 	six.print_("mv \"{:s}\" \"{:s}\"".format(a, b))
-	logging.info("renamed {!r} to {!r}".format(a,b))
+	logging.info("renamed {!r} to {!r}".format(a, b))
 	return True
 
-def rename(source,target):
+def rename(source, target):
 	F = rename_output if arguments.dry_run else rename_file
 
 	count = 0
@@ -71,32 +71,32 @@ def rename(source,target):
 
 def listing(path):
 	p = six.ensure_text(path, encoding=sys.getfilesystemencoding())
-	for dirpath,_,filenames in os.walk(p):
+	for dirpath, _, filenames in os.walk(p):
 		for name in sorted(filenames):
-			yield os.path.join(dirpath,name)
+			yield os.path.join(dirpath, name)
 		continue
 	return
 
 def dirlisting(path):
 	p = six.ensure_text(path, encoding=sys.getfilesystemencoding())
-	for dirpath,dirnames,_ in os.walk(p):
+	for dirpath, dirnames, _ in os.walk(p):
 		for name in sorted(dirnames):
-			yield os.path.join(dirpath,name)
+			yield os.path.join(dirpath, name)
 	return
 
 def edit(list):
 	list = sequence(filter(None, list))
 
-	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(i,s)) for i,s in enumerate(list) ]
+	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(index, name)) for index, name in enumerate(list) ]
 
 	#hate python devers
-	with tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.source', delete=not WIN32) as t1,tempfile.NamedTemporaryFile(prefix='renamer.',suffix='.destination', delete=not WIN32) as t2:
+	with tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.source', delete=not WIN32) as t1, tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.destination', delete=not WIN32) as t2:
 		# really hate python devers
-		sequence(map(operator.methodcaller('close'), (t1,t2)))
+		sequence(map(operator.methodcaller('close'), [t1, t2]))
 		with codecs.open(t1.name, 'w+b', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'w+b', encoding=FILEENCODING) as t2e:
 			lines = sequence(map(u'{:s}\n'.format, list))
-			sequence(map(operator.methodcaller('writelines', lines), (t1e,t2e)))
-			sequence(map(operator.methodcaller('flush'), (t1e,t2e)))
+			sequence(map(operator.methodcaller('writelines', lines), [t1e, t2e]))
+			sequence(map(operator.methodcaller('flush'), [t1e, t2e]))
 
 		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
 		logging.info("renamer.edit(...) - using destination filename {!r}".format(t2.name))
@@ -112,22 +112,22 @@ def edit(list):
 
 		#really hate python devers
 		with codecs.open(t1.name, 'rb', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'rb', encoding=FILEENCODING) as t2e:
-			sequence(map(operator.methodcaller('seek', 0), (t1e,t2e)))
+			sequence(map(operator.methodcaller('seek', 0), [t1e, t2e]))
 			source, destination = t1e.readlines(), t2e.readlines()
 			source, destination = map(operator.methodcaller('strip'), source), map(operator.methodcaller('strip'), destination)
-			source, destination = map(sequence, (source, destination))
+			source, destination = map(sequence, [source, destination])
 
 		# restore the handles so that when we exit 'with', it won't double-close them.
-		t1,t2 = map(open, (t1.name,t2.name))
+		t1, t2 = map(open, [t1.name, t2.name])
 
-	#if len([None for x,y in zip(source,list) if x != y]) > 0:
-	if any(x != y for x,y in zip(source,list)):
+	#if len([None for x, y in zip(source, list) if x != y]) > 0:
+	if any(x != y for x, y in zip(source, list)):
 		logging.warning("renamer.edit(...) - source list was modified. using it to rename files.")
 	else:
 		source = list[:]
 
 	if len(destination) != len(list):
-		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
+		logging.fatal("renamer.edit(...) - destination list contains a different number of entries ({:d}) from the source ({:d}). terminating...".format(len(destination), len(list)))
 		return [], []
 
 	return source, destination
@@ -146,15 +146,15 @@ def main_files(*paths):
 
 	newsource, target = edit(source)
 	# FIXME: compare newsource and target to see what's attempting to be renamed
-	#if len([None for x,y in zip(source,list) if x != y]) > 0:
-#	if any(x != y for x,y in zip(source,list)):
+	#if len([None for x, y in zip(source, list) if x != y]) > 0:
+#	if any(x != y for x, y in zip(source, list)):
 #		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
 
 #	if len(destination) != len(list):
 #		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 #		return []
 
-	count = rename(newsource,target)
+	count = rename(newsource, target)
 	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
 	return count
 
@@ -164,7 +164,7 @@ def main_directories(*paths):
 		source.extend(dirlisting(p))
 
 	if len(source) == 0:
-		logging.warning("renamer.main(...) - found no directories. terminating.")
+		logging.warning("renamer.main(...) - found no directories. terminating...")
 		return 0
 
 	logging.info("renamer.main(...) - found {:d} directories. spawning editor..".format(len(source)))
@@ -173,29 +173,17 @@ def main_directories(*paths):
 	newsource, target = edit(source)
 
 	# FIXME: compare newsource and target to see what's attempting to be renamed
-	#if len([None for x,y in zip(source,list) if x != y]) > 0:
-#	if any(x != y for x,y in zip(source,list)):
+	#if len([None for x, y in zip(source, list) if x != y]) > 0:
+#	if any(x != y for x, y in zip(source, list)):
 #		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
 
 #	if len(destination) != len(list):
 #		logging.fatal("renamer.edit(...) - destination list contains a different number of entries from the source. terminating. ({:d} != {:d})".format(len(destination), len(list)))
 #		return []
 
-	count = rename(newsource,target)
+	count = rename(newsource, target)
 	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
 	return count
-
-def parse_commandline(arguments):
-	options,arguments = [],[x for x in arguments]
-	if '--' in arguments:
-		_ = argv.index('--')
-		options,arguments = arguments[:_],arguments[_+1:]
-	if '-d' in arguments:
-		options += ['-d']
-		del(arguments[arguments.index('-d')])
-	if any(opt in arguments for opt in {'-h','--help'}):
-		options
-	return options,arguments
 
 if __name__ == '__main__':
 	import sys
