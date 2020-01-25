@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys, os
 import functools, itertools, types, builtins, operator, six
-import argparse, tempfile, logging, time
+import argparse, tempfile, logging, time, shlex
 import codecs
 logging.basicConfig(level=logging.INFO)
 editor = 'vim'
@@ -14,11 +14,12 @@ WIN32=True if sys.platform == 'win32' else False
 
 ### globals
 try:
-	EDITOR = os.environ['EDITOR'] if 'EDITOR' in os.environ else which(editor)
+	res = os.environ['EDITOR'] if 'EDITOR' in os.environ else which(editor)
+	EDITOR, EDITOR_BIN = os.path.basename(res), which(res)
 except StopIteration:
-	logging.fatal("Unable to locate editor at path: {!s}".format(os.environ.get('EDITOR', editor)))
+	logging.fatal("Unable to locate binary for editor: {!s}".format(os.environ.get('EDITOR', editor)))
 	sys.exit(1)
-EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
+EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-f -O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
 
 ### code
@@ -52,14 +53,14 @@ def rename_file(a, b):
 		if not os.path.isdir(parentdir):
 			logging.info("creating base directory {:s} to contain {:s}".format(quote(parentdir), quote(b)))
 			os.makedirs(parentdir)
-	except Exception as e:
-		logging.warning("os.makedirs({:s}) raised {!s}".format(quote(parentdir), e))
+	except Exception as E:
+		logging.warning("os.makedirs({:s}) raised {!s}".format(quote(parentdir), E))
 		return False
 
 	try:
 		result = os.rename(a, b)
-	except Exception as e:
-		logging.warning("os.rename({:s}, {:s}) raised {!s}".format(quote(a), quote(b), e))
+	except Exception as E:
+		logging.warning("os.rename({:s}, {:s}) raised {!s}".format(quote(a), quote(b), E))
 		return False
 	logging.info("renamed {:s} to {:s}".format(quote(a), quote(b)))
 	return True
@@ -118,11 +119,14 @@ def edit(list):
 		logging.info("renamer.edit(...) - using source filename {:s}".format(quote(t1.name)))
 		logging.info("renamer.edit(...) - using destination filename {:s}".format(quote(t2.name)))
 
-		message = "os.spawnv(os.P_WAIT, {:s}, [{:s}, {:s}, '--', {:s}, {:s}])".format(quote(EDITOR), quote(EDITOR), quote(EDITOR_ARGS), quote(t1.name), quote(t2.name))
+		params = [EDITOR] + shlex.split(EDITOR_ARGS) + ['--', t1.name, t2.name]
+		message = "os.spawnv(os.P_WAIT, {:s}, {:s})".format(quote(EDITOR_BIN), "[{:s}]".format(', '.join(map(quote, params))))
+
+		logging.debug("renamer.edit(...) - calling {:s}".format(message))
 		try:
-			result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
-		except Exception as e:
-			logging.fatal("{:s} raised {!s}".format(message, e), exc_info=True)
+			result = os.spawnv(os.P_WAIT, EDITOR_BIN, params)
+		except Exception as E:
+			logging.fatal("{:s} raised {!s}".format(message, E), exc_info=True)
 			raise
 		else:
 			if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
