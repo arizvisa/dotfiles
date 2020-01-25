@@ -22,7 +22,16 @@ EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
 
 ### code
-def sequence(iterable):
+def smap(f, iterable):
+	iterable = map(f, iterable)
+	return [item for item in iterable]
+
+def sfilter(f, iterable):
+	iterable = filter(f, iterable)
+	return [item for item in iterable]
+
+def szip(*iterables):
+	iterable = zip(*iterables)
 	return [item for item in iterable]
 
 def parse_args():
@@ -53,17 +62,20 @@ def rename_file(a, b):
 def rename_output(a, b):
 	parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 	if not os.path.isdir(parentdir):
-		logging.info("creating base directory {!r} to contain {!r}".format(parentdir, b))
+		logging.info("(simulated) creating base directory {!r} to contain {!r}".format(parentdir, b))
 		six.print_("mkdir -p \"{:s}\"".format(parentdir))
-	six.print_("mv \"{:s}\" \"{:s}\"".format(a, b))
-	logging.info("renamed {!r} to {!r}".format(a, b))
-	return True
+	if os.path.exists(a):
+		six.print_("mv \"{:s}\" \"{:s}\"".format(a, b))
+		logging.info("(simulated) renamed {!r} to {!r}".format(a, b))
+		return True
+	logging.warning("(simulated) source file {!r} does not exist".format(a, b, e))
+	return False
 
 def rename(source, target):
 	F = rename_output if arguments.dry_run else rename_file
 
 	count = 0
-	for a, b in zip(source, target):
+	for a, b in szip(source, target):
 		if a != b:
 			count += int(F(a, b))
 		continue
@@ -85,18 +97,18 @@ def dirlisting(path):
 	return
 
 def edit(list):
-	list = sequence(filter(None, list))
+	list = sfilter(None, list)
 
 	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(index, name)) for index, name in enumerate(list) ]
 
 	#hate python devers
 	with tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.source', delete=not WIN32) as t1, tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.destination', delete=not WIN32) as t2:
 		# really hate python devers
-		sequence(map(operator.methodcaller('close'), [t1, t2]))
+		smap(operator.methodcaller('close'), [t1, t2])
 		with codecs.open(t1.name, 'w+b', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'w+b', encoding=FILEENCODING) as t2e:
-			lines = sequence(map(u'{:s}\n'.format, list))
-			sequence(map(operator.methodcaller('writelines', lines), [t1e, t2e]))
-			sequence(map(operator.methodcaller('flush'), [t1e, t2e]))
+			lines = smap(u'{:s}\n'.format, list)
+			smap(operator.methodcaller('writelines', lines), [t1e, t2e])
+			smap(operator.methodcaller('flush'), [t1e, t2e])
 
 		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
 		logging.info("renamer.edit(...) - using destination filename {!r}".format(t2.name))
@@ -112,16 +124,15 @@ def edit(list):
 
 		#really hate python devers
 		with codecs.open(t1.name, 'rb', encoding=FILEENCODING) as t1e, codecs.open(t2.name, 'rb', encoding=FILEENCODING) as t2e:
-			sequence(map(operator.methodcaller('seek', 0), [t1e, t2e]))
+			smap(operator.methodcaller('seek', 0), [t1e, t2e])
 			source, destination = t1e.readlines(), t2e.readlines()
-			source, destination = map(operator.methodcaller('strip'), source), map(operator.methodcaller('strip'), destination)
-			source, destination = map(sequence, [source, destination])
+			source, destination = smap(operator.methodcaller('strip'), source), smap(operator.methodcaller('strip'), destination)
 
 		# restore the handles so that when we exit 'with', it won't double-close them.
-		t1, t2 = map(open, [t1.name, t2.name])
+		t1, t2 = smap(open, [t1.name, t2.name])
 
 	#if len([None for x, y in zip(source, list) if x != y]) > 0:
-	if any(x != y for x, y in zip(source, list)):
+	if any(x != y for x, y in szip(source, list)):
 		logging.warning("renamer.edit(...) - source list was modified. using it to rename files.")
 	else:
 		source = list[:]
@@ -146,8 +157,8 @@ def main_files(*paths):
 
 	newsource, target = edit(source)
 	# FIXME: compare newsource and target to see what's attempting to be renamed
-	#if len([None for x, y in zip(source, list) if x != y]) > 0:
-#	if any(x != y for x, y in zip(source, list)):
+	#if len([None for x, y in szip(source, list) if x != y]) > 0:
+#	if any(x != y for x, y in szip(source, list)):
 #		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
 
 #	if len(destination) != len(list):
@@ -173,8 +184,8 @@ def main_directories(*paths):
 	newsource, target = edit(source)
 
 	# FIXME: compare newsource and target to see what's attempting to be renamed
-	#if len([None for x, y in zip(source, list) if x != y]) > 0:
-#	if any(x != y for x, y in zip(source, list)):
+	#if len([None for x, y in szip(source, list) if x != y]) > 0:
+#	if any(x != y for x, y in szip(source, list)):
 #		logging.warning("renamer.edit(...) - source list was modified. ignoring.")
 
 #	if len(destination) != len(list):
