@@ -136,14 +136,13 @@ def edit(list):
 		# restore the handles so that when we exit 'with', it won't double-close them.
 		t1, t2 = smap(open, [t1.name, t2.name])
 
-	#if len([None for x, y in zip(source, list) if x != y]) > 0:
 	if any(x != y for x, y in szip(source, list)):
-		logging.warning("renamer.edit(...) - source list was modified. using it to rename files.")
+		logging.warning("renamer.edit(...) - source list was modified from original. using it as list to rename files from.")
 	else:
 		source = list[:]
 
-	if len(destination) != len(list):
-		logging.fatal("renamer.edit(...) - destination list contains a different number of entries ({:d}) from the source ({:d}). terminating...".format(len(destination), len(list)))
+	if len(destination) != len(source):
+		logging.fatal("renamer.edit(...) - destination list contains a different number of entries ({:d}) from the source ({:d}). terminating...".format(len(destination), len(source)))
 		return [], []
 
 	return source, destination
