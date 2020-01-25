@@ -16,7 +16,7 @@ WIN32=True if sys.platform == 'win32' else False
 try:
 	EDITOR = os.environ['EDITOR'] if 'EDITOR' in os.environ else which(editor)
 except StopIteration:
-	logging.fatal("Unable to locate editor in PATH : {!r}".format(os.environ.get('EDITOR', editor)))
+	logging.fatal("Unable to locate editor at path: {!s}".format(os.environ.get('EDITOR', editor)))
 	sys.exit(1)
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
@@ -34,41 +34,46 @@ def szip(*iterables):
 	iterable = zip(*iterables)
 	return [item for item in iterable]
 
+def quote(string):
+	res = string.encode('unicode-escape')
+	res = res.replace(b'"', b'\\"')
+	return u"\"{!s}\"".format(res.decode(sys.getfilesystemencoding()))
+
 def parse_args():
 	res = argparse.ArgumentParser(description='Rename any number of files within a list of paths using an editor.', add_help=True)
 	res.add_argument('-d', dest='use_dirs', action='store_true', default=False, help='rename directories instead of files')
-	res.add_argument('-n', '--dry-run', dest='dry_run', action='store_true', default=True, help='perform a dry run and only print the changes')
+	res.add_argument('-n', '--dry-run', dest='dry_run', action='store_true', default=False, help='perform a dry run and only print the changes')
 	res.add_argument(dest='paths', metavar='path', nargs='*', action='store', type=six.ensure_text)
 	return res.parse_args()
 
 def rename_file(a, b):
+	parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 	try:
-		parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 		if not os.path.isdir(parentdir):
-			logging.info("creating base directory {!r} to contain {!r}".format(parentdir, b))
+			logging.info("creating base directory {:s} to contain {:s}".format(quote(parentdir), quote(b)))
 			os.makedirs(parentdir)
 	except Exception as e:
-		logging.warning("os.makedirs({!r}) raised {!r}".format(a, b, e))
+		logging.warning("os.makedirs({:s}) raised {!s}".format(quote(parentdir), e))
 		return False
 
 	try:
 		result = os.rename(a, b)
 	except Exception as e:
-		logging.warning("os.rename({!r}, {!r}) raised {!r}".format(a, b, e))
+		logging.warning("os.rename({:s}, {:s}) raised {!s}".format(quote(a), quote(b), e))
 		return False
-	logging.info("renamed {!r} to {!r}".format(a, b))
+	logging.info("renamed {:s} to {:s}".format(quote(a), quote(b)))
 	return True
 
 def rename_output(a, b):
 	parentdir = os.path.normpath(os.path.join(b, os.path.pardir)) if os.path.isdir(a) else os.path.dirname(b)
 	if not os.path.isdir(parentdir):
-		logging.info("(simulated) creating base directory {!r} to contain {!r}".format(parentdir, b))
+		logging.info("(simulated) creating base directory {:s} to contain {:s}".format(quote(parentdir), quote(b)))
 		six.print_("mkdir -p \"{:s}\"".format(parentdir))
 	if os.path.exists(a):
+		logging.info("(simulated) renaming {:s} to {:s}".format(quote(a), quote(b)))
 		six.print_("mv \"{:s}\" \"{:s}\"".format(a, b))
-		logging.info("(simulated) renamed {!r} to {!r}".format(a, b))
 		return True
-	logging.warning("(simulated) source file {!r} does not exist".format(a, b, e))
+	logging.warning("(simulated) source file {:s} does not exist".format(quote(a)))
 	return False
 
 def rename(source, target):
@@ -99,7 +104,7 @@ def dirlisting(path):
 def edit(list):
 	list = sfilter(None, list)
 
-	[ logging.debug("renamer.edit(...) - found file {:d} -- {!r}".format(index, name)) for index, name in enumerate(list) ]
+	[ logging.debug("renamer.edit(...) - found file {:d} -- {:s}".format(index, quote(name))) for index, name in enumerate(list) ]
 
 	#hate python devers
 	with tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.source', delete=not WIN32) as t1, tempfile.NamedTemporaryFile(prefix='renamer.', suffix='.destination', delete=not WIN32) as t2:
@@ -110,14 +115,14 @@ def edit(list):
 			smap(operator.methodcaller('writelines', lines), [t1e, t2e])
 			smap(operator.methodcaller('flush'), [t1e, t2e])
 
-		logging.info("renamer.edit(...) - using source filename {!r}".format(t1.name))
-		logging.info("renamer.edit(...) - using destination filename {!r}".format(t2.name))
+		logging.info("renamer.edit(...) - using source filename {:s}".format(quote(t1.name)))
+		logging.info("renamer.edit(...) - using destination filename {:s}".format(quote(t2.name)))
 
-		message = "os.spawnv(os.P_WAIT, {!r}, [{!r}, {!r}, '--', {!r}, {!r}])".format(EDITOR, EDITOR, EDITOR_ARGS, t1.name, t2.name)
+		message = "os.spawnv(os.P_WAIT, {:s}, [{:s}, {:s}, '--', {:s}, {:s}])".format(quote(EDITOR), quote(EDITOR), quote(EDITOR_ARGS), quote(t1.name), quote(t2.name))
 		try:
 			result = os.spawnv(os.P_WAIT, EDITOR, [EDITOR, EDITOR_ARGS, '--', t1.name, t2.name])
 		except Exception as e:
-			logging.fatal("{:s} raised {!r}".format(message, e), exc_info=True)
+			logging.fatal("{:s} raised {!s}".format(message, e), exc_info=True)
 			raise
 		else:
 			if result != 0: logging.warning("{:s} returned {:d}".format(message, result))
