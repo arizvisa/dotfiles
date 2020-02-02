@@ -1,0 +1,4 @@
+#!/bin/sh
+# perl netcat exec
+
+env "HOST=$1" "NAME=$2" SHELL="$SHELL" perl -MIO::Socket -e '$n=IO::Socket::INET->new(Proto=>"tcp",LocalAddr=>$ENV{HOST},Listen=>1)->accept;for(STDOUT,STDIN,STDERR){open$_,">&",$n;}exec{$ENV{SHELL}}$ENV{NAME}'

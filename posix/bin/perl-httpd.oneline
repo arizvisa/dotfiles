@@ -1,0 +1,4 @@
+#!/bin/sh
+# httpd for serving a single file
+
+env "HOST=$1" "FILE=$2" perl -MIO::Socket -e '$s=IO::Socket::INET->new(Listen=>1,LocalAddr=>$ENV{HOST},Proto=>"tcp");while($a=$s->accept()){if(<$a>=~/.1\n$/){for(;<$a>ne"\n";){};}{local$/=undef;open($_,"<$ENV{FILE}");$_=<$_>;printf$a("HTTP/1.1 200 OK\nContent-Length: %lu\n\n%s",length$_,$_);}}'
