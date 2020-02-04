@@ -102,18 +102,18 @@ logprefix()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
-    printf "+-------------------------------------------------------------------------------------------\n"
+    printf "+--------------------------------------------------------------------------------------------\n"
     printf "| $arg0 began at : %s\n" "$current"
-    printf "+-------------------------------------------------------------------------------------------\n"
+    printf "+--------------------------------------------------------------------------------------------\n"
 }
 
 logsuffix()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
-    printf "+===========================================================================================\n"
+    printf "+============================================================================================\n"
     printf "| $arg0 completed at : %s\n" "$current"
-    printf "+===========================================================================================\n"
+    printf "+============================================================================================\n"
 }
 
 makeanalysis()
@@ -121,12 +121,12 @@ makeanalysis()
     arg0=`basename "$0"`
     cat <<EOF
 import idaapi,time
-print "~"*110
+print "~"*92
 _ = time.time()
 print "$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime()))
 idaapi.auto_wait()
 print "$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime()))
-print "~"*110
+print "~"*92
 print "%s:saving to %s"% (r"$arg0", r"$output")
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
     idaapi.save_database(idaapi.cvar.database_idb, 0)
