@@ -176,7 +176,7 @@ for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils'):
     continue
 #print "%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime()))
 #idaapi.auto_wait()
-print "~"*92
+print "~"*70
 __builtin__._ = time.time()
 print "%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv)
 try: sys.dont_write_bytecode = True
@@ -184,7 +184,7 @@ except AttributeError: pass
 try: execfile(r"$scriptpath", globals())
 except: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info()))
 print "%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-__builtin__._, time.asctime(time.localtime()))
-print "~"*92
+print "~"*70
 print "%s:saving to %s"% (r"$arg0", r"$input")
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
     idaapi.save_database(idaapi.cvar.database_idb, 0)
