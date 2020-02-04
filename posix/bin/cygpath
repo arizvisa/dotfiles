@@ -4,13 +4,13 @@
 msys2default()
 {
     #sed 's/^\/\([a-zA-Z]\)\//\1:\//' <<< "$1"
-    sed 's/^\/\([a-zA-Z]\)\//\/\1\//' <<< "$1"
+    sed 's/^\/\([a-zA-Z]\)\//\/\l\1\//' <<< "$1"
 }
 
 cygwin2default()
 {
     #sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\1:\//' <<< "$1"
-    sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\/\1\//' <<< "$1"
+    sed 's/^\/cygdrive\/\([a-zA-Z]\)\//\/\l\1\//' <<< "$1"
 }
 
 windows2default()
@@ -18,17 +18,17 @@ windows2default()
     #C:\path\where
     path=$1
     #echo "$path" | sed 's/^\([a-zA-Z]\):\\/\1:\//;s/\\/\//g'
-    sed 's/\\/\//g;s/^\([a-zA-Z]\):\//\/\1\//' <<< "$path"
+    sed 's/\\/\//g;s/^\([a-zA-Z]\):\//\/\l\1\//' <<< "$path"
 }
 
 default2msys()
 {
-    sed 's/^\([a-zA-Z]\):\//\/\1\//' <<< "$1"
+    sed 's/^\([a-zA-Z]\):\//\/\l\1\//' <<< "$1"
 }
 
 default2cygwin()
 {
-    sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\1\//' <<< "$1"
+    sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\l\1\//' <<< "$1"
 }
 
 default2windows()
