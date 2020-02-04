@@ -12,10 +12,81 @@ if test -z "$input" -o -z "$script"; then
     exit 1
 fi
 
-nativepath()
+getportablepath()
 {
-    cygpath -w "$@"
+    case "$os" in
+    windows)
+        cygpath -w "$1"
+        ;;
+    *)
+        cygpath -u "$1"
+        ;;
+    esac
+    return 0
 }
+
+get_idabinary32()
+{
+    case "$os" in
+    windows)
+        if test -e "$1/idaq.exe"; then
+            echo "$1/idaq.exe"
+        else
+            echo "$1/ida.exe"
+        fi
+        ;;
+    *)
+        if test -z "$DISPLAY" || test -z "$XAUTHORITY"; then
+            echo "$1/idat"
+        else
+            echo "$1/ida"
+        fi
+    esac
+}
+
+get_idabinary64()
+{
+    case "$os" in
+    windows)
+        if test -e "$1/idaq.exe"; then
+            echo "$1/idaq64.exe"
+        else
+            echo "$1/ida64.exe"
+        fi
+        ;;
+    *)
+        if test -z "$DISPLAY" || test -z "$XAUTHORITY"; then
+            echo "$1/idat64"
+        else
+            echo "$1/ida64"
+        fi
+    esac
+}
+
+find_idapath()
+{
+    local path="$IDAPATH"
+    local file="ida.hlp"
+    local programfiles=`resolvepath "$ProgramFiles"`
+
+    if test -z "$path" && test -d "$programfiles"; then
+        local IFS=$'\n\t'
+        for cp in $programfiles*/IDA*; do
+            rp=`resolvepath "$cp"`
+            if test -e "$rp/$file"; then
+                path=$rp
+                break
+            fi
+        done
+    fi
+
+    # if we couldn't find anything, then bail
+    test -z "$path" && return 1
+
+    # otherwise emit it to the caller
+    echo "$path"
+}
+
 
 currentdate()
 {
@@ -49,24 +120,28 @@ if test ! -f "$script"; then
     exit 1
 fi
 
+# try to resolve its path and bitch if we can't find it
+idapath=`find_idapath`
+
+if test "$?" -gt 0; then
+    printf "[%s] unable to determine path to ida. use the environment varible %s.\n" "`currentdate`" "IDAPATH" 1>&2
+    exit 1
+fi
+
+if ! test -d "$idapath"; then
+    printf "[%s] unable to resolve ida path \"%s\" to a directory.\n" "`currentdate`" "$idapath" 1>&2
+    exit 1
+fi
+
 # poorly determine path to ida
-idapath=`resolvepath /c/Program\ Files*/IDA*`
-if test "$bits" -eq 64; then
-    if [ -e "$idapath/idaq64.exe" ]; then
-        ida="$idapath/idaq64.exe"
-    else
-        ida="$idapath/ida64.exe"
-    fi
+if echo "$0" | grep -q 64; then
+    ida=`get_idabinary64 "$idapath"`
     idaext="i64"
 else
-    if [ -e "$idapath/idaq.exe" ]; then
-        ida="$idapath/idaq.exe"
-    else
-        ida="$idapath/ida.exe"
-    fi
+    ida=`get_idabinary32 "$idapath"`
     idaext="idb"
 fi
-ida=`nativepath "$ida"`
+ida=`getportablepath "$ida"`
 
 # utility files that get used by IDA
 progress=".ida.runscript.$$.log"
@@ -81,7 +156,7 @@ inputdir=`dirname "$inputpath"`
 
 # used by runscript
 scriptname=`basename "$scriptpath"`
-scriptpath=`nativepath "$scriptpath"`
+scriptpath=`getportablepath "$scriptpath"`
 
 runscript()
 {
@@ -119,7 +194,7 @@ idaapi.qexit(0)
 EOF
 }
 
-workingdir=`nativepath .`
+workingdir=`getportablepath .`
 runscript "$scriptname" "$scriptpath" "$workingdir" >| $tmp
 trap 'rm -f "$tmp" "$progress"; exit $?' INT TERM EXIT
 
@@ -131,8 +206,8 @@ beginning=`currentdate`
 unquoted=("$@")
 quoted=(${unquoted[@]/#/\"})
 quoted=(${quoted[@]/%/\"})
-tmppath_ida=`nativepath "$tmp"`
-progresspath_ida=`nativepath "$progress"`
+tmppath_ida=`getportablepath "$tmp"`
+progresspath_ida=`getportablepath "$progress"`
 "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
 ending=`currentdate`
 trap - INT TERM EXIT
