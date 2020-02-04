@@ -31,23 +31,6 @@ getshortpath()
     return 0
 }
 
-glob_idadir()
-{
-    case "$os" in
-    windows)
-        if test -z "$IDAGLOB"; then
-            cygpath -u "$ProgramFiles*/IDA*"
-        else
-            cygpath -u "$IDAGLOB"
-        fi
-        ;;
-    *)
-        test -z "$IDAGLOB" && return 1
-        cygpath -u "$IDAGLOB"
-    esac
-    return 0
-}
-
 get_idabinary32()
 {
     case "$os" in
@@ -84,6 +67,29 @@ get_idabinary64()
             echo "$1/ida64"
         fi
     esac
+}
+
+find_idapath()
+{
+    local path="$IDAPATH"
+    local file="ida.hlp"
+
+    if test -z "$path" && test -d "$ProgramFiles"; then
+        local IFS=$'\n\t'
+        for cp in $ProgramFiles*/IDA*; do
+            rp=`resolvepath "$cp"`
+            if test -e "$rp/$file"; then
+                path=$rp
+                break
+            fi
+        done
+    fi
+
+    # if we couldn't find anything, then bail
+    test -z "$path" && return 1
+
+    # otherwise emit it to the caller
+    echo "$path"
 }
 
 currentdate()
@@ -157,15 +163,14 @@ if test ! -f "$input"; then
     exit 1
 fi
 
-# figure out a glob to find the path to ida
-idapath_glob=`glob_idadir`
+# try to resolve its path and bitch if we can't find it
+idapath=`find_idapath`
+
 if test "$?" -gt 0; then
-    printf "[%s] unable to determine path to ida. use the environment varible %s\n" "`currentdate`" "IDAGLOB" 1>&2
+    printf "[%s] unable to determine path to ida. use the environment varible %s.\n" "`currentdate`" "IDAPATH" 1>&2
     exit 1
 fi
 
-# try to resolve its path and bitch if we can't find it
-idapath=`resolvepath $idapath_glob`
 if ! test -d "$idapath"; then
     printf "[%s] unable to resolve ida path \"%s\" to a directory.\n" "`currentdate`" "$idapath" 1>&2
     exit 1
