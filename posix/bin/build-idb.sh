@@ -1,6 +1,6 @@
 usage()
 {
-    printf "usage: %s file [output]\n" "$1"
+    printf "usage: %s [-o output] file [...ida parameters...]\n" "$1"
     echo "$1" | grep -q 64 && bits="64-bit" || bits="32-bit"
     printf "builds a %s ida database for file. writes output to file.{idb,log}.\n" "$bits"
 }
@@ -137,32 +137,47 @@ EOF
 }
 
 # parse commandline
-while getopts h? opt; do
+while getopts "h?o:" opt; do
     case "$opt" in
-        h|?) usage "$0"; exit 0 ;;
+        h|\?)
+            usage "$0"
+            exit 0
+            ;;
+        o)
+            output="$2"
+            shift 2
+            ;;
+        *)
+            break
     esac
 done
-if test "$#" -lt 1 -o "$#" -gt 2; then
+
+if test "$#" -lt 1; then
     usage "$0" 1>&2
     exit 1
 fi
 
-# extract paths to read from and write to
+# grab the input path
 input=`getportablepath "$1"`
-if test "$#" -gt 1; then
-    output="$2"
-    outpath=`dirname "$2"`
-    filename=`basename "$2"`
+
+# extract paths to read from and write to
+if test -z "$output"; then
+    output=`basename "$input"`
+    outpath=`dirname "$input"`
+    filename=`basename "$input"`
 else
-    output=`basename "$1"`
-    outpath=`dirname "$1"`
-    filename=`basename "$1"`
+    outpath=`dirname "$output"`
+    filename=`basename "$output"`
+    printf "[%s] user specified output name as \"%s\"\n" "`currentdate`" "$outpath/$filename"
 fi
 
 if test ! -f "$input"; then
-    printf "[%s] path \"%s\" not found.\n" "`currentdate`" "$input" 1>&2
+    printf "[%s] input path \"%s\" not found.\n" "`currentdate`" "$1" 1>&2
     exit 1
 fi
+
+# shift the input path we just validated
+shift
 
 # try to resolve its path and bitch if we can't find it
 idapath=`find_idapath`
@@ -186,7 +201,6 @@ else
     idaext="idb"
 fi
 ida=`getportablepath "$ida"`
-ida_args='-pmetapc'
 
 # check to see what user is trying to write to
 ext=`echo "$filename" | sed 's/.*\.//'`
@@ -199,6 +213,7 @@ if test "$ext" = "log"; then
     fi
     printf "[%s] user wishes to log to \"%s\". %s \"%s\".\n" "`currentdate`" "$outpath/$output.log" "$command" "$outpath/$output.$idaext"
     ext="$idaext"
+
 elif test "$ext" = "$idaext"; then
     output=`basename "$filename" ".$ext"`
     if test -f "$outpath/$output.$idaext"; then
@@ -207,8 +222,10 @@ elif test "$ext" = "$idaext"; then
         command="write to"
     fi
     printf "[%s] user wishes to %s \"%s\". logging to \"%s\".\n" "`currentdate`" "$command" "$outpath/$output.$idaext" "$outpath/$output.log"
+
 else
-    printf "[%s] logging to \"%s\". writing to \"%s\".\n" "`currentdate`" "$outpath/$output.log" "$outpath/$output.$idaext"
+    printf "[%s] writing database to \"%s\".\n" "`currentdate`" "$outpath/$output.$idaext"
+    printf "[%s] logging output to \"%s\".\n" "`currentdate`" "$outpath/$output.log"
     ext="$idaext"
 fi
 
@@ -223,8 +240,8 @@ tmpwin=`getshortpath "$outpath/$tmp"`
 makeanalysis >| "$tmpunix"
 
 # back up error log
+errortmp=".ida.prevlog.$error.$$"
 if test -f "$outpath/$error"; then
-    errortmp=".ida.prevlog.$error.$$"
     printf "[%s] backing up current log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$error" "$outpath/$errortmp"
     mv "$outpath/$error" "$outpath/$errortmp"
     errorcat=1
@@ -235,15 +252,35 @@ else
 fi
 
 # now we can run ida
+if test "$#" -gt 0; then
+    printf "[%s] passing extra arguments to ida:" "`currentdate`";
+    printf " '%s'" "$@"
+    printf "\n"
+fi
+
 beginning=`currentdate`
 if test -f "$outpath/$output"; then
-    printf "[%s] updating \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ $ida_args "-L$error" "$output" )
+    printf "[%s] updating database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
+    ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ "$@" "-L$error" "$output" )
 else
-    printf "[%s] building \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ $ida_args "-L$error" "-o$output" "$input" )
+    printf "[%s] building database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
+    ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ "$@" "-L$error" "-o$output" "$input" )
 fi
 ending=`currentdate`
+
+if test ! -e "$outpath/$error" && test -e "$outpath/$errortmp"; then
+    trap - INT TERM EXIT
+    printf "[%s] error while updating ida database \"%s\". expected ida to write logfile to \"%s\"\n" "`currentdate`" "$output" "$outpath/$error"
+    printf "[%s] restoring logfile from \"%s\"\n" "`currentdate`" "$errortmp"
+    mv -f "$outpath/$errortmp" "$outpath/$error"
+    rm -f "$tmpunix"
+    exit 1
+
+elif test ! -e "$outpath/$error"; then
+    printf "[%s] error while building ida database \"%s\". expected ida to write logfile to \"%s\"\n" "`currentdate`" "$output" "$outpath/$error"
+    rm -f "$tmpunix"
+    exit 1
+fi
 
 # surround logfile with timestamps
 mv -f "$outpath/$error" "$outpath/.ida.log.$error.$$"
