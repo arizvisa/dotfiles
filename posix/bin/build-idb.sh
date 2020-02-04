@@ -5,6 +5,87 @@ usage()
     printf "builds a %s ida database for file. writes output to file.{idb,log}.\n" "$bits"
 }
 
+getportablepath()
+{
+    case "$os" in
+    windows)
+        cygpath -w "$1"
+        ;;
+    *)
+        cygpath -u "$1"
+        ;;
+    esac
+    return 0
+}
+
+getshortpath()
+{
+    case "$os" in
+    windows)
+        cygpath -s "$1"
+        ;;
+    *)
+        cygpath -u "$1"
+        ;;
+    esac
+    return 0
+}
+
+glob_idadir()
+{
+    case "$os" in
+    windows)
+        if test -z "$IDAGLOB"; then
+            cygpath -u "$ProgramFiles*/IDA*"
+        else
+            cygpath -u "$IDAGLOB"
+        fi
+        ;;
+    *)
+        test -z "$IDAGLOB" && return 1
+        cygpath -u "$IDAGLOB"
+    esac
+    return 0
+}
+
+get_idabinary32()
+{
+    case "$os" in
+    windows)
+        if test -e "$1/idaq.exe"; then
+            echo "$1/idaq.exe"
+        else
+            echo "$1/ida.exe"
+        fi
+        ;;
+    *)
+        if test -z "$DISPLAY" || test -z "$XAUTHORITY"; then
+            echo "$1/idat"
+        else
+            echo "$1/ida"
+        fi
+    esac
+}
+
+get_idabinary64()
+{
+    case "$os" in
+    windows)
+        if test -e "$1/idaq.exe"; then
+            echo "$1/idaq64.exe"
+        else
+            echo "$1/ida64.exe"
+        fi
+        ;;
+    *)
+        if test -z "$DISPLAY" || test -z "$XAUTHORITY"; then
+            echo "$1/idat64"
+        else
+            echo "$1/ida64"
+        fi
+    esac
+}
+
 currentdate()
 {
     date --rfc-3339=seconds
@@ -60,7 +141,7 @@ if test "$#" -lt 1 -o "$#" -gt 2; then
 fi
 
 # extract paths to read from and write to
-input=`cygpath -w "$1" | sed 's/\//\\\/g'`
+input=`getportablepath "$1"`
 if test "$#" -gt 1; then
     output="$2"
     outpath=`dirname "$2"`
@@ -76,24 +157,29 @@ if test ! -f "$input"; then
     exit 1
 fi
 
-# poorly determine path to ida
-idapath=`resolvepath /c/Program\ Files*/IDA*`
+# figure out a glob to find the path to ida
+idapath_glob=`glob_idadir`
+if test "$?" -gt 0; then
+    printf "[%s] unable to determine path to ida. use the environment varible %s\n" "`currentdate`" "IDAGLOB" 1>&2
+    exit 1
+fi
+
+# try to resolve its path and bitch if we can't find it
+idapath=`resolvepath $idapath_glob`
+if ! test -d "$idapath"; then
+    printf "[%s] unable to resolve ida path \"%s\" to a directory.\n" "`currentdate`" "$idapath" 1>&2
+    exit 1
+fi
+
+# figure out the path to an ida binary
 if echo "$0" | grep -q 64; then
-    if [ -e "$idapath/idaq.exe" ]; then
-        ida="$idapath/idaq64.exe"
-    else
-        ida="$idapath/ida64.exe"
-    fi
+    ida=`get_idabinary64 "$idapath"`
     idaext="i64"
 else
-    if [ -e "$idapath/idaq.exe" ]; then
-        ida="$idapath/idaq.exe"
-    else
-        ida="$idapath/ida.exe"
-    fi
+    ida=`get_idabinary32 "$idapath"`
     idaext="idb"
 fi
-ida=`cygpath -w "$ida"`
+ida=`getportablepath "$ida"`
 ida_args='-pmetapc'
 
 # check to see what user is trying to write to
@@ -126,8 +212,8 @@ output="$output.$ext"
 tmp=".ida.analysis.$$.py"
 
 # create script that is going to be executed
-tmpunix="`cygpath -u \"$outpath\"`/$tmp"
-tmpwin="`cygpath -s \"$outpath\"`\\$tmp"
+tmpunix=`cygpath -u "$outpath/$tmp"`
+tmpwin=`getshortpath "$outpath/$tmp"`
 makeanalysis >| "$tmpunix"
 
 # back up error log
