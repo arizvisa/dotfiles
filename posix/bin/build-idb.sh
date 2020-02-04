@@ -73,10 +73,11 @@ find_idapath()
 {
     local path="$IDAPATH"
     local file="ida.hlp"
+    local programfiles=`resolvepath "$ProgramFiles"`
 
-    if test -z "$path" && test -d "$ProgramFiles"; then
+    if test -z "$path" && test -d "$programfiles"; then
         local IFS=$'\n\t'
-        for cp in $ProgramFiles*/IDA*; do
+        for cp in $programfiles*/IDA*; do
             rp=`resolvepath "$cp"`
             if test -e "$rp/$file"; then
                 path=$rp
