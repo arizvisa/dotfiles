@@ -311,6 +311,26 @@ define show_stack64
     emit $hexdump($rsp, 1 * sizeof(long), 'L')
 end
 
+define show_data32
+    set variable $_data_rows = 8
+
+    if $argc > 1
+        emit $hexdump($arg0, $arg1 * 0x10 / sizeof(int), 'I')
+    else
+        emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(int), 'I')
+    end
+end
+
+define show_data64
+    set variable $_data_rows = 8
+
+    if $argc > 1
+        emit $hexdump($arg0, $arg1 * 0x10 / sizeof(long), 'L')
+    else
+        emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(long), 'L')
+    end
+end
+
 define show_code32
     emit "\n-=[disassembly]=-\n"
     x/6i $pc
@@ -496,6 +516,50 @@ end
 
 define bl
     info breakpoints
+end
+
+# unassemble
+define u
+    if $argc > 1
+        set variable $_unassemble_rows = $arg1
+    else
+        set variable $_unassemble_rows = 0d25
+    end
+    if $argc > 0
+        set variable $_unassemble_position = $arg0
+    else
+        set variable $_unassemble_position = $pc
+    end
+
+    # use x/ to disassemble the parameters
+    eval "x/%di %s\n",$_unassemble_rows,"$_unassemble_position"
+end
+
+# disassemble
+define dis
+    if $argc > 1
+        disassemble $arg0
+    else
+        disassemble
+    end
+end
+
+define dc
+    if $argc > 1
+        if sizeof(void*) == 4
+            show_data32 $arg0 $arg1
+        end
+        if sizeof(void*) == 8
+            show_data64 $arg0 $arg1
+        end
+    else
+        if sizeof(void*) == 4
+            show_data32 $arg0
+        end
+        if sizeof(void*) == 8
+            show_data64 $arg0
+        end
+    end
 end
 
 ### breakpoints with wildcards
