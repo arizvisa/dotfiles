@@ -537,7 +537,7 @@ end
 
 # disassemble
 define dis
-    if $argc > 1
+    if $argc > 0
         disassemble $arg0
     else
         disassemble
