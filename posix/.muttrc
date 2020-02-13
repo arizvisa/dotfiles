@@ -1,5 +1,5 @@
 ## options
-set editor = "vim"
+set editor = "vim -f"
 set header_cache = "~/.mutt_cache"
 set message_cachedir = "~/.mutt_cache"
 
@@ -15,6 +15,13 @@ set sidebar_width = 12
 set sidebar_indent_string = " "
 set sidebar_divider_char = "▕"
 set index_format = "%[%m/%d %H:%M]▏%30.30L ⟾ %?M?<%03M> & ?%s"
+
+set mbox_type=Maildir
+set folder="~/.maildir"
+set mbox="~/.maildir"
+set record="+.Sent"
+set postponed="+.Drafts"
+set spoolfile="~/.maildir"
 
 push <collapse-all><first-entry>
 
