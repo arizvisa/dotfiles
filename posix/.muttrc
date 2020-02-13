@@ -17,6 +17,7 @@ set sidebar_divider_char = "▕"
 set index_format = "%[%m/%d %H:%M]▏%30.30L ⟾ %?M?<%03M> & ?%s"
 
 set mbox_type=Maildir
+set mask=".*"
 set folder="~/.maildir"
 set mbox="~/.maildir"
 set record="+.Sent"
