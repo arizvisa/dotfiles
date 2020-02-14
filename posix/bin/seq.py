@@ -37,7 +37,7 @@ def do_random(argv0, argv):
 
     min, max, count = map(eval, argv)
     while count > 0:
-        print(random.randrange(min, 1 + max))
+        print(random.randrange(min, 1 + max) if max > min else random.randrange(max, 1 + min))
         count -= 1
     sys.exit(0)
 
