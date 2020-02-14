@@ -1,26 +1,26 @@
 #!/usr/bin/env python2
-import user
+from __future__ import print_function
 import sys, random
 
 def do_help_sequence(argv0):
-    print >> sys.stderr, 'Usage: %s [-s] {min} {max} {step}\n'% argv0
-    print >> sys.stderr, '\tWill output numbers from the range {min} - {max} with the step {step}.'
-    print >> sys.stderr, '\tif -s is specified, will shuffle the output.'
+    print('Usage: %s [-s] {min} {max} {step}\n'% argv0, file=sys.stderr)
+    print('\tWill output numbers from the range {min} - {max} with the step {step}.', file=sys.stderr)
+    print('\tif -s is specified, will shuffle the output.', file=sys.stderr)
 
 def do_help_random(argv0):
-    print >> sys.stderr, 'Usage: %s {min} {max} {count}\n'% argv0
-    print >> sys.stderr, '\tWill output {count} random numbers from the range {min} - {max}.'
-    print >> sys.stderr, '\tif -f is specified, will output floating point numbers.'
+    print('Usage: %s {min} {max} {count}\n'% argv0, file=sys.stderr)
+    print('\tWill output {count} random numbers from the range {min} - {max}.', file=sys.stderr)
+    print('\tif -f is specified, will output floating point numbers.', file=sys.stderr)
 
 def do_help_sleep(argv0):
-    print >> sys.stderr, 'Usage: %s duration\n'% argv0
-    print >> sys.stderr, '\tWill sleep the {duration} number of seconds.'
-    print >> sys.stderr, '\tThe {duration} can be represented partially via a decimal number.'
+    print('Usage: %s duration\n'% argv0, file=sys.stderr)
+    print('\tWill sleep the {duration} number of seconds.', file=sys.stderr)
+    print('\tThe {duration} can be represented partially via a decimal number.', file=sys.stderr)
 
 def do_random_float(argv0, argv):
     min, max, count = map(eval, argv)
     while count > 0:
-        print random.uniform(min, max)
+        print(random.uniform(min, max))
         count -= 1
     return
 
@@ -37,7 +37,7 @@ def do_random(argv0, argv):
 
     min, max, count = map(eval, argv)
     while count > 0:
-        print random.randrange(min, 1 + max)
+        print(random.randrange(min, 1 + max))
         count -= 1
     sys.exit(0)
 
@@ -62,7 +62,7 @@ def do_sequence_shuffle(argv0, argv):
     random.shuffle(result)
 
     for item in result:
-        print item
+        print(item)
     return
 
 def do_sequence(argv0, argv):
@@ -77,7 +77,7 @@ def do_sequence(argv0, argv):
 
     min, max, step = map(eval, argv)
     for item in sequence(min, max, step):
-        print item
+        print(item)
     sys.exit(0)
 
 def do_sleep(argv0, argv):
