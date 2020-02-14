@@ -18,9 +18,9 @@ def do_help_sleep(argv0):
     print >> sys.stderr, '\tThe {duration} can be represented partially via a decimal number.'
 
 def do_random_float(argv0, argv):
-    min,max,count = map(eval, argv)
+    min, max, count = map(eval, argv)
     while count > 0:
-        print random.uniform(min,max)
+        print random.uniform(min, max)
         count -= 1
     return
 
@@ -35,20 +35,34 @@ def do_random(argv0, argv):
         do_random_float(argv0, argv)
         sys.exit(0)
 
-    min,max,count = map(eval, argv)
+    min, max, count = map(eval, argv)
     while count > 0:
-        print random.randrange(min,max+1)
+        print random.randrange(min, 1 + max)
         count -= 1
     sys.exit(0)
 
-def do_sequence_shuffle(argv0, argv):
-    min,max,step = map(eval,argv)
+def sequence(min, max, step):
+    n = min
+    if step > 0:
+        while n < max:
+            yield n
+            n += step
 
-    result = range(min,max,step)
+    elif step < 0:
+        while n > max:
+            yield n
+            n += step
+    else:
+        raise ValueError('sequence() arg step must not be 0')
+    return
+
+def do_sequence_shuffle(argv0, argv):
+    min, max, step = map(eval, argv)
+    result = [item for item in sequence(min, max, step)]
     random.shuffle(result)
 
-    for x in result:
-        print x
+    for item in result:
+        print item
     return
 
 def do_sequence(argv0, argv):
@@ -61,29 +75,17 @@ def do_sequence(argv0, argv):
         do_sequence_shuffle(argv0, argv)
         sys.exit(0)
 
-    min,max,step = map(eval,argv)
-    n = min
-    if step > 0:
-        while n < max:
-            print n
-            n += step
-        sys.exit(0)
-
-    elif step < 0:
-        while n > max:
-            print n
-            n += step
-        sys.exit(0)
-
-    print >> sys.stderr, '%s: ignoring request for infinite loop'% argv0
-    sys.exit(1)
+    min, max, step = map(eval, argv)
+    for item in sequence(min, max, step):
+        print item
+    sys.exit(0)
 
 def do_sleep(argv0, argv):
     if len(argv) == 0 or '-h' in argv or '--help' in argv:
         do_help_sleep(argv0)
         sys.exit(1)
 
-    duration, = map(eval,argv)
+    duration, = map(eval, argv)
     time.sleep(duration)
     sys.exit(0)
 
