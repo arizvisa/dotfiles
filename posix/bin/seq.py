@@ -4,13 +4,18 @@ import sys, random
 
 def do_help_sequence(argv0):
     print >> sys.stderr, 'Usage: %s [-s] {min} {max} {step}\n'% argv0
-    print >> sys.stderr, '\tWill output numbers from the range {min} - {max} with the step {step}'
-    print >> sys.stderr, '\tif -s is specified, will shuffle the output'
+    print >> sys.stderr, '\tWill output numbers from the range {min} - {max} with the step {step}.'
+    print >> sys.stderr, '\tif -s is specified, will shuffle the output.'
 
 def do_help_random(argv0):
     print >> sys.stderr, 'Usage: %s {min} {max} {count}\n'% argv0
-    print >> sys.stderr, '\tWill output {count} random numbers from the range {min} - {max}'
-    print >> sys.stderr, '\tif -f is specified, will output floating point numbers'
+    print >> sys.stderr, '\tWill output {count} random numbers from the range {min} - {max}.'
+    print >> sys.stderr, '\tif -f is specified, will output floating point numbers.'
+
+def do_help_sleep(argv0):
+    print >> sys.stderr, 'Usage: %s duration\n'% argv0
+    print >> sys.stderr, '\tWill sleep the {duration} number of seconds.'
+    print >> sys.stderr, '\tThe {duration} can be represented partially via a decimal number.'
 
 def do_random_float(argv0, argv):
     min,max,count = map(eval, argv)
@@ -73,6 +78,15 @@ def do_sequence(argv0, argv):
     print >> sys.stderr, '%s: ignoring request for infinite loop'% argv0
     sys.exit(1)
 
+def do_sleep(argv0, argv):
+    if len(argv) == 0 or '-h' in argv or '--help' in argv:
+        do_help_sleep(argv0)
+        sys.exit(1)
+
+    duration, = map(eval,argv)
+    time.sleep(duration)
+    sys.exit(0)
+
 if __name__ == '__main__':
     argv = sys.argv
 
@@ -82,6 +96,10 @@ if __name__ == '__main__':
 
     elif argv[0].endswith('seq.py'):
         do_sequence(argv.pop(0), argv)
+        sys.exit(0)
+
+    elif argv[0].endswith('sleep.py'):
+        do_sleep(argv.pop(0), argv)
         sys.exit(0)
 
     raise NotImplementedError(argv[0])
