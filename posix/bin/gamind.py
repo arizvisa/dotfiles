@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 import sys, os, signal, select
 import re
 import gamin
