@@ -1,0 +1,95 @@
+#var
+automatic-footnotes=On
+cursor-movement-scrolls=Off
+
+#info
+#stop
+^l      redraw-display
+=       display-file-info
+\mx     execute-command
+^g      abort-key
+q       quit
+:q      quit
+^x^c    quit
+
+h       backward-char
+l       forward-char
+j       next-line
+k       prev-line
+b       backward-word
+w       forward-word
+0       beginning-of-line
+$       end-of-line
+
+^j      down-line
+^k      up-line
+^f      scroll-forward-page-only
+^b      scroll-backward-page-only
+1gg     beginning-of-node
+gg      beginning-of-node
+G       end-of-node
+
+]       next-node
+[       prev-node
+<       first-node
+>       last-node
+u       up-node
+
+\r      select-reference-this-line
+o       select-reference-this-line
+^]      select-reference-this-line
+^t      history-node
+^v      list-visited-nodes
+
+/       search
+?       search-backward
+n       search-next
+N       search-previous
+
+\ku     move-to-prev-xref
+\kd     move-to-next-xref
+\kl     move-to-prev-xref
+\kr     move-to-next-xref
+
+\kU     scroll-other-window-backward
+\kD     scroll-other-window
+
+^w^w    next-window
+^wj     next-window
+^wk     prev-window
+^ws     split-window
+^wc     delete-window
+^wo     keep-one-window
+^w+     grow-window
+^w-     grow-window
+^w=     tile-windows
+
+#echo-area
+#stop
+\r      echo-area-newline
+\m^c    echo-area-abort
+\mu     echo-area-abort
+\t      echo-area-complete
+
+^w      echo-area-backward-kill-word
+^u      echo-area-backward-kill-line
+\kx     echo-area-rubout
+\kl     echo-area-backward
+\kr     echo-area-forward
+
+\mh     echo-area-backward
+\ml     echo-area-forward
+\mb     echo-area-backward-word
+\mw     echo-area-forward-word
+\m0     echo-area-beg-of-line
+\m$     echo-area-end-of-line
+\mx     echo-area-delete
+\mdw    echo-area-kill-word
+\mD     echo-area-kill-line
+\m^w    echo-area-backward-kill-word
+\m^u    echo-area-backward-kill-line
+
+\ku     echo-area-scroll-completions-window
+\kd     echo-area-scroll-completions-window
+\kU     echo-area-scroll-completions-window
+\kD     echo-area-scroll-completions-window
