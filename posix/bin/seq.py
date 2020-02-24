@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import print_function
-import sys, random
+import sys, random, time
 
 def do_help_sequence(argv0):
     print('Usage: %s [-s] {min} {max} {step}\n'% argv0, file=sys.stderr)
