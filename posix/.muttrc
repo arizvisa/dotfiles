@@ -11,18 +11,33 @@ set sort_aux = "reverse-date-received"
 
 set menu_scroll
 set sidebar_visible = yes
-set sidebar_width = 12
+set sidebar_width = 32
 set sidebar_indent_string = " "
 set sidebar_divider_char = "▕"
-set index_format = "%[%m/%d %H:%M]▏%30.30L ⟾ %?M?<%03M> & ?%s"
+set sidebar_format = "%n %3.3! %N/%d/%S %B"
 
-set mbox_type=Maildir
-set mask=".*"
-set folder="~/.maildir"
-set mbox="~/.maildir"
-set record="+.Sent"
-set postponed="+.Drafts"
-set spoolfile="~/.maildir"
+set index_format = "%Z|%[%m/%d %H:%M]|%30.30L ⟾ %?M?<%03M> & ?%s"
+
+set mask = ".*"
+set mbox_type = Maildir
+set spoolfile = "$MAIL"
+set mail_check_recent = no
+
+set header = yes
+set edit_headers = yes
+set weed = no
+set move = yes
+set mark_old = no
+
+set folder = "$HOME/.maildir"
+set mbox = "+.Inbox"
+set record = "+.Sent"
+set postponed = "+.Drafts"
+
+mailboxes !
+mailboxes $mbox
+mailboxes $postponed
+mailboxes $record
 
 push <collapse-all><first-entry>
 
@@ -45,6 +60,7 @@ bind index zr collapse-thread
 bind index zR collapse-all
 
 # vim keybindings (index)
+bind index \C_ help
 bind index j next-entry
 bind index k previous-entry
 bind index gg first-entry
@@ -52,10 +68,27 @@ bind index G last-entry
 bind index \Cf half-down
 bind index \Cb half-up
 
+bind index m mail
+bind index o display-message
+bind index f forward-message
+bind index r reply
+bind index v view-attachments
+
+bind index t toggle-new
+bind index E resend-message
+bind index d delete-message
+bind index \Cu undelete-message
+
 bind index / search
 bind index ? search-reverse
 bind index n search-next
 bind index N search-opposite
+
+bind index <Down> sidebar-next
+bind index <Up> sidebar-prev
+bind index <PageDown> sidebar-page-down
+bind index <PageUp> sidebar-page-up
+bind index <Return> sidebar-open
 
 # vim keybindings (pager)
 bind pager j next-line
@@ -69,4 +102,3 @@ bind pager / search
 bind pager ? search-reverse
 bind pager n search-next
 bind pager N search-opposite
-
