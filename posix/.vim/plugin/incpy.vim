@@ -215,7 +215,7 @@ function! incpy#SetupOptions()
     let defopts["WindowName"] = "Scratch"
     let defopts["WindowRatio"] = 1.0/3
     let defopts["WindowPosition"] = "below"
-    let defopts["WindowOptions"] = {"buftype":"nowrite", "noswapfile":[], "updatecount":0, "nobuflisted":[], "filetype":"python"}
+    let defopts["WindowOptions"] = {}
     let defopts["WindowPreview"] = 0
     let defopts["WindowFixed"] = 0
     let python_builtins = "__import__(\"builtins\")"
@@ -227,6 +227,9 @@ function! incpy#SetupOptions()
     let defopts["EvalFormat"] = printf("%s.displayhook({})", python_sys)
     let defopts["InputFormat"] = "{}\n"
     let defopts["EchoFormat"] = "# >>> {}"
+
+    " Default window options that the user will override
+    let defopts["CoreWindowOptions"] = {"buftype": has("terminal")? "terminal" : "nowrite", "swapfile": v:false, "updatecount":0, "buflisted": v:false}
 
     " If any of these options aren't defined during evaluation, then go through and assign them as defaults
     for o in keys(defopts)
@@ -326,7 +329,8 @@ class interpreter(object):
         options.setdefault('buffer', None)
         return cls(**options)
     def __init__(self, **kwds):
-        opt = {}.__class__(__incpy__.vim.gvars['incpy#WindowOptions'])
+        opt = {}.__class__(__incpy__.vim.gvars['incpy#CoreWindowOptions'])
+        opt.update(__incpy__.vim.gvars['incpy#WindowOptions'])
         opt.update(kwds.pop('opt',{}))
         kwds.setdefault('preview', __incpy__.vim.gvars['incpy#WindowPreview'])
         kwds.setdefault('tab', __incpy__.internal.tab.getCurrent())
@@ -514,12 +518,14 @@ class internal(object):
             builtin = __incpy__.builtin
             result = []
             for k, v in __incpy__.six.iteritems(options):
-                if builtin.isinstance(v, __incpy__.six.integer_types):
-                    result.append("{:s}={:d}".format(k,v))
-                elif builtin.isinstance(v, __incpy__.six.string_types):
+                if builtin.isinstance(v, __incpy__.six.string_types):
                     result.append("{:s}={:s}".format(k,v))
+                elif builtin.isinstance(v, builtin.bool):
+                    result.append("{:s}{:s}".format('' if v else 'no', k))
+                elif builtin.isinstance(v, __incpy__.six.integer_types):
+                    result.append("{:s}={:d}".format(k,v))
                 else:
-                    result.append(k)
+                    raise NotImplementedError(k,v)
                 continue
             return '\\ '.join(result)
 
