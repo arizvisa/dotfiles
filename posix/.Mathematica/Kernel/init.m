@@ -51,7 +51,24 @@ Begin["UserInitializationFile`"]
     BoxData@RowBox@{"[", "\[SelectionPlaceholder]", "]"}
    ],
    MenuKey["]", Modifiers->{"Control"}]
+  ],
+
+ (* Associations *)
+  MenuItem[
+   "Wrap in <||> and continue at beginning",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"\[LeftAssociation]", "\[SelectionPlaceholder]", "\[RightAssociation]"}
+   ],
+   MenuKey["<", Modifiers->{"Control"}]
+  ],
+  MenuItem[
+   "Wrap in <||> and continue at end",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"\[LeftAssociation]", "\[SelectionPlaceholder]", "\[RightAssociation]"}
+   ],
+   MenuKey[">", Modifiers->{"Control"}]
   ]
+
  }
 
  (** Add menu items for wrapping expressions **)
