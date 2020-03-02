@@ -17,15 +17,15 @@ qproperty-line-fg-dummy-data-name:      #c0c0c0;
 qproperty-line-fg-regular-data-name:    #ffff00;
 qproperty-line-fg-demangled-name:       #ffffff;
 qproperty-line-fg-punctuation:          #c0c0c0;
-qproperty-line-fg-charlit-in-insh:      #80ff80;
-qproperty-line-fg-strlit-in-insn:       #80ff80;
-qproperty-line-fg-numlit-in-insn:       #ffffff;
-qproperty-line-fg-void-opnd:            #ff4040;
+qproperty-line-fg-charlit-in-insh:      #40ff40;
+qproperty-line-fg-strlit-in-insn:       #40ff40;
+qproperty-line-fg-numlit-in-insn:       #40a0c0;
+qproperty-line-fg-void-opnd:            #c06060;
 qproperty-line-fg-code-xref:            #00ff80;
 qproperty-line-fg-data-xref:            #008080;
 qproperty-line-fg-code-xref-to-tail:    #ff0000;
 qproperty-line-fg-data-xref-to-tail:    #c0c000;
-qproperty-line-fg-error:                #ffffff;
+qproperty-line-fg-error:                #ff4040;
 qproperty-line-fg-line-prefix:          #c0c0c0;
 qproperty-line-fg-opcode-byte:          #808080;
 qproperty-line-fg-extra-line:           #ffffff;
@@ -36,10 +36,10 @@ qproperty-line-fg-locvar:               #00ff80;
 qproperty-line-fg-dummy-code-name:      #c0c0c0;
 qproperty-line-fg-asm-directive:        #00c0c0;
 qproperty-line-fg-macro:                #ff00ff;
-qproperty-line-fg-strlit-in-data:       #80ff80;
-qproperty-line-fg-charlit-in-data:      #80ff80;
+qproperty-line-fg-strlit-in-data:       #40ff40;
+qproperty-line-fg-charlit-in-data:      #40ff40;
 qproperty-line-fg-numlit-in-data:       #ffffff;
-qproperty-line-fg-keyword:              #c0c0c0;
+qproperty-line-fg-keyword:              #a0a0a0;
 qproperty-line-fg-register-name:        #c0c0c0;
 qproperty-line-fg-import-name:          #ff00ff;
 qproperty-line-fg-segment-name:         #00ffff;
@@ -53,13 +53,13 @@ qproperty-line-fg-unsaved-changes:      #ff8000;
 
 /** line prefix **/
 qproperty-line-pfx-libfunc:         #c0ffff;
-qproperty-line-pfx-func:            #4040ff;
+qproperty-line-pfx-func:            #c0c0c0;
 qproperty-line-pfx-insn:            #00ffff;
 qproperty-line-pfx-data:            #c0c0c0;
 qproperty-line-pfx-unexplored:      #008080;
 qproperty-line-pfx-extern:          #c0c0c0;
-qproperty-line-pfx-current-item:    #808000;
-qproperty-line-pfx-current-line:    #80ff40;
+qproperty-line-pfx-current-item:    #40c0c0;
+qproperty-line-pfx-current-line:    #80ff80;
 /* qproperty-line-pfx-hidden-line:  #ffffff; */
 /* qproperty-line-pfx-lumina:       #ffffff; */
 
