@@ -2,20 +2,67 @@
 
 Begin["UserInitializationFile`"]
 
- (** Utilities for getting the current selections **)
- CurrentText[nb_NotebookObject] := CurrentValue[nb, "SelectionData"]
- CurrentCells[nb_NotebookObject] := Cells[NotebookSelection[nb]]
+ (** List of items to append to menu **)
+ InsertMatchingParenthesesMenuItems := {
 
- (** Extracting/Transforming information from a cell **)
- Contents[cell_CellObject] :=
-  Replace[First@NotebookRead[cell], BoxData[row___] -> row]
- WrapText[wrap_List /; (Length[wrap] == 2 && AllTrue[wrap, StringQ]), item_] :=
-  RowBox[{First@wrap, item, Last@wrap}]
- WrapCell[wrap_List /; (Length[wrap] == 2 && AllTrue[wrap, StringQ]), cell_] :=
-  Contents[cell] /. RowBox[items__] -> RowBox[Join[Take[wrap, 1], items, Rest[wrap]]]
+ (* Parentheses *)
+  MenuItem[
+   "Wrap in () and continue at beginning",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"(", "\[SelectionPlaceholder]", ")"}
+   ],
+   MenuKey["(", Modifiers->{"Control"}]
+  ],
+  MenuItem[
+   "Wrap in () and continue at end",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"(", "\[SelectionPlaceholder]", ")"}
+   ],
+   MenuKey[")", Modifiers->{"Control"}]
+  ],
 
+ (* Braces *)
+  MenuItem[
+   "Wrap in {} and continue at beginning",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"{", "\[SelectionPlaceholder]", "}"}
+   ],
+   MenuKey["{", Modifiers->{"Control"}]
+  ],
+  MenuItem[
+   "Wrap in {} and continue at end",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"{", "\[SelectionPlaceholder]", "}"}
+   ],
+   MenuKey["}", Modifiers->{"Control"}]
+  ],
+
+ (* Brackets *)
+  MenuItem[
+   "Wrap in [] and continue at beginning",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"[", "\[SelectionPlaceholder]", "]"}
+   ],
+   MenuKey["[", Modifiers->{"Control"}]
+  ],
+  MenuItem[
+   "Wrap in [] and continue at end",
+   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"[", "\[SelectionPlaceholder]", "]"}
+   ],
+   MenuKey["]", Modifiers->{"Control"}]
+  ]
+ }
+
+ (** Add menu items for wrapping expressions **)
+ If[$Notebooks,
+  FrontEndExecute@
+   AddMenuCommands[
+    "InsertMatchingParentheses",
+    Join[{Delimiter}, InsertMatchingParenthesesMenuItems, {Delimiter}]
+   ]
+ ]
 End[]
 
 Begin["Global`"]
- If[$Notebooks,True,True]
 End[]
