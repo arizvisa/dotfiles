@@ -22,7 +22,7 @@ qproperty-line-fg-strlit-in-insn:       #80ff80;
 qproperty-line-fg-numlit-in-insn:       #ffffff;
 qproperty-line-fg-void-opnd:            #ff4040;
 qproperty-line-fg-code-xref:            #00ff80;
-qproperty-line-fg-data-xref:            #00ffff;
+qproperty-line-fg-data-xref:            #008080;
 qproperty-line-fg-code-xref-to-tail:    #ff0000;
 qproperty-line-fg-data-xref-to-tail:    #c0c000;
 qproperty-line-fg-error:                #ffffff;
@@ -91,6 +91,17 @@ qproperty-graph-edge-high:              #ff00ff;
 qproperty-graph-edge-current:           #00ffff;
 }
 
+CustomIDAMemo[debugging="true"]
+{
+qproperty-line-bg-default: #404040;
+qproperty-line-bgovl-current-ip: #0080ff;
+}
+
+CustomIDAMemo[hints="true"]
+{
+qproperty-line-bg-default: #404040;
+}
+
 navband_t
 {
 qproperty-lib-function:         #004080;
@@ -108,11 +119,11 @@ qproperty-auto-analysis-cursor: #ff8000;
 
 TCpuRegs
 {
-/* background-color: #ffffff; */
+background-color:               #404040;
 qproperty-register-defined:     #000000;
 qproperty-register-changed:     #0000ff;
 qproperty-register-edited:      #800080;
-/* qproperty-register-unavailable: #808080; */
+qproperty-register-unavailable: #808080;
 }
 
 TextArrows
