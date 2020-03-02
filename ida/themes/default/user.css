@@ -2,10 +2,10 @@ CustomIDAMemo
 {
 
 /** line background **/
-/*qproperty-line-bg-default: #ffffff; */
-/*qproperty-line-bg-selected: #c0bbaf; */
-qproperty-line-bg-highlight: #ffffff;
-qproperty-line-bg-hint: #ffffff;
+qproperty-line-bg-default: #000040;
+qproperty-line-bg-selected: #608080;
+qproperty-line-bg-highlight: #404040;
+qproperty-line-bg-hint: #404040;
 
 /** line foreground **/
 qproperty-line-fg-default:              #c0c0c0;
@@ -17,14 +17,14 @@ qproperty-line-fg-dummy-data-name:      #c0c0c0;
 qproperty-line-fg-regular-data-name:    #ffff00;
 qproperty-line-fg-demangled-name:       #ffffff;
 qproperty-line-fg-punctuation:          #c0c0c0;
-qproperty-line-fg-charlit-in-insh:      #00ff00;
-qproperty-line-fg-strlit-in-insn:       #00ff00;
-qproperty-line-fg-numlit-in-insn:       #ffb7b7;
-qproperty-line-fg-void-opnd:            #ac0000;
+qproperty-line-fg-charlit-in-insh:      #00ff80;
+qproperty-line-fg-strlit-in-insn:       #00ff80;
+qproperty-line-fg-numlit-in-insn:       #ffc0c0;
+qproperty-line-fg-void-opnd:            #ff4040;
 qproperty-line-fg-code-xref:            #00ff80;
 qproperty-line-fg-data-xref:            #00ffff;
 qproperty-line-fg-code-xref-to-tail:    #ff0000;
-qproperty-line-fg-data-xref-to-tail:    #808000;
+qproperty-line-fg-data-xref-to-tail:    #c0c000;
 qproperty-line-fg-error:                #ffffff;
 qproperty-line-fg-line-prefix:          #c0c0c0;
 qproperty-line-fg-opcode-byte:          #808080;
@@ -34,14 +34,14 @@ qproperty-line-fg-hidden:               #c0c0c0;
 qproperty-line-fg-libfunc:              #80ffff;
 qproperty-line-fg-locvar:               #00ff80;
 qproperty-line-fg-dummy-code-name:      #c0c0c0;
-qproperty-line-fg-asm-directive:        #008080;
-qproperty-line-fg-macro:                #800080;
-qproperty-line-fg-strlit-in-data:       #00ff00;
-qproperty-line-fg-charlit-in-data:      #00ff00;
-qproperty-line-fg-numlit-in-data:       #00b7b7;
+qproperty-line-fg-asm-directive:        #00c0c0;
+qproperty-line-fg-macro:                #ff00ff;
+qproperty-line-fg-strlit-in-data:       #00ff80;
+qproperty-line-fg-charlit-in-data:      #00ff80;
+qproperty-line-fg-numlit-in-data:       #ffc0c0;
 qproperty-line-fg-keyword:              #c0c0c0;
 qproperty-line-fg-register-name:        #c0c0c0;
-qproperty-line-fg-import-name:          #c400c4;
+qproperty-line-fg-import-name:          #ff00ff;
 qproperty-line-fg-segment-name:         #00ffff;
 qproperty-line-fg-dummy-unknown-name:   #c0c0c0;
 qproperty-line-fg-code-name:            #8080ff;
@@ -77,8 +77,8 @@ qproperty-line-bg-dbg-ip-bpt-unavailable:   #804000;
 qproperty-line-bg-dbg-bpt-unavailable:      #ff8000;
 
 /** graph **/
-qproperty-graph-bg-top:                 #ffffff;
-qproperty-graph-bg-bottom:              #e0f8ff;
+qproperty-graph-bg-top:                 #606060;
+qproperty-graph-bg-bottom:              #606060;
 qproperty-graph-node-title-normal:      #ffffff;
 qproperty-graph-node-title-selected:    #b1f9f9;
 qproperty-graph-node-title-current:     #a0cfcf;
@@ -131,7 +131,7 @@ qproperty-register-target:              #4040ff;
 MainMsgList
 {
 color:              #c0c0c0;
-background-color:   #808080;
+background-color:   #404040;
 }
 
 TextEdit
@@ -148,11 +148,11 @@ qproperty-keyword3-fg:          #ff0000;
 qproperty-keyword3-fg-weight:   0;
 qproperty-keyword3-fg-italic:   0;
 
-qproperty-string-fg:        #8b0000;
+qproperty-string-fg:        #900000;
 qproperty-string-fg-weight: 0;
 qproperty-string-fg-italic: 0;
 
-qproperty-comment-fg:           #006400;
+qproperty-comment-fg:           #006000;
 qproperty-comment-fg-weight:    0;
 qproperty-comment-fg-italic:    1;
 
@@ -160,7 +160,7 @@ qproperty-preprocessor-fg:          #ff0000;
 qproperty-preprocessor-fg-weight:   1;
 qproperty-preprocessor-fg-italic:   0;
 
-qproperty-number-fg:        #008b8b;
+qproperty-number-fg:        #009090;
 qproperty-number-fg-weight: 1;
 qproperty-number-fg-italic: 0;
 }
