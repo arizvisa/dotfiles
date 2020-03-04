@@ -1,3 +1,19 @@
-#!/bin/sh
+#!/bin/bash
+executable=/usr/bin/w3m
+
+## pre-execute w3m in order to extract its options
+if [ ${BASH_VERSINFO[0]} -ge 4 ]; then
+    mapfile -t options < <( "$executable" -show-option | tail -n +3 | grep -v 'section\[[0-9]\]:' | cut -d= -f1 )
+else
+    IFS=$'\n' read -r -d '' -a options < <( "$executable" -show-option | tail -n +3 | grep -v 'section\[[0-9]\]:' | cut -d= -f1 )
+fi
+
 ## i hate how libgpm requires root to work.
-exec /usr/bin/w3m -no-mouse "$@"
+echo "${options[*]}" | grep -qo -- "-o use_mouse" && has_mouse=1 || has_mouse=0
+
+## finally run w3m with the user's parameters
+if [ $has_mouse -gt 0 ]; then
+    exec "$executable" -no-mouse "$@"
+else
+    exec "$executable" "$@"
+fi
