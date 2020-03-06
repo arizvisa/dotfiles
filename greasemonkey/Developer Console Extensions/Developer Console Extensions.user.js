@@ -17,10 +17,21 @@
 
 const $DEBUG = false;
 
-let $private$ = 0;
-const $private_uuid = GM.info.script.uuid.replace(/\W/g, '$');
-const $private_name = `${GM.info.scriptHandler}\$${$private_uuid}`;
-const private = () => `\$${$private_name}\$${$private$++}`;
+const private = (() => {
+  const owner = GM.info.scriptHandler;
+  const uuid = GM.info.script.uuid;
+
+  let id = uuid.replace(/\W/g, '$');
+  let name = `${owner}\$${id}`;
+
+  let variable = 0;
+  return {
+    id: () => uuid,
+    owner: () => owner,
+    name: () => name,
+    new: () => `\$${name}\$${variable++}`,
+  };
+})();
 
 /** main code **/
 function main() {
@@ -44,20 +55,20 @@ function main() {
 
   // create a script object and append all of our text items
   const script = document.createElement('script', { type: "text/javascript" });
-  script.dataset.handler = GM.info.scriptHandler;
-  script.dataset.owner = $private_uuid;
+  script.dataset.creator = private.owner();
+  script.dataset.owner = private.id();
   chunks.forEach(chunk => script.appendChild(chunk));
 
-  // create some script to cleanup our element when we're done
-  const cleanup = (handler, owner) => document.querySelectorAll(`script[data-handler=${handler}][data-owner="${owner}"]`).forEach(E => E.remove());
-  inject_closure(cleanup, script.dataset.handler, script.dataset.owner).forEach(chunk => script.appendChild(new Text(chunk)));
+  // inject a closure to remove our script when we're done
+  let Fcleanup = (creator, owner) => document.querySelectorAll(`script[data-creator="${creator}"][data-owner="${owner}"]`).forEach(E => E.remove());
+  inject_closure(Fcleanup, script.dataset.creator, script.dataset.owner).forEach(chunk => script.appendChild(new Text(chunk)));
 
   // finally we can attach it
   (document.body || document.head || document.documentElement).appendChild(script);
 }
 
 function setattr_console(attribute, closure) {
-  const varname = private();
+  const varname = private.new();
 
   let setattribute = (attribute, value) => { window.console[attribute] = value; };
 
@@ -68,7 +79,7 @@ function setattr_console(attribute, closure) {
 }
 
 function inject_closure(closure, ...parameters) {
-  const varname = private();
+  const varname = private.new();
 
   let res = [];
   res.push(`${varname} = ${closure.toSource()};`);
