@@ -59,7 +59,7 @@ function main() {
   script.dataset.owner = private.id();
 
   if ($DEBUG) {
-    console.info(`Created an ${HTMLScriptElement.name} with creator "${script.dataset.creator}" owned by ${script.dataset.owner}`);
+    console.info(`Created ${script.toString()} with creator "${script.dataset.creator}" owned by ${script.dataset.owner}`);
 
     for (let index = 0; index < chunks.length; index++)
       console.debug(`Line #${index}: ${chunks[index].wholeText}`);
@@ -73,7 +73,7 @@ function main() {
   let _ = inject_closure(Fcleanup, script.dataset.creator, script.dataset.owner);
 
   if ($DEBUG) {
-    console.info(`Injecting cleanup closure for ${HTMLScriptElement.name} selector: ${script.nodeName}[data-creator="${script.dataset.creator}"][data-owner="${script.dataset.owner}"]`);
+    console.info(`Injecting cleanup closure for ${script.toString()} with selector: ${script.nodeName}[data-creator="${script.dataset.creator}"][data-owner="${script.dataset.owner}"]`);
 
     for (let index = 0; index < _.length; index++)
       console.debug(`Line #${index}: ${_[index]}`);
@@ -93,6 +93,7 @@ function setattr_console(attribute, closure) {
   let res = [];
   res.push(`${varname} = ${closure.toSource()};`);
   res.push(`(${setattribute.toSource()})(${attribute.toSource()}, ${varname});`);
+  res.push(`delete(${varname});`);
   return res;
 }
 
@@ -102,6 +103,7 @@ function inject_closure(closure, ...parameters) {
   let res = [];
   res.push(`${varname} = ${closure.toSource()};`);
   res.push(`${varname}.apply(${undefined}, ${parameters.toSource()});`);
+  res.push(`delete(${varname});`);
   return res;
 }
 
