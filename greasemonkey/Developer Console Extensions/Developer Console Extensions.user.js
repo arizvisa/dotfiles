@@ -57,11 +57,29 @@ function main() {
   const script = document.createElement('script', { type: "text/javascript" });
   script.dataset.creator = private.owner();
   script.dataset.owner = private.id();
+
+  if ($DEBUG) {
+    console.info(`Created an ${HTMLScriptElement.name} with creator "${script.dataset.creator}" owned by ${script.dataset.owner}`);
+
+    for (let index = 0; index < chunks.length; index++)
+      console.debug(`Line #${index}: ${chunks[index].wholeText}`);
+  }
+
   chunks.forEach(chunk => script.appendChild(chunk));
 
-  // inject a closure to remove our script when we're done
-  let Fcleanup = (creator, owner) => document.querySelectorAll(`script[data-creator="${creator}"][data-owner="${owner}"]`).forEach(E => E.remove());
-  inject_closure(Fcleanup, script.dataset.creator, script.dataset.owner).forEach(chunk => script.appendChild(new Text(chunk)));
+  // inject the closure to remove our script element when we're done
+  const Fcleanup = (creator, owner) => document.querySelectorAll(`script[data-creator="${creator}"][data-owner="${owner}"]`).forEach(E => E.remove());
+
+  let _ = inject_closure(Fcleanup, script.dataset.creator, script.dataset.owner);
+
+  if ($DEBUG) {
+    console.info(`Injecting cleanup closure for ${HTMLScriptElement.name} selector: ${script.nodeName}[data-creator="${script.dataset.creator}"][data-owner="${script.dataset.owner}"]`);
+
+    for (let index = 0; index < _.length; index++)
+      console.debug(`Line #${index}: ${_[index]}`);
+  }
+
+  _.forEach(chunk => script.appendChild(new Text(chunk)));
 
   // finally we can attach it
   (document.body || document.head || document.documentElement).appendChild(script);
@@ -83,7 +101,7 @@ function inject_closure(closure, ...parameters) {
 
   let res = [];
   res.push(`${varname} = ${closure.toSource()};`);
-  res.push(`${varname}.apply(${varname}, ${parameters.toSource()});`);
+  res.push(`${varname}.apply(${undefined}, ${parameters.toSource()});`);
   return res;
 }
 
@@ -97,7 +115,7 @@ const TestAttributeAssignment = () => {
     res.push(item);
 
   console.info(`The console object has the following ${res.length} attributes:`);
-  console.log(res.join(', '));
+  console.debug(res.join(', '));
 };
 
 const DownloadJSONBlob = (object, filename) => {
