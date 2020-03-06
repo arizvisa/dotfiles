@@ -36,14 +36,21 @@ function main() {
 
   // aggregate an array of the necessary chunks, and escape them to solid text
   let res = [];
+
   for (let item of items)
     res = res.concat(setattr_console(item.name, item.closure));
 
   let chunks = res.map(item => new Text(item));
 
   // create a script object and append all of our text items
-  const script = document.createElement('script');
+  const script = document.createElement('script', { type: "text/javascript" });
+  script.dataset.handler = GM.info.scriptHandler;
+  script.dataset.owner = $private_uuid;
   chunks.forEach(chunk => script.appendChild(chunk));
+
+  // create some script to cleanup our element when we're done
+  const cleanup = (handler, owner) => document.querySelectorAll(`script[data-handler=${handler}][data-owner="${owner}"]`).forEach(E => E.remove());
+  inject_closure(cleanup, script.dataset.handler, script.dataset.owner).forEach(chunk => script.appendChild(new Text(chunk)));
 
   // finally we can attach it
   (document.body || document.head || document.documentElement).appendChild(script);
@@ -57,6 +64,15 @@ function setattr_console(attribute, closure) {
   let res = [];
   res.push(`${varname} = ${closure.toSource()};`);
   res.push(`(${setattribute.toSource()})(${attribute.toSource()}, ${varname});`);
+  return res;
+}
+
+function inject_closure(closure, ...parameters) {
+  const varname = private();
+
+  let res = [];
+  res.push(`${varname} = ${closure.toSource()};`);
+  res.push(`${varname}.apply(${varname}, ${parameters.toSource()});`);
   return res;
 }
 
