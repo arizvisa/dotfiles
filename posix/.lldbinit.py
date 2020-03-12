@@ -29,7 +29,7 @@ if __name__ == '__main__':
 import sys,os,platform,traceback,logging
 import types,itertools,operator,functools
 import fnmatch,six,array,math,string,heapq
-import commands,argparse,shlex,string
+import argparse,shlex,string
 import lldb
 import subprocess,re
 try:
@@ -178,7 +178,7 @@ class ExpressionGrammar:
             res = tokens[0]
             self.register, = res
         def __repr__(self):
-            return '%{:s}'.format(self.register)
+            return "%{:s}".format(self.register)
         def eval(self, **kwds):
             """
             registers -- dictionary of the current frame's register state
@@ -192,7 +192,7 @@ class ExpressionGrammar:
             res = tokens[0]
             self.func, self.expr = res
         def __repr__(self):
-            return '{:s}({!r})'.format(self.func, self.expr)
+            return "{:s}({!r})".format(self.func, self.expr)
         def eval(self, **kwds):
             """
             function -- dictionary of keyword to callable
@@ -210,7 +210,7 @@ class ExpressionGrammar:
                 self.value = tokens[0]
             def __repr__(self):
                 res = [repr(x) for x in self.value]
-                return '{:s}({:s})'.format(self.op.__name__, ','.join(res))
+                return "{:s}({:s})".format(self.op.__name__, ','.join(res))
             def eval(self, **kwds):
                 return reduce(self.op, ((n if isinstance(n, six.integer_types) else n.eval(**kwds)) for n in self.value))
         tokens.op = op
@@ -231,7 +231,7 @@ class ExpressionGrammar:
         (kOpOr, 2, pp.opAssoc.LEFT, operation(operator.or_)),       \
         (kOpAnd, 2, pp.opAssoc.LEFT, operation(operator.and_)),     \
         (kOpMultiply, 2, pp.opAssoc.LEFT, operation(operator.mul)), \
-        (kOpDivide, 2, pp.opAssoc.LEFT, operation(operator.div)),   \
+        (kOpDivide, 2, pp.opAssoc.LEFT, operation(operator.floordiv)),   \
         (kOpPlus, 2, pp.opAssoc.LEFT, operation(operator.add)),     \
         (kOpMinus, 2, pp.opAssoc.LEFT, operation(operator.sub)),    \
     ])
@@ -260,7 +260,7 @@ class ExpressionParser(object):
         err.Clear()
         data = self.process.ReadMemory(address, size, err)
         if err.Fail() or len(data) != size:
-            raise ValueError('{:s}.{:s}.read : Unable to read 0x{:x} bytes from 0x{:x}'.format(__name__, self._class__.__name__, size, address))
+            raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, self._class__.__name__, size, address))
         data = reversed(data) if sys.byteorder == 'little' else data[:]
         return reduce(lambda t,c: t << 8 | ord(c), data, 0)
     def by(self, address):
@@ -332,7 +332,7 @@ __FRONTEND__ = types.ModuleType('__FRONTEND__') # fuck lldb
 class Command(object):
     __alias__, cache = {}, __FRONTEND__.__dict__
     __synchronicity__ = {}
-    __typemap__ = [(types.TypeType, types.ObjectType), ((types.FunctionType,types.MethodType), types.FunctionType)]
+    __typemap__ = [(type, object), ((types.FunctionType,types.MethodType), types.FunctionType)]
 
     class __synchtype__(object): pass
     ASYNC = type('asynchronous', (__synchtype__,), {'value':'asyncronous'})
@@ -352,7 +352,7 @@ class Command(object):
         if not instance.__name__:
             raise AssertionError("{:s}.{:s}.__hash : Unable to hash instance due to it being unnamed. : {!r}".format(__name__, cls.__name__, instance.__class__))
         t = cls.__type(instance)
-        return '_{:d}_{:x}'.format(id(t), abs(hash(instance.__name__)))
+        return "_{:d}_{:x}".format(id(t), abs(hash(instance.__name__)))
 
     @classmethod
     def add(cls, name, callable, sync=None):
@@ -383,7 +383,7 @@ class Command(object):
             elif t == types.ObjectType and key not in cls.__synchronicity__:
                 scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
             else:
-                raise TypeError('{:s}.{:s} : Unable to generate command with unknown type. {!r}'.format(cls.__module__, cls.__name__, t))
+                raise TypeError("{:s}.{:s} : Unable to generate command with unknown type. {!r}".format(cls.__module__, cls.__name__, t))
             return scr
     else:
         @classmethod
@@ -397,7 +397,7 @@ class Command(object):
             elif t == types.ObjectType and key not in cls.__synchronicity__:
                 scr = functools.partial("command script add -c {:s}.{:s} {:s}".format, '.'.join(path), key)
             else:
-                raise TypeError('{:s}.{:s} : Unable to generate command with unknown type. {!r}'.format(cls.__module__, cls.__name__, t))
+                raise TypeError("{:s}.{:s} : Unable to generate command with unknown type. {!r}".format(cls.__module__, cls.__name__, t))
             return scr
 
     @classmethod
@@ -484,7 +484,7 @@ class Command(object):
                 if not res: error[k] = res
             continue
         if error:
-            raise StandardError('{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
+            raise StandardError("{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
 
         # now we can add each command
         error, result = {}, lldb.SBCommandReturnObject()
@@ -497,7 +497,7 @@ class Command(object):
         # and now we can update our alias dictionary with our changes
         cls.__alias__.update({k : v for k,v in aliasdict.iteritems() if k not in error})
         if error:
-            logging.warn('{:s}.{:s} : Error trying to add the following commands : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
+            logging.warn("{:s}.{:s} : Error trying to add the following commands : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
 
         # finally done
         return False if error else True
@@ -515,7 +515,7 @@ class Command(object):
         result.Clear()
         res = cls.interpreter.HandleCommand(removescr(name), result, False)
         if not result.Succeeded():
-            logging.warn('{:s}.{:s} : Error trying to remove the following alias : {!r}'.format(cls.__module__, cls.__name__, name))
+            logging.warn("{:s}.{:s} : Error trying to remove the following alias : {!r}".format(cls.__module__, cls.__name__, name))
             return False
 
         # now clear the alias
@@ -549,7 +549,7 @@ class Command(object):
             res = cls.interpreter.HandleCommand(addcmd, result, False)
             if not result.Succeeded(): error[alias] = res
         if error:
-            logging.warn('{:s}.{:s} : Error trying to load the following commands : {!r}'.format(cls.__module__, cls.__name__, tuple(error.keys())))
+            logging.warn("{:s}.{:s} : Error trying to load the following commands : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
             return False
         return True
     def __new__(cls, name, sync=None):
@@ -649,7 +649,8 @@ class DebuggerCommand(object):
     flags = 0
 
     @classmethod
-    def __convert__(cls, ctx, (debugger, context)):
+    def __convert__(cls, ctx, packed_debuggercontext):
+        (debugger, context) = packed_debuggercontext
         # for some reason if these aren't touched, they don't work.
         lldb.target,lldb.debugger,lldb.process,lldb.thread,lldb.frame
 
@@ -777,7 +778,7 @@ class Module(object):
         for i,m in results:
             if not all and not cls.mappedQ(m):
                 continue
-            yield '[{:d}] {:s}'.format(i, cls.repr(m))
+            yield "[{:d}] {:s}".format(i, cls.repr(m))
         return
 
     @classmethod
@@ -801,8 +802,8 @@ class Module(object):
     @classmethod
     def repr(cls, m):
         addr,size = cls.address(m),cls.loadsize(m)
-        start = '0x{:x}'.format(addr) if cls.mappedQ(m) else '{unmapped}'
-        return '{name:s} {triple:s} {fullname:s} {address:s}:+0x{size:x} num_sections={sections:d} num_symbols={symbols:d}'.format(address=start, size=size, name=m.file.basename, triple=m.triple, fullname=m.file.fullpath, symbols=len(m.symbols), sections=len(m.sections))
+        start = "{:#x}".format(addr) if cls.mappedQ(m) else '{unmapped}'
+        return "{name:s} {triple:s} {fullname:s} {address:s}:+{size:#x} num_sections={sections:d} num_symbols={symbols:d}".format(address=start, size=size, name=m.file.basename, triple=m.triple, fullname=m.file.fullpath, symbols=len(m.symbols), sections=len(m.sections))
 
 class Section(object):
     SUMMARY_SIZE = 0x10
@@ -816,7 +817,7 @@ class Section(object):
             if e.Fail(): raise Exception
         except:
             data = '???'
-        return '[0x{address:x}] {name:!r} 0x{offset:x}:+0x{size:x}{:s}'.format(name=s.name, offset=s.file_offset, size=s.size, address=s.file_addr, data=(' '+data if data else ''))
+        return "[{address:#x}] {name:!r} {offset:#x}:+{size:#x}{:s}".format(name=s.name, offset=s.file_offset, size=s.size, address=s.file_addr, data=(' '+data if data else ''))
 
 class Symbol(object):
     @classmethod
@@ -845,7 +846,7 @@ class Symbol(object):
 
             # start yielding our results
             for i,s in enumerate(res):
-                yield '[{:d}] {:s}'.format(total+i, prefix+cls.repr(s))
+                yield "[{:d}] {:s}".format(total+i, prefix+cls.repr(s))
             total += i + 1
         return
 
@@ -868,9 +869,9 @@ class Symbol(object):
         types = {getattr(lldb,n) : n[len(TYPE_PREFIX):] for n in dir(lldb) if n.startswith(TYPE_PREFIX)}
         attributes = (n for n in ('external','synthetic') if getattr(s,n))
         if s.type in (lldb.eTypeClassFunction,):
-            attributes = itertools.chain(attributes, ('instructions={:d}'.format(len(s.instructions))))
+            attributes = itertools.chain(attributes, ("instructions={:d}".format(len(s.instructions))))
         attributes=filter(None,attributes)
-        return '{name:s}{opt_mangled:s} type={type:s} 0x{addr:x}{opt_size:s}'.format(name=s.name, type=types.get(s.type,str(s.type)), opt_mangled=(' ('+s.mangled+')') if s.mangled else '', addr=start, opt_size=':+0x{:x}'.format(end-start) if end > start else '') + ((' ' + ' '.join(attributes)) if attributes else '')
+        return "{name:s}{opt_mangled:s} type={type:s} {addr:#x}{opt_size:s}".format(name=s.name, type=types.get(s.type,str(s.type)), opt_mangled=(' ('+s.mangled+')') if s.mangled else '', addr=start, opt_size=":+{:#x}".format(end-start) if end > start else '') + ((' ' + ' '.join(attributes)) if attributes else '')
 
 class Frame(object):
     @classmethod
@@ -956,7 +957,7 @@ class Target(object):
         err.Clear()
         data = process.ReadMemory(address, count, err)
         if err.Fail() or len(data) != count:
-            raise ValueError("{:s}.{:s}.read : Unable to read 0x{:x} bytes from 0x{:x}".format(__name__, cls.__name__, count, address))
+            raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, cls.__name__, count, address))
         return data
 
     ## dumping
@@ -975,14 +976,14 @@ class Target(object):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(0x10))
         while True:
             n = next(iterable)
-            yield '{:0{:d}x}'.format(n, int(maxlength))
+            yield "{:0{:d}x}".format(n, int(maxlength))
         return
 
     @classmethod
     def _bin_generator(cls, iterable, itemsize):
         while True:
             n = next(iterable)
-            yield '{:0{:d}b}'.format(n, itemsize)
+            yield "{:0{:d}b}".format(n, itemsize)
         return
 
     @classmethod
@@ -990,7 +991,7 @@ class Target(object):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(10))
         while True:
             n = next(iterable)
-            yield '{:{:d}d}'.format(n, int(maxlength))
+            yield "{:{:d}d}".format(n, int(maxlength))
         return
 
     @classmethod
@@ -998,7 +999,7 @@ class Target(object):
         maxlength = 32
         while True:
             n = next(iterable)
-            yield '{:{:d}.5f}'.format(n, int(maxlength))
+            yield "{:{:d}.5f}".format(n, int(maxlength))
         return
 
     @classmethod
@@ -1053,14 +1054,14 @@ class Target(object):
     def _dump(cls, target, address, count, width, kind, content):
         data = cls.read(target, address, count)
         countup = int((count // width) * width)
-        offset = ('{:0{:d}x}'.format(a, int(math.ceil(math.log(address+count)/math.log(0x10)))) for a in xrange(address, address+countup, width))
+        offset = ("{:0{:d}x}".format(a, int(math.ceil(math.log(address+count)/math.log(0x10)))) for a in xrange(address, address+countup, width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
             row = cls._row(width, cols)
             if len(row[0].strip()) == 0: break
             maxcols = tuple(max((n,len(r))) for n,r in zip(maxcols,row))
-            yield tuple('{:{:d}s}'.format(col, colsize) for col,colsize in zip(row,maxcols))
+            yield tuple("{:{:d}s}".format(col, colsize) for col,colsize in zip(row,maxcols))
         return
 
     @classmethod
@@ -1089,9 +1090,9 @@ class Breakpoint(object):
     @classmethod
     def __hash(cls, instance):
         if isinstance(instance, lldb.SBBreakpoint):
-            return '_{:s}_{:d}'.format(lldb.SBBreakpoint.__name__, instance.GetID())
+            return "_{:s}_{:d}".format(lldb.SBBreakpoint.__name__, instance.GetID())
         elif isinstance(instance, lldb.SBWatchpoint):
-            return '_{:s}_{:d}'.format(lldb.SBWatchpoint.__name__, instance.GetID())
+            return "_{:s}_{:d}".format(lldb.SBWatchpoint.__name__, instance.GetID())
         raise TypeError("{:s}.{:s}.hash : Unable to hash instance due to invalid type. : {!r}".format(__name__, cls.__name__, instance.__class__))
 
     ## cache modification
@@ -1180,7 +1181,7 @@ class Breakpoint(object):
             (a,k), = result
             if a == address:
                 return k
-            raise LookupError('{:s}.{:s}.search : Unable to find address 0x{:x} in breakpoint list.'.format(__name__, cls.__name__, address))
+            raise LookupError("{:s}.{:s}.search : Unable to find address {:#x} in breakpoint list.".format(__name__, cls.__name__, address))
         return recurse(cls.__address__[:], address)
 
     @classmethod
@@ -1211,7 +1212,7 @@ class Breakpoint(object):
         err = lldb.SBCommandReturnObject()
         bp = target.WatchAddress(addr, size, 'r' in perms, 'w' in perms, err)
         if not err.Succeeded():
-            raise ValueError("{:s}.{:s}.add_access : Unable to add watchpoint at address 0x{:x}. : {!r}".format(__name__, cls.__name__, addr, expr))
+            raise ValueError("{:s}.{:s}.add_access : Unable to add watchpoint at address {:#x}. : {!r}".format(__name__, cls.__name__, addr, expr))
         res = cls.__add_cache(bp)
         key = cls.cache[res]
         bp.AddName(key)
@@ -1230,8 +1231,8 @@ class Breakpoint(object):
 
         bptype = 'breakpoint' if isinstance(cls.get(id), lldb.SBBreakpoint) else 'watchpoint'
 
-        addscript = functools.partial('{:s} command add {:s}'.format, bptype)
-        addcallable = functools.partial('{:s} command add -F {:s}.{:s} {:s}'.format, bptype, '.'.join(path), key)
+        addscript = functools.partial("{:s} command add {:s}".format, bptype)
+        addcallable = functools.partial("{:s} command add -F {:s}.{:s} {:s}".format, bptype, '.'.join(path), key)
         if isinstance(com, list):
             commands = [addscript(key)] + com + ['DONE']
             return debugger.HandleCommand('\n'.join(commands))
@@ -1279,7 +1280,7 @@ class Breakpoint(object):
             expr = ''
         else:
             expr = ' -- ' + repr(expr)
-        return '0x{:x}:+{:d} -- {{{:s}}}'.format(addr, size, 'enabled' if bp.IsEnabled() else 'disabled') + expr
+        return "{:#x}:+{:d} -- {{{:s}}}".format(addr, size, 'enabled' if bp.IsEnabled() else 'disabled') + expr
 
     class frontend(object):
         def __getattr__(self, name):
@@ -1299,7 +1300,7 @@ class list_modules(DebuggerCommand):
     @staticmethod
     def command(target, args):
         for res in Module.list(target, args.glob, all=args.all, ignorecase=args.ignorecase):
-            print res
+            print(res)
         return
 
 @Command('ls')
@@ -1314,7 +1315,7 @@ class list_symbols(DebuggerCommand):
     @staticmethod
     def command(target, args):
         for res in Symbol.list(target, args.glob, all=args.all, ignorecase=args.ignorecase):
-            print res
+            print(res)
         return
 
 #@Command('gvars')
@@ -1448,7 +1449,7 @@ class show_code(DebuggerCommand):
         # lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble  --start-address=$pc --count={:d} -F {:s}".format(Options.here[1], Options.syntax), None)
         res = lldb.SBCommandReturnObject();
         lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -f -F {:s}".format(Options.syntax), res);
-        # print res.GetOutput();
+        # print(res.GetOutput();)
         x = res.GetOutput().split("\n")
         count = 0
         back = Options.backward_disassembly
@@ -1460,7 +1461,7 @@ class show_code(DebuggerCommand):
 
         for i in range(count-back, count+fwd):
             try:
-                print x[i]
+                print(x[i])
             except:
                 continue
 
@@ -1496,7 +1497,7 @@ class mem_prot(DebuggerCommand):
         if len(cls.mem_map) == 0:
             cls.load_map(process)
 
-        print cls.query(int(args[0],16))
+        print(cls.query(int(args[0],16)))
 
 @Command('dsearch')
 class dsearch(DebuggerCommand):
@@ -1519,7 +1520,7 @@ class dsearch(DebuggerCommand):
         res = str(res).split("\n")[2:]
         for i in res:
             if  not re.search(r'\d', i) or word in i:
-                print i
+                print(i)
 
 @Command('p')
 class eval(DebuggerCommand):
@@ -1529,7 +1530,7 @@ class eval(DebuggerCommand):
     def command(target, args):
         res = Target.evaluate(target, ''.join(args))
         # FIXME: display all possible output formats like in pcalc
-        print '{:d} -- 0x{:x}'.format(res, res)
+        print("{:d} -- {:#x}".format(res, res))
 
 class hexdump(DebuggerCommand):
     context = lldb.SBTarget
@@ -1541,7 +1542,7 @@ class hexdump(DebuggerCommand):
     def command(cls, target, args):
         count = Options.rows if args.count is None else args.count[0]
         expr = Target.evaluate(target, ''.join(args.expression))
-        print Target.hexdump(target, expr, count, cls.kind)
+        print(Target.hexdump(target, expr, count, cls.kind))
 
 class itemdump(DebuggerCommand):
     context = lldb.SBTarget
@@ -1553,7 +1554,7 @@ class itemdump(DebuggerCommand):
     def command(cls, target, args):
         count = Options.rows if args.count is None else args.count[0]
         expr = Target.evaluate(target, ''.join(args.expression))
-        print Target.itemdump(target, expr, count, cls.kind)
+        print(Target.itemdump(target, expr, count, cls.kind))
 
 class binarydump(DebuggerCommand):
     flags, context = Flags.ProcessMustBePaused, lldb.SBTarget
@@ -1566,7 +1567,7 @@ class binarydump(DebuggerCommand):
     def command(cls, target, args):
         count = Options.rows if args.count is None else args.count[0]
         expr = Target.evaluate(target, ''.join(args.expression))
-        print Target.binarydump(target, expr, count, cls.kind)
+        print(Target.binarydump(target, expr, count, cls.kind))
 
 # FIXME: fix up the help documentation for each of these
 @Command('db')
@@ -1620,7 +1621,7 @@ class show(DebuggerCommand):
         show_regs.command(frame, args)
         print('')
         show_stack.command(frame, args)
-        print ""
+        print("")
         show_code.command(frame, args)
 
 @Command('maps')
@@ -1634,7 +1635,7 @@ class show_maps(DebuggerCommand):
         pid = process.GetProcessID();
         p = subprocess.Popen(['sudo','vmmap', str(pid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
-        print out
+        print(out)
 
 @Command('cwd')
 class getcwd(DebuggerCommand):
@@ -1658,7 +1659,7 @@ class breakpoint_code(DebuggerCommand):
     @staticmethod
     def command(target, args):
         id = Breakpoint.add_access(target, ' '.join(args.expression), args.size, args.access)
-        print "Successfully added watchpoint #{:d}".format(id)
+        print("Successfully added watchpoint #{:d}".format(id))
 
 @Command('bp')
 class breakpoint_code(DebuggerCommand):
@@ -1671,7 +1672,7 @@ class breakpoint_code(DebuggerCommand):
     def command(target, args):
         id = Breakpoint.add_execute(target, ' '.join(args.expression))
         # FIXME: add commands
-        print "Successfully added breakpoint #{:d}".format(id)
+        print("Successfully added breakpoint #{:d}".format(id))
 
 @Command('bc')
 class breakpoint_delete(DebuggerCommand):
@@ -1684,10 +1685,10 @@ class breakpoint_delete(DebuggerCommand):
         count = 0
         for i in args.breakpoint:
             i = int(i)
-            print 'Removing #{:d} -- {:s}'.format(i, Breakpoint.repr(i))
+            print("Removing #{:d} -- {:s}".format(i, Breakpoint.repr(i)))
             Breakpoint.remove(target, i)
             count += 1
-        print "Successfully removed {:d} breakpoints.".format(count)
+        print("Successfully removed {:d} breakpoints.".format(count))
 
 @Command('bl')
 class breakpoint_list(DebuggerCommand):
@@ -1696,7 +1697,7 @@ class breakpoint_list(DebuggerCommand):
     def command(target, args):
         # FIXME: allow one to select which breakpoints to list
         for i, _ in Breakpoint.enumerate():
-            print '[{:d}] {:s}'.format(i, Breakpoint.repr(i))
+            print("[{:d}] {:s}".format(i, Breakpoint.repr(i)))
         return
 
 @Command('be')
@@ -1710,7 +1711,7 @@ class breakpoint_enable(DebuggerCommand):
         # FIXME: convert args.breakpoint from a range into a list
         for i in map(int, args.breakpoint):
             Breakpoint.enable(i)
-            print '[{:d}] {:s}'.format(i, Breakpoint.repr(i))
+            print("[{:d}] {:s}".format(i, Breakpoint.repr(i)))
         return
 
 @Command('bd')
@@ -1724,5 +1725,5 @@ class breakpoint_disable(DebuggerCommand):
         # FIXME: convert args.breakpoint from a range into a list
         for i in map(int, args.breakpoint):
             Breakpoint.disable(i)
-            print '[{:d}] {:s}'.format(i, Breakpoint.repr(i))
+            print("[{:d}] {:s}".format(i, Breakpoint.repr(i)))
         return
