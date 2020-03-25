@@ -1,0 +1,86 @@
+#!/bin/sh
+dashless=$(basename "$0" | sed -e 's/-/ /')
+
+USAGE="[bind-address:bind-port] [..daemon parameters...]"
+OPTIONS_SPEC=
+SUBDIRECTORY_OK=Yes
+DEFAULT_DAEMON_PARAMETERS="--verbose --informative-errors --reuseaddr --enable=upload-pack"
+
+. git-sh-setup
+
+# define some utilities
+find_service_port()
+{
+    service="$1"
+    protocol="$2"
+    service_path=/etc/services
+    grep -- "^$service" "$service_path" | sed "s/\s\+/\t/g" | cut -f2 | while read port; do
+        case "$port" in
+        */$protocol)
+            echo "$port" | cut -d/ -f1
+            return 0
+            ;;
+        *)
+            ;;
+        esac
+    done
+    return 1
+}
+
+split_host()
+{
+    target="$1"
+    echo "$target" | rev | cut -d: -f2- | rev
+}
+
+split_port()
+{
+    target="$1"
+    echo "$target" | rev | cut -d: -f1 | rev
+}
+
+isnumber()
+{
+	n=$(($1 + 0)) 2>/dev/null && test "$n" = "$1"
+}
+
+# make sure we have a working tree, and figure out where its at
+require_work_tree
+cd_to_toplevel
+
+# figure out where we are and what repository it is
+toplevel=`pwd`
+name=`basename "$toplevel"`
+
+# extract the parameters provided by the user
+bind_host="0.0.0.0"
+bind_port=`find_service_port git tcp`
+
+if [ "$#" -gt 0 ]; then
+    case "$1" in
+    -)
+        ;;
+    :*)
+        bind_port=`split_port "$1"`
+        ;;
+    *:)
+        usage
+        ;;
+    *:*)
+        bind_host=`split_host "$1"`
+        bind_port=`split_port "$1"`
+        ;;
+    *)
+        bind_host="$1"
+    esac
+    shift
+fi
+
+test -z "$bind_host" && usage
+isnumber "$bind_port" || usage
+
+# now we can finally serve the directory
+printf "Serving repository %s from %s: git://%s:%d/%s\n" "$name" "$toplevel" "$bind_host" "$bind_port" "$name"
+
+base_path=`resolvepath "$toplevel/.."`
+git daemon $DEFAULT_DAEMON_PARAMETERS "$@" --export-all --listen="$bind_host" --port="$bind_port" --base-path="$base_path" "$toplevel"
