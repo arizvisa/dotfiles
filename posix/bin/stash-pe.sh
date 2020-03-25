@@ -4,7 +4,7 @@ outdir="$2"
 infile=`basename "$inpath"`
 
 PYTHON=`which python`
-test -z "$SYRINGE" && SYRINGE=`python -c 'print __import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", ".."))'`
+test -z "$SYRINGE" && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
 
 if test -z "$inpath" -o "$#" -lt 2; then
     echo "Usage: $0 file path [peversionpath-options..]" 1>&2
@@ -38,7 +38,10 @@ if test "$?" -gt 0; then
 
     if test -z "$outpath"; then
         echo "Unable to determine the path from the VERSION_INFO record : $inpath" 1>&2
-        exit 1
+        seconds=`stat -c %W "$inpath"`
+        ts=`date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S`
+        outpath="$infile/$ts/$infile"
+        echo "Falling back to creation timestamp ($ts) for $inpath" 1>&2
     fi
 fi
 echo "Output path determined from version was \"$outpath\"." 1>&2
