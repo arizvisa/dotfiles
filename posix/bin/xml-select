@@ -1,30 +1,31 @@
-#!/usr/bin/env python2
-import user
-import sys, itertools, lxml.etree
+#!/usr/bin/env python
+import six, sys, itertools, lxml.etree
 
 def help():
-    print "%s tag [attribute value]...\n"%sys.argv[0]
-    print "read in html from stdin, search for all instances of tag where"
-    print "any of the attributes matches value. this then will print the"
-    print "contents of the tag"
+    six.print_("{:s} tag [attribute value]...\n".format(sys.argv[0]))
+    six.print_('read in html from stdin, search for all instances of tag where')
+    six.print_('any of the attributes matches value. this then will print the')
+    six.print_('contents of the tag')
     sys.exit()
 
 def finditer(soup, **attributes):
-    chef = lambda (_,plate): any(plate.get(season) == amount for season,amount in attributes.iteritems()) if attributes else True
-    for _,e in itertools.ifilter(chef, soup):
+    def chef(plate):
+        _, item = plate
+        return any(item.get(season) == amount for season, amount in attributes.items()) if attributes else True
+    for _, e in six.moves.filter(chef, soup):
         yield e
     return
 
-if __name__ == "__main__":
-    import os,sys
-    cook,seasoning = finditer,sys.argv[2:]
-    if len(sys.argv)>1 and len(seasoning)%2 == 0:
+if __name__ == '__main__':
+    import os, sys
+    cook, seasoning = finditer, sys.argv[2:]
+    if len(sys.argv) > 1 and len(seasoning) % 2 == 0:
         seasoning = zip(*((iter(seasoning),)*2))
     else:
         help()
 
-    seasoning,ingredients = dict(seasoning),sys.stdin
-    soup = lxml.etree.iterparse(ingredients, tag=sys.argv[1], events=('start',), dtd_validation=False, load_dtd=False, no_network=True, compact=False, resolve_entities=True, huge_tree=True, html=True, recover=True)
+    seasoning, ingredients = dict(seasoning), sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer
+    soup = lxml.etree.iterparse(ingredients, tag=sys.argv[1], events=('start',), dtd_validation=False, load_dtd=False, no_network=True, compact=False, resolve_entities=True, huge_tree=True, html=True, recover=True, encoding=sys.getdefaultencoding())
     for spoonful in cook(soup, **seasoning):
-        print >>sys.stdout, lxml.etree.tostring(spoonful)
+        six.print_(lxml.etree.tostring(spoonful, encoding='unicode'), file=sys.stdout)
     sys.exit(0)

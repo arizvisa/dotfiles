@@ -1,9 +1,9 @@
-#!/usr/bin/env python2
-import sys, user
+#!/usr/bin/env python
+import six
+import sys, bs4
 
-from BeautifulSoup import *
 if __name__ == "__main__":
-    cook = lambda s, args: ''.join(s.findAll(*args, text=True))
-    seasoning,ingredients = sys.argv[1:],sys.stdin.read()
-    soup = BeautifulSoup(ingredients)
-    print cook(soup, seasoning)
+    cook = lambda s, args: ''.join(s.find_all(*args, text=True))
+    seasoning, ingredients = sys.argv[1:], sys.stdin.read()
+    soup = bs4.BeautifulSoup(ingredients, 'html.parser')
+    six.print_(cook(soup, seasoning))

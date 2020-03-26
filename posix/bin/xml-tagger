@@ -1,38 +1,38 @@
 #!/usr/bin/env python2
-import user
+import six
 import re, sys
-from BeautifulSoup import *
+import bs4
 
 def help():
-    print "%s tag attribute [search replace]\n"%sys.argv[0]
-    print "read in html from stdin, search for any instance of /tag/"
-    print "then print out the value of /attribute/"
-    print "if [search replace] is specfied, print out the html"
-    print "w/ a regex search/replace performed on the specified attribute"
+    six.print_('{:s} tag attribute [search replace]\n'.format(sys.argv[0]))
+    six.print_('read in html from stdin, search for any instance of /tag/')
+    six.print_('then print out the value of /attribute/')
+    six.print_('if [search replace] is specfied, print out the html')
+    six.print_('w/ a regex search/replace performed on the specified attribute')
     sys.exit()
 
 def find(soup, tag, attribute):
-    tags = [ n for n in soup.findAll(tag) if n.__class__ == Tag ]
+    filtered = ( item for item in soup.find_all(tag) if isinstance(item, bs4.Tag) )
     res = []
-    for n in tags:
+    for item in filtered:
         try:
-            res.append( n[attribute] )
+            res.extend(item[attribute])
         except KeyError:
             pass
-
+        continue
     return '\n'.join(res)
 
 def replace(soup, tag, attribute, pattern, replace):
-    tags = [ n for n in soup.findAll(tag) if n.__class__ == Tag ]
-    for n in tags:
+    filtered = ( item for item in soup.find_all(tag) if isinstance(item, bs4.Tag) )
+    for item in filtered:
         try:
-            n[attribute] = re.sub(pattern, replace, n[attribute])
+            item[attribute] = [ re.sub(pattern, replace, single_attribute) for single_attribute in item[attribute] ]
         except KeyError:
             pass
+        continue
+    return soup.decode(formatter=None)
 
-    return str(soup)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     if len(sys.argv) == 3:
         cook = find
@@ -42,5 +42,5 @@ if __name__ == "__main__":
         help()
 
     ingredients = sys.stdin.read()
-    soup = BeautifulSoup(ingredients)
-    print cook(soup, *sys.argv[1:])
+    soup = bs4.BeautifulSoup(ingredients, 'html.parser')
+    six.print_(cook(soup, *sys.argv[1:]))

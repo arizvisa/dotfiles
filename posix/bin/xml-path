@@ -1,19 +1,20 @@
-#!/usr/bin/env python2
-import user
+#!/usr/bin/env python
+import six
 import sys, logging
 
 try:
     import lxml.etree
+
 except ImportError:
-    print >>sys.stderr, "Unable to run application due to missing module lxml"
-    print >>sys.stderr, "Please install python-lxml, or easy_install lxml to resume"
+    six.print_('Unable to run application due to missing module lxml', file=sys.stderr)
+    six.print_('Please install python-lxml, or pip install lxml to resume', file=sys.stderr)
     sys.exit(1)
 
 def help(program, errcode):
-    print >>sys.stderr,"usage: %s [-c | -i index] query\n"%program
-    print >>sys.stderr,"use xpath to select part of an html file and render to stdout"
-    print >>sys.stderr,"if -c is specified, return the number of results"
-    print >>sys.stderr,"if -i is specified, return the specified index"
+    six.print_("usage: {:s} [-c | -i index] query\n".format(program), file=sys.stderr)
+    six.print_('use xpath to select part of an html file and render to stdout', file=sys.stderr)
+    six.print_('if -c is specified, return the number of results', file=sys.stderr)
+    six.print_('if -i is specified, return the specified index', file=sys.stderr)
     sys.exit(errcode)
 
 def select(data, path):
@@ -22,13 +23,14 @@ def select(data, path):
     if tr is None:
         parser = lxml.etree.HTMLParser(recover=True, compact=False)
         tr = lxml.etree.HTML(data, parser=parser)
-    assert tr is not None, 'Unable to parse input'
+    if tr is None:
+        raise AssertionError('Unable to parse input')
     return tr.xpath(path)
 
 def output(result, index):
     if index is None:
-        return '\n\n'.join(lxml.etree.tostring(x) for x in result)
-    return lxml.etree.tostring(result[index])
+        return '\n\n'.join(lxml.etree.tostring(item, encoding='unicode') for item in result)
+    return lxml.etree.tostring(result[index], encoding='unicode')
 
 if __name__ == '__main__':
     args = list(sys.argv)
@@ -37,7 +39,7 @@ if __name__ == '__main__':
     if len(args) == 0:
         help(sys.argv[0],0)
 
-    index,count=None,False
+    index, count = None, False
     try:
         if args[0] == '-c':
             args.pop(0)
@@ -51,13 +53,13 @@ if __name__ == '__main__':
             raise IndexError
 
     except IndexError:
-        print >>sys.stderr, "Error : Too many arguments specified : {!r}".format(args)
-        help(sys.argv[0],1)
+        six.print_('Error : Too many arguments specified : {!r}'.format(args), file=sys.stderr)
+        help(sys.argv[0], 1)
 
     result = select(sys.stdin.read(), path)
     if count:
-        print len(result)
+        six.print_(len(result))
         sys.exit(0)
 
-    print output(result,int(index)) if index else output(result,None)
+    six.print_(output(result, int(index)) if index else output(result, None))
     sys.exit(0)
