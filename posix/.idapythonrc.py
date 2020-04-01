@@ -1,9 +1,12 @@
+import functools, itertools, types, builtins, operator, six
 import logging, user
-logging.root=logging.RootLogger(logging.WARNING)
+logging.root = logging.RootLogger(logging.WARNING)
+
+import function as fn
 
 try:
-    import sys,ptypes
-    from ptypes import *
+    import sys, ptypes
+
     ptypes.setsource(ptypes.prov.Ida)
 except ImportError:
     logging.info('idapythonrc : ignoring external type system')
@@ -51,7 +54,6 @@ def whereami(ea=None):
 def h():
     return whereami(db.h())
 
-import function as fn
 def top(ea=None):
     return fn.top(whereami(ea))
 
