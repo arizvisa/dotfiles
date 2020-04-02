@@ -4,7 +4,7 @@ dashless=$(basename "$0" | sed -e 's/-/ /')
 USAGE="[bind-address:bind-port] [..daemon parameters...]"
 OPTIONS_SPEC=
 SUBDIRECTORY_OK=Yes
-DEFAULT_DAEMON_PARAMETERS="--verbose --informative-errors --reuseaddr --enable=upload-pack"
+DEFAULT_DAEMON_PARAMETERS="--verbose --informative-errors --reuseaddr --enable=upload-pack --enable=receive-pack --enable=upload-archive"
 
 . git-sh-setup
 
