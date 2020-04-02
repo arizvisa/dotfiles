@@ -72,7 +72,7 @@ selectall = fcompose(db.selectcontents, fpartial(imap, funbox(func.select)), fun
 
 has_immediate_ops = fcompose(fmap(fpartial(fpartial, ins.op_type), ins.ops_read), funbox(map), set, fmap(fcompose(len,fpartial(operator.eq, 1)), freverse(operator.contains, 'immediate')), all)
 has_register_ops = fcompose(fmap(fpartial(fpartial, ins.op_type), ins.ops_read), funbox(map), set, fmap(fcompose(len,fpartial(operator.eq, 1)), freverse(operator.contains, 'register')), all)
-previous_written = fcompose(fmap(fid, fcompose(fmap(fpartial(fpartial, ins.op), ins.ops_read), funbox(map), set)), tuple, fmap(fcompose(first,fbox), fcompose(second,list)), funbox(zip), iget(1), funbox(db.a.prevreg, write=1))
+previous_written = fcompose(fmap(fidentity, fcompose(fmap(fpartial(fpartial, ins.op), ins.ops_read), funbox(map), set)), tuple, fmap(fcompose(first,fbox), fcompose(second,list)), funbox(zip), iget(1), funbox(db.a.prevreg, write=1))
 
 freg_written = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_write(ea) if ins.opt(ea, i) == 'register')
 freg = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_read(ea) if isinstance(ins.op(ea, i), symbol_t)) or any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_write(ea) if isinstance(ins.op(ea, i), symbol_t) and ins.opt(ea, i) == 'register') or any(any(r.relatedQ(reg) for r in ins.op(ea, i).symbols) for i in range(ins.ops_count(ea)) if ins.opt(ea, i) == 'phrase')
