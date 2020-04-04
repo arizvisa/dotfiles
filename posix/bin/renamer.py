@@ -22,6 +22,15 @@ except StopIteration:
 EDITOR_ARGS = os.environ.get('EDITOR_ARGS', '-f -O2' if editor in EDITOR else '')
 FILEENCODING = 'utf-8-sig'
 
+## fuck python3
+def __ensure_text__(s, encoding='utf-8', errors='strict'):
+    '''ripped from six v1.12.0'''
+    if isinstance(s, six.binary_type):
+        return s.decode(encoding, errors)
+    elif isinstance(s, six.text_type):
+        return s
+    raise TypeError("not expecting type '%s'"% type(s))
+
 ### code
 def smap(f, iterable):
 	iterable = map(f, iterable)
@@ -44,7 +53,7 @@ def parse_args():
 	res = argparse.ArgumentParser(description='Rename any number of files within a list of paths using an editor.', add_help=True)
 	res.add_argument('-d', dest='use_dirs', action='store_true', default=False, help='rename directories instead of files')
 	res.add_argument('-n', '--dry-run', dest='dry_run', action='store_true', default=False, help='perform a dry run and only print the changes')
-	res.add_argument(dest='paths', metavar='path', nargs='*', action='store', type=six.ensure_text)
+	res.add_argument(dest='paths', metavar='path', nargs='*', action='store', type=__ensure_text__)
 	return res.parse_args()
 
 def rename_file(a, b):
@@ -88,7 +97,7 @@ def rename(source, target):
 	return count
 
 def listing(path):
-	p = six.ensure_text(path, encoding=sys.getfilesystemencoding())
+	p = __ensure_text__(path, encoding=sys.getfilesystemencoding())
 	for dirpath, _, filenames in os.walk(p):
 		for name in sorted(filenames):
 			yield os.path.join(dirpath, name)
@@ -96,7 +105,7 @@ def listing(path):
 	return
 
 def dirlisting(path):
-	p = six.ensure_text(path, encoding=sys.getfilesystemencoding())
+	p = __ensure_text__(path, encoding=sys.getfilesystemencoding())
 	for dirpath, dirnames, _ in os.walk(p):
 		for name in sorted(dirnames):
 			yield os.path.join(dirpath, name)
