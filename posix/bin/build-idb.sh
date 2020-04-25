@@ -171,8 +171,8 @@ else
     printf "[%s] user specified output name as \"%s\"\n" "`currentdate`" "$outpath/$filename"
 fi
 
-if test ! -f "$input"; then
-    printf "[%s] input path \"%s\" not found.\n" "`currentdate`" "$1" 1>&2
+if [ ! -f "$input" ] && [ ! -L "$input" ]; then
+    printf "[%s] input path \"%s\" not found.\n" "`currentdate`" "$input" 1>&2
     exit 1
 fi
 
