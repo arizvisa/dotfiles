@@ -131,7 +131,7 @@ case "$OUTPUT" in
 esac
 
 # check if it seems windowsy
-if [ `echo "$path" | tr -s -d '[:alnum:][:space:][:cntrl:]' ':' | wc -c` -gt 0 ]; then
+if [ `echo "$path" | tr -cd ':' | wc -c` -gt 0 ]; then
     default=`windows2default "$path"`
     #platform=Windows
 
