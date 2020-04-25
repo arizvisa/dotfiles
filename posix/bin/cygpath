@@ -146,7 +146,8 @@ else # otherwise normalize to a regular path according to the current platform
             default=`cygwin2default "$path"`
             platform=cygwin
             ;;
-        *) normal="$path" ;;
+        *)
+            normal="$path" ;;
     esac
 fi
 
@@ -154,10 +155,10 @@ fi
 case "${platform}" in
     *bsd*)
         # XXX: freebsd has no way to really normalize paths from shell...so try our best.
-        normal=`sed 's/\/\+/\//g;s/\/\.\//\//g' <<< "$default"`
+        normal=`sed 's/\/\+/\//g;s/\/\.\//\//g' <<< "$normal"`
         ;;
     *)
-        normal=`type -P realpath >/dev/null && realpath -s -m "$default" 2>/dev/null || readlink -m "$default" 2>/dev/null`
+        normal=`type -P realpath >/dev/null && realpath -s -m "$normal" 2>/dev/null || readlink -m "$normal" 2>/dev/null`
         ;;
 esac
 
@@ -166,9 +167,33 @@ normal=`sed 's/\\\/\//g' <<< "$normal"`
 
 ## output results
 case "$FORMAT" in
-    unix) [ "${platform}" = "msys" ] && default2msys "$normal" || default2cygwin "$normal" ;;
-    windows|win) default2windows "$normal" ;;
-    *) echo "$normal" ;;
+    unix)
+        case "${platform}" in
+            # Msys style paths mix the windows drive-letter with ":" and posix
+            msys)
+                default2msys "$normal"
+                ;;
+
+            # Linux is sane, we don't have to do shit
+            linux*) echo "$normal"
+                ;;
+
+            # I don't remember what cygwin's $platform was
+            *)
+                default2cygwin "$normal"
+                ;;
+        esac
+        ;;
+
+    # Use the windows-style of path
+    windows|win)
+        default2windows "$normal"
+        ;;
+
+    # Otherwise just pass it through
+    *)
+        echo "$normal"
+        ;;
 esac
 
 exit 0
