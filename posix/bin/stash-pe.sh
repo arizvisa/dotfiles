@@ -87,6 +87,19 @@ echo "Decided on $builder to build the database." 1>&2
     "$builder" "$outfile" 1>&2
 )
 
+if [ $? -gt 0 ]; then
+    echo "Unable to build database for file: \"$outdir/$outsubdir/$outfile\"." 1>&2
+
+    for file in "$outdir/$outsubdir/$outfile" "$outdir/$outsubdir/$infile"; do
+        echo "Cleaning file \"$file\" due to build failure." 1>&2
+        rm -f "$file" 2>&2
+    done
+
+    echo "Cleaning path \"$outdir/$outsubdir\" due to build failure." 1>&2
+    cd "$outdir" && rmdir -p "$outsubdir" 1>&2
+    exit 1
+fi
+
 echo "Done!" 1>&2
 
 echo "$outdir/$outsubdir/$outfile"
