@@ -169,7 +169,11 @@ class ExpressionGrammar:
             """
             modules = kwds['modules']
             m = modules.get(self.module, kwds['current_module'])
-            s = next(s for s in m.symbols if s.name == self.symbol)
+            try:
+                s = next(s for s in m.symbols if s.name == self.symbol)
+
+            except StopIteration:
+                raise ValueError("Unable to locate the specified symbol: {!s}".format(self.symbol))
             a = s.addr
             return a.load_addr
     kSymbol.setParseAction(symbol)
@@ -261,7 +265,7 @@ class ExpressionParser(object):
         err.Clear()
         data = self.process.ReadMemory(address, size, err)
         if err.Fail() or len(data) != size:
-            raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, self._class__.__name__, size, address))
+            raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, self.__class__.__name__, size, address))
         data = data[::-1 if sys.byteorder == 'little' else +1]
         return functools.reduce(lambda t, c: t << 8 | c, bytearray(data), 0)
     def by(self, address):
@@ -975,7 +979,7 @@ class Target(object):
             return
         try:
             while True:
-                nl,nh = next(iterable),next(iterable)
+                nl, nh = next(iterable), next(iterable)
                 yield (nh << (8*itemsize/2)) | nl
         except StopIteration:
             pass
