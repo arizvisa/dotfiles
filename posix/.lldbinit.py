@@ -56,8 +56,9 @@ class Options(object):
     forward_disassembly = 4
     backward_disassembly =2
 
-    # which characters are printable within the hextdump
-    printable = set().union(string.printable).difference(string.whitespace).union(' ')
+    # map for python3 because python3's string<->bytes handing is fucking garbage
+    res = set().union(string.printable).difference(string.whitespace)
+    printable = { ord(item) for item in res }
 
 # in some instances i've seen the 'argv' variable not defined...
 # wtf are you doing, lldb?
@@ -261,8 +262,8 @@ class ExpressionParser(object):
         data = self.process.ReadMemory(address, size, err)
         if err.Fail() or len(data) != size:
             raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, self._class__.__name__, size, address))
-        data = reversed(data) if sys.byteorder == 'little' else data[:]
-        return reduce(lambda t,c: t << 8 | ord(c), data, 0)
+        data = data[::-1 if sys.byteorder == 'little' else +1]
+        return reduce(lambda t, c: t << 8 | c, bytearray(data), 0)
     def by(self, address):
         return self.read(address, 1)
     def wo(self, address):
@@ -484,7 +485,7 @@ class Command(object):
                 if not res: error[k] = res
             continue
         if error:
-            raise StandardError("{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
+            raise SystemError("{:s}.{:s} : Error trying to remove the following already defined aliases : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
 
         # now we can add each command
         error, result = {}, lldb.SBCommandReturnObject()
@@ -588,7 +589,7 @@ class CaptureOutput(object):
     @classmethod
     def fileobj(cls, append):
         splitter = cls.splitoutput(append)
-        splitter.next()
+        next(splitter)
         fileobj = type(cls.__name__, (object,), {'write':splitter.send})
         return fileobj()
 
@@ -614,8 +615,8 @@ class DebuggerCommandOutput(object):
         result.Clear()
         try:
             # FIXME: if this happens, check your command's flags.
-            if not context.IsValid():
-                raise StandardError("{:s}.{:s} : Unable to dispatch to command due to the command's requested context being invalid. : {!r}".format(__name__, self.callable.__name__, context))
+            if hasattr(context, 'IsValid') and not context.IsValid():
+                raise SystemError("{:s}.{:s} : Unable to dispatch to command due to the command's requested context being invalid. : {!r}".format(__name__, self.callable.__name__, context))
 
             with CaptureOutput(result) as (f,e):
                 failed = self.callable(context, command)
@@ -670,22 +671,22 @@ class DebuggerCommand(object):
         elif ctx == lldb.SBThread:
             return context.GetThread()
         elif ctx == lldb.SBFrame:
-            return context.GetFrame()
+            return context.selected_thread.frame[0]
         elif ctx == lldb.SBBlock:
-            frame = context.GetFrame()
+            frame = context.selected_thread.frame[0]
             #return frame.GetFrameBlock()
             return frame.GetBlock()
         elif ctx == lldb.SBValueList:
-            frame = context.GetFrame()
+            frame = context.selected_thread.frame[0]
             return frame.GetRegisters()
         elif ctx == lldb.SBFunction:
-            frame = context.GetFrame()
+            frame = context.selected_thread.frame[0]
             return frame.GetFunction()
         elif ctx == lldb.SBModule:
-            frame = context.GetFrame()
+            frame = context.selected_thread.frame[0]
             return frame.GetModule()
         elif ctx == lldb.SBFileSpec:
-            frame = context.GetFrame()
+            frame = context.selected_thread.frame[0]
             module = frame.GetModule()
             return frame.GetFileSpec()
         raise NotImplementedError("{:s}.{:s}.__convert__ : unable to convert requested context to it's instance : {!r}".format(__name__, cls.__name__, ctx))
@@ -753,7 +754,7 @@ class DebuggerCommand(object):
         else: res = argv
 
         setattr(self, 'result', result)
-        context = context if context.IsValid() else lldb.target.GetProcess()
+        context = context if hasattr(context, 'IsValid') and context.IsValid() else lldb.target.GetProcess()
         ctx = self.__convert__(self.context, (debugger,context))
         try: return self.callable(ctx, res, result)
         finally: delattr(self, 'result')
@@ -931,7 +932,10 @@ class Register(object):
     def general(self): return self.__fetch("General Purpose Registers")
     def floating(self): return self.__fetch("Floating Point Registers")
     def exception(self): return self.__fetch("Exception State Registers")
-    def __iter__(self): return self.cache.iterkeys()
+    def __iter__(self):
+        for key in self.cache:
+            yield key
+        return
     def __getitem__(self, name): return self.cache[name]
 
 class Target(object):
@@ -966,42 +970,42 @@ class Target(object):
     @classmethod
     def _gfilter(cls, iterable, itemsize):
         if itemsize < 8:
-            for n in iterable: yield n
+            for item in iterable:
+                yield item
             return
-        while True:
-            nl,nh = next(iterable),next(iterable)
-            yield (nh << (8*itemsize/2)) | nl
+        try:
+            while True:
+                nl,nh = next(iterable),next(iterable)
+                yield (nh << (8*itemsize/2)) | nl
+        except StopIteration:
+            pass
         return
 
     @classmethod
     def _hex_generator(cls, iterable, itemsize):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(0x10))
-        while True:
-            n = next(iterable)
-            yield "{:0{:d}x}".format(n, int(maxlength))
+        for item in iterable:
+            yield "{:0{:d}x}".format(item, int(maxlength))
         return
 
     @classmethod
     def _bin_generator(cls, iterable, itemsize):
-        while True:
-            n = next(iterable)
-            yield "{:0{:d}b}".format(n, itemsize)
+        for item in iterable:
+            yield "{:0{:d}b}".format(item, itemsize)
         return
 
     @classmethod
     def _int_generator(cls, iterable, itemsize):
         maxlength = math.ceil(math.log(2**(itemsize*8)) / math.log(10))
-        while True:
-            n = next(iterable)
-            yield "{:{:d}d}".format(n, int(maxlength))
+        for item in iterable:
+            yield "{:{:d}d}".format(item, int(maxlength))
         return
 
     @classmethod
     def _float_generator(cls, iterable, itemsize):
         maxlength = 32
-        while True:
-            n = next(iterable)
-            yield "{:{:d}.5f}".format(n, int(maxlength))
+        for item in iterable:
+            yield "{:{:d}.5f}".format(item, int(maxlength))
         return
 
     @classmethod
@@ -1039,16 +1043,15 @@ class Target(object):
         return sz, cls._bin_generator(iter(res), sz*8)
     @classmethod
     def _chardump(cls, data, width):
-        printable = set(sorted(Options.printable))
-        printable = ''.join((ch if ch in printable else '.') for ch in map(chr,xrange(0,256)))
-        res = array.array('c', data.translate(printable))
-        return width, itertools.imap(''.join, itertools.izip_longest(*(iter(res),)*width, fillvalue=''))
+        printable = { ch : chr(ch) if ch in Options.printable else '.' for ch in range(0x100) }
+        res = map(printable.__getitem__, data)
+        return width, [''.join(item) for item in itertools.zip_longest(*(iter(res),)*width, fillvalue='')]
 
     @classmethod
     def _row(cls, width, columns):
         result = []
-        for itemsize,column in columns:
-            data = (c for i,c in zip(xrange(0, width, itemsize),column))
+        for itemsize, column in columns:
+            data = (c for i, c in zip(range(0, width, itemsize), column))
             result.append(' '.join(data))
         return result
 
@@ -1056,7 +1059,7 @@ class Target(object):
     def _dump(cls, target, address, count, width, kind, content):
         data = cls.read(target, address, count)
         countup = int((count // width) * width)
-        offset = ("{:0{:d}x}".format(a, int(math.ceil(math.log(address+count)/math.log(0x10)))) for a in xrange(address, address+countup, width))
+        offset = ("{:0{:d}x}".format(a, int(math.ceil(math.log(address+count)/math.log(0x10)))) for a in range(address, address+countup, width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
@@ -1115,13 +1118,13 @@ class Breakpoint(object):
             return [(bp.GetWatchAddress(),bp.GetWatchSize())]
         count = bp.GetNumLocations()
         #count = bp.GetNumResolvedLocations()
-        res = [(bp.GetLocationAtIndex(idx),1) for idx in xrange(count)]
+        res = [(bp.GetLocationAtIndex(idx),1) for idx in range(count)]
         return [(l.GetLoadAddress(),size) for l,size in res]
     @classmethod
     def __location(cls, bp):
         res = cls.__lldb_locations(bp)
         if len(res) > 1:
-            raise StandardError("{:s}.{:s}.location : More than one location was returned for specified breakpoint. : {!r}".format(__name__, cls.__name__, res))
+            raise SystemError("{:s}.{:s}.location : More than one location was returned for specified breakpoint. : {!r}".format(__name__, cls.__name__, res))
         return next(iter(res))
 
     ## address searching
@@ -1425,9 +1428,9 @@ class show_stack(DebuggerCommand):
         res = Register(frame).general()
         print('-=[stack]=-')
         if bits == 32:
-            print(Target.hexdump(t, res['esp'], 0x10 * Options.here[0], 'I'))
+            print(Target.hexdump(t, res['esp'], 0x10 * Options.here[0] // 4, 'I'))
         elif bits == 64:
-            print(Target.hexdump(t, res['rsp'], 0x10 * Options.here[0], 'L'))
+            print(Target.hexdump(t, res['rsp'], 0x10 * Options.here[0] // 8, 'L'))
         else: raise NotImplementedError(bits)
 
 class show_code(DebuggerCommand):
@@ -1588,8 +1591,8 @@ class dump_dword(hexdump):
 class dump_qword(hexdump):
     kind = 'L'
 
-@Command('df')
-class dump_float(itemdump):
+@Command('dS')
+class dump_single(itemdump):
     kind = 'f'
 
 @Command('dD')
