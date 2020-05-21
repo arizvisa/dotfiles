@@ -6,3 +6,5 @@
 	autocrlf = false
 [push]
 	default = matching
+[http]
+	sslVerify = false
