@@ -378,9 +378,9 @@ class Command(object):
             t = cls.__type(cls.cache[key])
             if t == types.FunctionType:
                 scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
-            elif t == types.ObjectType and key in cls.__synchronicity__:
+            elif t == object and key in cls.__synchronicity__:
                 scr = functools.partial("command script add -f {:s}.{:s} -s {:s} {:s}".format, '.'.join(path), key, cls.__synchronicity__[key])
-            elif t == types.ObjectType and key not in cls.__synchronicity__:
+            elif t == object and key not in cls.__synchronicity__:
                 scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
             else:
                 raise TypeError("{:s}.{:s} : Unable to generate command with unknown type. {!r}".format(cls.__module__, cls.__name__, t))
@@ -392,9 +392,9 @@ class Command(object):
             t = cls.__type(cls.cache[key])
             if t == types.FunctionType:
                 scr = functools.partial("command script add -f {:s}.{:s} {:s}".format, '.'.join(path), key)
-            elif t == types.ObjectType and key in cls.__synchronicity__:
+            elif t == object and key in cls.__synchronicity__:
                 scr = functools.partial("command script add -c {:s}.{:s} -s {:s} {:s}".format, '.'.join(path), key, cls.__synchronicity__[key])
-            elif t == types.ObjectType and key not in cls.__synchronicity__:
+            elif t == object and key not in cls.__synchronicity__:
                 scr = functools.partial("command script add -c {:s}.{:s} {:s}".format, '.'.join(path), key)
             else:
                 raise TypeError("{:s}.{:s} : Unable to generate command with unknown type. {!r}".format(cls.__module__, cls.__name__, t))
@@ -403,7 +403,7 @@ class Command(object):
     @classmethod
     def __add(cls, key):
         addscr = cls.__add_command(key)
-        aliases = ( k for k,v in cls.__alias__.iteritems() if v == key )
+        aliases = ( k for k,v in cls.__alias__.items() if v == key )
 
         error, result = {}, lldb.SBCommandReturnObject()
         for k in aliases:
@@ -420,7 +420,7 @@ class Command(object):
         error, result = {}, lldb.SBCommandReturnObject()
 
         # delete all the commands
-        aliases = ( k for k,v in cls.__alias__.iteritems() if v == key )
+        aliases = ( k for k,v in cls.__alias__.items() if v == key )
         for k in aliases:
             removecmd = removescr(aliases)
             result.Clear()
@@ -429,9 +429,9 @@ class Command(object):
             if not result.Succeeded(): error[k] = res
 
         # now remove all aliases and synchronicity options
-        cls.__alias__ = {k : v for k,v in cls.__alias__.iteritems() if v != key and k not in error}
+        cls.__alias__ = {k : v for k,v in cls.__alias__.items() if v != key and k not in error}
         if not error:
-            cls.synchronicity = { k : v for k,v in cls.synchronicity.iteritems() if k != key }
+            cls.synchronicity = { k : v for k,v in cls.synchronicity.items() if k != key }
         return error
 
     @classmethod
@@ -443,7 +443,7 @@ class Command(object):
     @classmethod
     def __remove(cls, key):
         # figure out what aliases we have to remove
-        aliases = (k for k,v in cls.__alias__.iteritems() if v == key)
+        aliases = (k for k,v in cls.__alias__.items() if v == key)
         removescr = functools.partial("command script delete {:s}".format)
 
         # delete all the commands
@@ -456,9 +456,9 @@ class Command(object):
             if not result.Succeeded(): error[k] = res
 
         # update all the aliases and synchronicity options
-        cls.__alias__ = {k : v for k, v in cls.__alias__.iteritems() if v != key and k not in error}
+        cls.__alias__ = {k : v for k, v in cls.__alias__.items() if v != key and k not in error}
         if not error:
-            cls.__synchronicity__ = {k : v for k, v in cls.__synchronicity__.iteritems() if k != key}
+            cls.__synchronicity__ = {k : v for k, v in cls.__synchronicity__.items() if k != key}
 
         # if there was an error, then don't delete our command because there's still
         # an alias pointing towards it
@@ -478,7 +478,7 @@ class Command(object):
 
         # remove it if it already exists
         error = {}
-        for k,v in aliasdict.iteritems():
+        for k,v in aliasdict.items():
             if k in cls.__alias__:
                 res = cls.unalias(k)
                 if not res: error[k] = res
@@ -488,14 +488,14 @@ class Command(object):
 
         # now we can add each command
         error, result = {}, lldb.SBCommandReturnObject()
-        for k,v in aliasdict.iteritems():
+        for k,v in aliasdict.items():
             result.Clear()
             res = cls.interpreter.HandleCommand(addscr(k), result, False)
             # FIXME: handle the return value which could be one of lldb.eReturnStatus*
             if not result.Succeeded(): error[k] = res
 
         # and now we can update our alias dictionary with our changes
-        cls.__alias__.update({k : v for k,v in aliasdict.iteritems() if k not in error})
+        cls.__alias__.update({k : v for k,v in aliasdict.items() if k not in error})
         if error:
             logging.warn("{:s}.{:s} : Error trying to add the following commands : {!r}".format(cls.__module__, cls.__name__, tuple(error.keys())))
 
@@ -542,7 +542,7 @@ class Command(object):
         cls.interpreter = interpreter
 
         error, result = {}, lldb.SBCommandReturnObject()
-        for alias,key in cls.__alias__.iteritems():
+        for alias,key in cls.__alias__.items():
             addscr = cls.__add_command(key)
             addcmd = addscr(alias)
             result.Clear()
@@ -555,7 +555,7 @@ class Command(object):
     def __new__(cls, name, sync=None):
         return cls.preload(name, sync)
 
-def __lldb_init_module(debugger, globals):
+def __lldb_init_module__(debugger, globals):
     interp = debugger.GetCommandInterpreter()
     res = Command.load(interp)
     if not res:
@@ -581,7 +581,7 @@ class CaptureOutput(object):
 
             split = output.split('\n')
             res = iter(split)
-            if len(split) > 1: map(append,itertools.islice(res, len(split)-1))
+            if len(split) > 1: [ append(item) for item in itertools.islice(res, len(split) - 1) ]
             leftover = next(res)
         return
 
@@ -621,7 +621,7 @@ class DebuggerCommandOutput(object):
                 failed = self.callable(context, command)
         except:
             exc = traceback.format_exception(*sys.exc_info())
-            map(result.AppendWarning, exc)
+            [ result.AppendWarning(item) for item in exc ]
             failed = True
         result.SetStatus(lldb.eReturnStatusFailed if failed else self.success)
 
@@ -713,7 +713,8 @@ class DebuggerCommand(object):
 
         # setup a default help
         if self.help is None:
-            self.__help = argparse.ArgumentParser(description=self.__doc__, add_help=False)
+            cls = self.__class__
+            self.__help = argparse.ArgumentParser(prog=cls.__name__, description=self.__doc__, add_help=False)
         else:
             self.__help = self.help
         if not self.__help.prog:
@@ -745,7 +746,7 @@ class DebuggerCommand(object):
         if self.help:
             if argv is None:
                 result.Clear()
-                map(result.AppendMessage, self.__help.format_usage().split('\n'))
+                [ result.AppendMessage(item) for item in self.__help.format_usage().split('\n') ]
                 return
             try: res = self.__help.parse_args(argv)
             except SystemExit: return
@@ -901,7 +902,8 @@ class Register(object):
     # "Exception State Registers"
     def __init__(self, frame):
         self.cache, self.frame = {}, frame
-        map(self.cache.update, (self.__fetch(n) for n in self.groups))
+        iterable = (self.__fetch(item) for item in self.groups)
+        [ self.cache.update(item) for item in iterable ]
 
         # processor-specific aliases
         # FIXME: would be nice to generalize this with some architecture-specific class

@@ -6,8 +6,8 @@ script import sys,os,types,lldb
 
 # load all the functions declared in .lldbinit.py
 script __lldbinit__ = types.ModuleType('__lldbinit__')
-script with open(os.path.join(__import__('pathlib2' if sys.version_info.major < 3 else 'pathlib').Path.home(), '.lldbinit.py')) as _: exec(_.read(), __lldbinit__.__dict__, __lldbinit__.__dict__)
-script __lldbinit__.__lldb_init_module(lldb.debugger or lldb.SBDebugger.Create(), globals())
+script exec("with open(os.path.join(__import__('pathlib2' if sys.version_info.major < 3 else 'pathlib').Path.home(), '.lldbinit.py')) as _: exec(_.read(), __lldbinit__.__dict__, __lldbinit__.__dict__)\n")
+script __lldbinit__.__lldb_init_module__(lldb.debugger or lldb.SBDebugger.Create(), globals())
 
 # source a user-local .lldbinit
 script os.path.exists(os.path.join(__import__('pathlib2' if sys.version_info.major < 3 else 'pathlib').Path.home(), '.lldbinit.local')) and lldb.debugger.HandleCommand('command source -- {:s}'.format(os.path.join(__import__('pathlib2' if sys.version_info.major < 3 else 'pathlib').Path.home()), '.lldbinit.local')) and 0 or None
