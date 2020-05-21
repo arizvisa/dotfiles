@@ -27,7 +27,7 @@ if __name__ == '__main__':
     raise RuntimeError("Not intended to be run as a stand-alone application")
 
 import sys,os,platform,traceback,logging
-import types,itertools,operator,functools
+import types,itertools,operator,functools,six
 import fnmatch,six,array,math,string,heapq
 import argparse,shlex,string
 import lldb
@@ -1191,7 +1191,7 @@ class Breakpoint(object):
 
     @classmethod
     def add_execute(cls, target, address, enabled=True):
-        if isinstance(address, basestring):
+        if isinstance(address, six.string_types):
             addr, expr = Target.evaluate(target, address), address
         else:
             addr, expr = address, hex(address)
@@ -1209,7 +1209,7 @@ class Breakpoint(object):
 
     @classmethod
     def add_access(cls, target, address, size=1, perms='rw', enabled=True):
-        if isinstance(address, basestring):
+        if isinstance(address, six.string_types):
             addr, expr = Target.evaluate(target, address), address
         else:
             addr, expr = address, hex(address)
@@ -1253,7 +1253,7 @@ class Breakpoint(object):
     @classmethod
     def add_command(cls, target, id, commands):
         key = cls.cache[id]
-        cls.__function__[key] = [commands] if isinstance(commands, basestring) else commands[:]
+        cls.__function__[key] = [commands] if isinstance(commands, six.string_types) else commands[:]
         return cls.flush_command(target, id)
 
     @classmethod
