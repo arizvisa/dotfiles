@@ -1045,7 +1045,7 @@ class Target(object):
     def _chardump(cls, data, width):
         printable = { ch : chr(ch) if ch in Options.printable else '.' for ch in range(0x100) }
         res = map(printable.__getitem__, data)
-        return width, [''.join(item) for item in itertools.zip_longest(*(iter(res),)*width, fillvalue='')]
+        return width, (''.join(item) for item in itertools.zip_longest(*(iter(res),)*width, fillvalue=''))
 
     @classmethod
     def _row(cls, width, columns):
