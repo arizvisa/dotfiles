@@ -213,7 +213,7 @@ class ExpressionGrammar:
                 res = [repr(x) for x in self.value]
                 return "{:s}({:s})".format(self.op.__name__, ','.join(res))
             def eval(self, **kwds):
-                return reduce(self.op, ((n if isinstance(n, six.integer_types) else n.eval(**kwds)) for n in self.value))
+                return functools.reduce(self.op, ((n if isinstance(n, six.integer_types) else n.eval(**kwds)) for n in self.value))
         tokens.op = op
         return tokens
 
@@ -263,7 +263,7 @@ class ExpressionParser(object):
         if err.Fail() or len(data) != size:
             raise ValueError("{:s}.{:s}.read : Unable to read {:#x} bytes from {:#x}".format(__name__, self._class__.__name__, size, address))
         data = data[::-1 if sys.byteorder == 'little' else +1]
-        return reduce(lambda t, c: t << 8 | c, bytearray(data), 0)
+        return functools.reduce(lambda t, c: t << 8 | c, bytearray(data), 0)
     def by(self, address):
         return self.read(address, 1)
     def wo(self, address):
