@@ -148,5 +148,9 @@ BeginPackage["Spelunking`"];
  End[];
 EndPackage[];
 
+(** Default global options **)
 Begin["Global`"]
+ If[$FrontEnd =!= Null,
+  SetOptions[$FrontEnd, CellContext->Notebook]
+ ];
 End[]
