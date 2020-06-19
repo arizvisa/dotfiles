@@ -26,4 +26,4 @@ fi
 ## now try and run shit
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
-exec "$prog" $args "$@"
+exec "$prog" "$@" $args
