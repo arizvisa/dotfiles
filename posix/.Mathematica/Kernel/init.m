@@ -43,11 +43,11 @@ Begin["UserInitializationFile`"]
  ]
 End[]
 
-(** Ripped from https://github.com/szhorvat/Spelunking/blob/master/Spelunking.m **)
-BeginPackage["Spelunking`"];
+BeginPackage["System`"];
  Spelunk::usage = "Spelunk[symbol] will discover the definition of symbol.  Underlined symbols in the output are clickable.";
 
- Begin["`Private`"];
+ (** Ripped from https://github.com/szhorvat/Spelunking/blob/master/Spelunking.m **)
+ Begin["Spelunk`Private`"];
   barrier = "-------"
 
   defboxes[symbol_Symbol] := Hold[symbol] /. _[sym_] :>
@@ -63,7 +63,7 @@ BeginPackage["Spelunking`"];
   defboxes[s_String] := defboxes[#] &@ToExpression[s, InputForm, Unevaluated]
 
   prettyboxes[boxes_] :=
-   boxes /. {" "} -> {"\n"<>barrier<>"\n"} //. {
+   boxes /. {" "} -> {barrier<>"\n"} //. {
     RowBox[{left___, ";", next : Except["\n"], right___}] :>
      RowBox[{left, ";", "\n", "\t", next, right}],
      RowBox[{sc : ("Block" | "Module" | "With"), "[", RowBox[{vars_, ",", body_}], "]"}] :>
