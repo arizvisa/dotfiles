@@ -2,73 +2,35 @@
 
 Begin["UserInitializationFile`"]
 
- (** List of items to append to menu **)
- InsertMatchingParenthesesMenuItems := {
-
- (* Parentheses *)
+ (** Utilities for menu item handlers *)
+ CuddleMenuItem[description_String, key_MenuKey, left_String, right_String] :=
   MenuItem[
-   "Wrap in () and continue at beginning",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"(", "\[SelectionPlaceholder]", ")"}
+   description,
+   FrontEndExecute@FrontEnd`NotebookApply[
+    FrontEnd`InputNotebook[],
+    BoxData@RowBox@{left, "\[SelectionPlaceholder]", right}
    ],
-   MenuKey["(", Modifiers->{"Control"}]
-  ],
-  MenuItem[
-   "Wrap in () and continue at end",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"(", "\[SelectionPlaceholder]", ")"}
-   ],
-   MenuKey[")", Modifiers->{"Control"}]
-  ],
-
- (* Braces *)
-  MenuItem[
-   "Wrap in {} and continue at beginning",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"{", "\[SelectionPlaceholder]", "}"}
-   ],
-   MenuKey["{", Modifiers->{"Control"}]
-  ],
-  MenuItem[
-   "Wrap in {} and continue at end",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"{", "\[SelectionPlaceholder]", "}"}
-   ],
-   MenuKey["}", Modifiers->{"Control"}]
-  ],
-
- (* Brackets *)
-  MenuItem[
-   "Wrap in [] and continue at beginning",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"[", "\[SelectionPlaceholder]", "]"}
-   ],
-   MenuKey["[", Modifiers->{"Control"}]
-  ],
-  MenuItem[
-   "Wrap in [] and continue at end",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"[", "\[SelectionPlaceholder]", "]"}
-   ],
-   MenuKey["]", Modifiers->{"Control"}]
-  ],
-
- (* Associations *)
-  MenuItem[
-   "Wrap in <||> and continue at beginning",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"\[LeftAssociation]", "\[SelectionPlaceholder]", "\[RightAssociation]"}
-   ],
-   MenuKey["<", Modifiers->{"Control"}]
-  ],
-  MenuItem[
-   "Wrap in <||> and continue at end",
-   FrontEndExecute@FrontEnd`NotebookApply[FrontEnd`InputNotebook[],
-    BoxData@RowBox@{"\[LeftAssociation]", "\[SelectionPlaceholder]", "\[RightAssociation]"}
-   ],
-   MenuKey[">", Modifiers->{"Control"}]
+   key
   ]
 
+ (** List of items to append to menu **)
+ AvailableCuddleMenuItems = {
+
+ (* Parentheses *)
+  CuddleMenuItem["Wrap in () and continue at beginning", MenuKey["(", Modifiers->{"Control"}], "(", ")"],
+  CuddleMenuItem["Wrap in () and continue at end", MenuKey[")", Modifiers->{"Control"}], "(", ")"],
+
+ (* Braces *)
+  CuddleMenuItem["Wrap in {} and continue at beginning", MenuKey["{", Modifiers->{"Control"}], "{", "}"],
+  CuddleMenuItem["Wrap in {} and continue at end", MenuKey["}", Modifiers->{"Control"}], "{", "}"],
+
+ (* Brackets *)
+  CuddleMenuItem["Wrap in [] and continue at beginning", MenuKey["[", Modifiers->{"Control"}], "[", "]"],
+  CuddleMenuItem["Wrap in [] and continue at end", MenuKey["]", Modifiers->{"Control"}], "[", "]"],
+
+ (* Associations *)
+  CuddleMenuItem["Wrap in <||> and continue at beginning", MenuKey["<", Modifiers->{"Control"}], "\[LeftAssociation]", "\[RightAssociation]"],
+  CuddleMenuItem["Wrap in <||> and continue at end", MenuKey[">", Modifiers->{"Control"}], "\[LeftAssociation]", "\[RightAssociation]"]
  }
 
  (** Add menu items for wrapping expressions **)
@@ -76,7 +38,7 @@ Begin["UserInitializationFile`"]
   FrontEndExecute@
    AddMenuCommands[
     "InsertMatchingParentheses",
-    Join[{Delimiter}, InsertMatchingParenthesesMenuItems, {Delimiter}]
+    Join[{Delimiter}, AvailableCuddleMenuItems, {Delimiter}]
    ]
  ]
 End[]
