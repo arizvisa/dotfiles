@@ -109,6 +109,49 @@ BeginPackage["System`"];
   Spelunk[s_String] := CellPrint[fancydefinition[#]& @ ToExpression[s, InputForm, Unevaluated]];
   SetAttributes[{defboxes, fancydefinition, Spelunk}, HoldFirst]
  End[];
+
+ (** Ripped from https://stackoverflow.com/questions/4198961/what-is-in-your-mathematica-tool-bag **)
+ SetAttributes[WithRules, HoldAll]
+ WithRules[rules_, expr_] :=
+   Internal`InheritedBlock[
+     {Rule, RuleDelayed},
+     SetAttributes[{Rule, RuleDelayed}, HoldFirst];
+     Unevaluated[expr] /. rules
+   ]
+
+ (** Ripped from https://stackoverflow.com/questions/4198961/what-is-in-your-mathematica-tool-bag **)
+ Options[SelectEquivalents] =
+    {
+       TagElement->Identity,
+       TransformElement->Identity,
+       TransformResults->(#2&) (*#1=tag,#2 list of elements corresponding to tag*),
+       MapLevel->1,
+       TagPattern->_,
+       FinalFunction->Identity
+    };
+
+ SelectEquivalents[x_List,OptionsPattern[]] :=
+    With[
+       {
+          tagElement=OptionValue@TagElement,
+          transformElement=OptionValue@TransformElement,
+          transformResults=OptionValue@TransformResults,
+          mapLevel=OptionValue@MapLevel,
+          tagPattern=OptionValue@TagPattern,
+          finalFunction=OptionValue@FinalFunction
+       },
+       finalFunction[
+          Reap[
+             Map[
+                Sow[transformElement@#, {tagElement@#}] &,
+                x,
+                {mapLevel}
+             ],
+             tagPattern,
+             transformResults
+          ][[2]]
+       ]
+    ];
 EndPackage[];
 
 (** Default global options **)
