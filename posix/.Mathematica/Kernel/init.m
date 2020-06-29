@@ -60,10 +60,10 @@ BeginPackage["System`"];
     ]
   ]
 
-  defboxes[s_String] := defboxes[#] &@ToExpression[s, InputForm, Unevaluated]
+  defboxes[s_String] := defboxes[#]& @ ToExpression[s, InputForm, Unevaluated]
 
   prettyboxes[boxes_] :=
-   boxes /. {" "} -> {barrier<>"\n"} //. {
+   boxes (* /. {" "} -> {barrier<>"\n"} *) //. {
     RowBox[{left___, ";", next : Except["\n"], right___}] :>
      RowBox[{left, ";", "\n", "\t", next, right}],
      RowBox[{sc : ("Block" | "Module" | "With"), "[", RowBox[{vars_, ",", body_}], "]"}] :>
@@ -75,9 +75,8 @@ BeginPackage["System`"];
      s_String?(StringMatchQ[#, __ ~~ "`" ~~ __] &) :>
       First@StringCases[s, a : (__ ~~ "`" ~~ b__) :> processsymbol[a, b]]
    ],
-   "Output",
+   "Print", "PrintUsage",
    ShowStringCharacters -> True,
-   Background -> RGBColor[1, 0.95, 0.9],
    CellGroupingRules->"OutputGrouping",
    GeneratedCell->True,
    CellAutoOverwrite->True,
@@ -95,9 +94,11 @@ BeginPackage["System`"];
     db === "DefError", TooltipBox[b, a <> "\nError getting Definition"],
     True,
     ActionMenuBox[
-     TooltipBox[StyleBox[b, FontVariations->{"Underline"->True}], a],
-     {"Discover function" :> Spelunk[a], "Copy full name" :> CopyToClipboard@Cell[a, "Input"]},
-     DefaultBaseStyle -> {"Input"},
+     TooltipBox[StyleBox[b, FontVariations->{"Underline"->True}], a], {
+      "Discover function" :> Spelunk[a],
+      "Copy full name" :> CopyToClipboard@Cell[a, "Input"]
+     },
+     DefaultBaseStyle -> {"InformationLink"},
      Appearance->"None",
      Evaluator -> Automatic
     ]
@@ -105,7 +106,7 @@ BeginPackage["System`"];
   ]
 
   Spelunk[symbol_Symbol] := CellPrint[fancydefinition[symbol]];
-  Spelunk[s_String] := CellPrint[fancydefinition[#] &@ToExpression[s, InputForm, Unevaluated]];
+  Spelunk[s_String] := CellPrint[fancydefinition[#]& @ ToExpression[s, InputForm, Unevaluated]];
   SetAttributes[{defboxes, fancydefinition, Spelunk}, HoldFirst]
  End[];
 EndPackage[];
