@@ -131,9 +131,9 @@ try:
             return n
 
         # error class
-        _error = _vim.error
-        class error(exceptions.Exception):
-            """because vim is using old-style exceptions based on str"""
+        _error = getattr(_vim, 'error', exceptions.Exception)
+        class error(_error if issubclass(_error, exceptions.Exception) else exceptions.Exception):
+            """An exception originating from vim's python implementation."""
 
         # buffer/window
         buffers = _accessor(_vim.buffers)
@@ -182,76 +182,92 @@ try:
     # fd-like wrapper around vim buffer object
     class buffer(object):
         """vim buffer management"""
-        ## instance scope
+
+        # Scope of the buffer instance
         def __init__(self, buffer):
             if type(buffer) != type(vim.current.buffer):
                 raise AssertionError
             self.buffer = buffer
             #self.writing = threading.Lock()
+
+        def close(cls):
+            # if vim is going down, then it will crash trying to do anything
+            # with python...so if it is, don't try to clean up.
+            if vim.vvars['dying']:
+                return
+            vim.command("silent! bdelete! {:d}".format(self.buffer.number))
+
         def __del__(self):
             if sys.version_info.major >= 3:
                 return
-            self.__destroy(self.buffer)
+            return self.close()
 
-        # creating a buffer from various input
+        # Creating a buffer from various inputs
         @classmethod
         def new(cls, name):
-            """Create a new incpy.buffer object named /name/"""
-            buf = cls.__create(name)
-            return cls(buf)
-        @classmethod
-        def from_id(cls, id):
-            """Return an incpy.buffer object from a buffer id"""
-            buf = cls.search_id(id)
-            return cls(buf)
-        @classmethod
-        def from_name(cls, name):
-            """Return an incpy.buffer object from a buffer name"""
-            buf = cls.search_name(name)
-            return cls(buf)
+            """Create a new incpy.buffer object named `name`."""
+            vim.command("silent! badd {:s}".format(name))
 
-        # properties
-        name = property(fget=lambda s:s.buffer.name)
-        number = property(fget=lambda s:s.buffer.number)
+            # Now that the buffer has been added, we can try and fetch it by name
+            return cls.of(name)
+
+        @classmethod
+        def of(cls, identity):
+            """Return an incpy.buffer object with the specified `identity` which can be either a name or id number."""
+
+            # If we were already given a vim.buffer instance, then there's
+            # really nothing for us to actually do.
+            if isinstance(identity, _vim.Buffer):
+                return cls(identity)
+
+            # Create some matcher callables that we can search with
+            def match_name(buffer):
+                return buffer.name is not None and buffer.name.endswith(identity)
+            def match_id(buffer):
+                return buffer.number == identity
+
+            # Figure out which matcher type we need to use based on the type
+            if isinstance(identity, six.string_types):
+                res, match = "\"{:s}\"".format(identity), match_name
+
+            elif isinstance(identity, six.integer_types):
+                res, match = "{:d}".format(identity), match_id
+
+            else:
+                raise vim.error("Unable to determine buffer from parameter type : {!s}".format(identity))
+
+            # If we iterated through everything, then we didn't find a match
+            if not vim.eval("bufexists({!s})".format(res)):
+                raise vim.error("Unable to find buffer from parameter : {!s}".format(identity))
+
+            # Iterate through all our buffers finding the first one that matches
+            try:
+                # FIXME: It sucks that this is O(n), but what else can we do?
+                buf = next(buffer for buffer in vim.buffers if match(buffer))
+
+            # If we iterated through everything, then we didn't find a match
+            except StopIteration:
+                raise vim.error("Unable to find buffer from parameter : {!s}".format(identity))
+
+            # Now we can construct our class using the buffer we found
+            else:
+                return cls(buf)
+
+        # Properties
+        name = property(fget=lambda self: self.buffer.name)
+        number = property(fget=lambda self: self.buffer.number)
 
         def __repr__(self):
             return "<incpy.buffer {:d} \"{:s}\">".format(self.number, self.name)
 
-        ## class methods for helping with vim buffer scope
-        @classmethod
-        def __create(cls, name):
-            vim.command("silent! badd {:s}".format(name))
-            return cls.search_name(name)
-        @classmethod
-        def __destroy(cls, buffer):
-            # if vim is going down, then it will crash trying to do anything
-            # with python...so if it is, don't try to clean up.
-            if vim.vvars['dying']: return
-            vim.command("silent! bdelete! {:d}".format(buffer.number))
-
-        ## searching buffers
-        @staticmethod
-        def search_name(name):
-            for b in vim.buffers:
-                if b.name is not None and b.name.endswith(name):
-                    return b
-                continue
-            raise vim.error("unable to find buffer '{:s}'".format(name))
-        @staticmethod
-        def search_id(number):
-            for b in vim.buffers:
-                if b.number == number:
-                    return b
-                continue
-            raise vim.error("unable to find buffer {:d}".format(number))
-
-        ## editing buffer
+        # Editing buffer the buffer in-place
         def write(self, data):
             result = iter(data.split('\n'))
             self.buffer[-1] += six.next(result)
             [ self.buffer.append(item) for item in result ]
 
-        def clear(self): self.buffer[:] = ['']
+        def clear(self):
+            self.buffer[:] = ['']
 
 except ImportError:
     logger.warning('unable to import the vim module for python-vim. skipping the definition of its wrappers.')
