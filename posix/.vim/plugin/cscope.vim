@@ -50,26 +50,26 @@ if has("cscope")
 
     function! cscope#map()
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
-        nnoremap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-        nnoremap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
-        nnoremap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+        nnoremap <buffer> <C-S-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
+        nnoremap <buffer> <C-S-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
     endfunction
 
     function! cscope#unmap()
         "echomsg "Disabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
-        silent! nunmap <buffer> <C-_>c
-        silent! nunmap <buffer> <C-_>d
-        silent! nunmap <buffer> <C-_>e
-        silent! nunmap <buffer> <C-_>f
-        silent! nunmap <buffer> <C-_>g
-        silent! nunmap <buffer> <C-_>i
-        silent! nunmap <buffer> <C-_>s
-        silent! nunmap <buffer> <C-_>t
+        silent! nunmap <buffer> <C-S-_>c
+        silent! nunmap <buffer> <C-S-_>d
+        silent! nunmap <buffer> <C-S-_>e
+        silent! nunmap <buffer> <C-S-_>f
+        silent! nunmap <buffer> <C-S-_>g
+        silent! nunmap <buffer> <C-S-_>i
+        silent! nunmap <buffer> <C-S-_>s
+        silent! nunmap <buffer> <C-S-_>t
     endfunction
 
     function! s:add_cscope(path)
