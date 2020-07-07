@@ -70,7 +70,7 @@ if has("eval")
     endif
 
     "" coloring (syntax and filetype)
-    set colorcolumn=81
+    call matchadd('ColorColumn', '\%81v', 0x100)
 
     syntax enable
     filetype on
