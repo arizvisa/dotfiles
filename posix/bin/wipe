@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 argv0=`basename "$0"`
 ifs=$'\t'

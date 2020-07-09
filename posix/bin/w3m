@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 executable=/usr/bin/w3m
 
 ## pre-execute w3m in order to extract its options

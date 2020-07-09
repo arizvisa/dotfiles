@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 if [ -z "$1" ]; then
     printf 'Usage: %s local-socket [-d] [-x] [..socat parameters..]\n' "$0" 1>&2
     exit 1

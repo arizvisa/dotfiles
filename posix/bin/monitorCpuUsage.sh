@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # stolen and modified from http://bashcurescancer.com/media/scripts/monitorCpuUsage.sh.txt
 
 usageHelp="Usage: ${0##*/}"
