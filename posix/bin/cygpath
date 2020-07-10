@@ -131,9 +131,9 @@ case "$OUTPUT" in
 esac
 
 # check if it seems windowsy
-if [ `echo "$path" | tr -cd ':' | wc -c` -gt 0 ]; then
+if [ `echo "$path" | tr -cd ':' | wc -c | tr -d ' '` -gt 0 ]; then
     default=`windows2default "$path"`
-    #platform=Windows
+    #platform=windows
 
 else # otherwise normalize to a regular path according to the current platform
     IFS=- read arch model platform <<< "${MACHTYPE}"
@@ -147,7 +147,7 @@ else # otherwise normalize to a regular path according to the current platform
             platform=cygwin
             ;;
         *)
-            normal="$path" ;;
+            default="$path" ;;
     esac
 fi
 
@@ -155,10 +155,10 @@ fi
 case "${platform}" in
     *bsd*)
         # XXX: freebsd has no way to really normalize paths from shell...so try our best.
-        normal=`sed 's/\/\+/\//g;s/\/\.\//\//g' <<< "$normal"`
+        normal=`sed 's/\/\+/\//g;s/\/\.\//\//g' <<< "$default"`
         ;;
     *)
-        normal=`type -P realpath >/dev/null && realpath -s -m "$normal" 2>/dev/null || readlink -m "$normal" 2>/dev/null`
+        normal=`type -P realpath >/dev/null && realpath -s -m "$default" 2>/dev/null || readlink -m "$default" 2>/dev/null`
         ;;
 esac
 
