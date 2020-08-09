@@ -1,0 +1,40 @@
+// general options
+quiet:yes
+clean:no
+bare:yes
+wrap:0
+tidy-mark:no
+write-back:no
+
+// indentation
+indent:yes
+indent-attributes:yes
+indent-cdata:yes
+
+// xml sanity
+output-xhtml:yes
+add-xml-decl:no
+
+// unnecessary warnings
+assume-xml-procins:no
+custom-tags:blocklevel
+
+omit-optional-tags:no
+warn-proprietary-attributes:no
+strict-tags-attributes:no
+
+// rules for cleaning up
+replace-color:yes
+fix-backslash:no
+escape-cdata:yes
+
+quote-marks:yes
+quote-ampersand:yes
+numeric-entities:no
+preserve-entities:no
+
+merge-emphasis:yes
+merge-divs:yes
+merge-spans:yes
+drop-empty-elements:no
+drop-empty-paras:no
