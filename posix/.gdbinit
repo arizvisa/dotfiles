@@ -384,10 +384,10 @@ define show_flags
     set variable $_vif  = ($ps& 0x080000)?  " VIF": ""
     set variable $_vip  = ($ps& 0x100000)?  " VIP": ""
     set variable $_id   = ($ps& 0x200000)?  " ID" : ""
-    set variable $_ereserved = (($ps >> 16+6) & 0x3ff)? $sprintf(" eflags(reserved)=0x%03x", ($ps >> 16+6) & 0x3ff) : ""
+    set variable $_ereserved = (($ps >> 16+6) & 0x3ff)? $sprintf(" R<eflags>=0x%03x", ($ps >> 16+6) & 0x3ff) : ""
 
     ## rflags
-    set variable $_rreserved = (($ps >> 32) & 0xffffffff)? $sprintf(" rflags(reserved)=0x%08x", ($ps >> 32) & 0xffffffff) : ""
+    set variable $_rreserved = (($ps >> 32) & 0xffffffff)? $sprintf(" R<rflags>=0x%08x", ($ps >> 32) & 0xffffffff) : ""
     emit $sprintf("[flags: %s %s %s %s %s %s %s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_pf, $_af, $_if, $_tf, $_nt, $_rf, $_vm, $_ac, $_vif, $_vip, $_id, $_iopl, $_r1, $_r2, $_r3, $_r4, $_ereserved, $_rreserved)
 end
 
