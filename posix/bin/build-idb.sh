@@ -262,9 +262,11 @@ beginning=`currentdate`
 if test -f "$outpath/$output"; then
     printf "[%s] updating database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
     ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ "$@" "-L$error" "$output" )
+    result=$?
 else
     printf "[%s] building database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
     ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ "$@" "-L$error" "-o$output" "$input" )
+    result=$?
 fi
 ending=`currentdate`
 
