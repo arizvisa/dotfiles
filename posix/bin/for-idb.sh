@@ -182,7 +182,8 @@ print "%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localt
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
 try: execfile(r"$scriptpath", globals())
-except: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info()))
+except SystemExit: __builtin__.__EXITCODE__, = sys.exc_info()[1].args
+except Exception: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info()))
 print "%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-__builtin__._, time.asctime(time.localtime()))
 print "~"*65
 print "%s:saving to %s"% (r"$arg0", r"$input")
@@ -190,7 +191,7 @@ if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_versio
     idaapi.save_database(idaapi.cvar.database_idb, 0)
 else:
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
-idaapi.qexit(0)
+idaapi.qexit(getattr(__builtin__, '__EXITCODE__', 0))
 EOF
 }
 
@@ -209,6 +210,7 @@ quoted=(${quoted[@]/%/\"})
 tmppath_ida=`getportablepath "$tmp"`
 progresspath_ida=`getportablepath "$progress"`
 "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
+result=$?
 ending=`currentdate`
 trap - INT TERM EXIT
 
@@ -229,3 +231,4 @@ else
 fi
 printf "[%s] completed \"%s\" on \"%s\"\n" "`currentdate`" "$script" "$input"
 rm -f "$clog" "$progress" "$tmp"
+exit "$result"
