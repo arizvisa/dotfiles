@@ -14,4 +14,4 @@ if [ -z "$prog" ]; then
     exit 1
 fi
 
-exec "$prog" --RunAsDaemon --PidFile $HOME/.tor.pid -f $HOME/.torrc
+exec "$prog" -f $HOME/.torrc "$@"
