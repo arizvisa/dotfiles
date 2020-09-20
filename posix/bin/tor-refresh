@@ -1,3 +1,11 @@
 #!/bin/sh
-echo "refreshing tor..."
-kill -HUP $(cat $HOME/.tor.pid)
+pidfile=$HOME/.tor.pid
+
+if [ -e "$pidfile" ]; then
+    echo "Refreshing tor using pid found at $pidfile..." 1>&2
+    cat "$HOME/.tor.pid" | xargs kill -HUP
+    exit 0
+else
+    echo "Unable to determine pid due to missing file: $pidfile" 1>&2
+    exit 1
+fi

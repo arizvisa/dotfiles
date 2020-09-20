@@ -1,6 +1,22 @@
 #!/bin/sh
-if $( test ! -e $HOME/.tor.pid ); then
-    tor -f $HOME/.torrc --RunAsDaemon 1 --PidFile $HOME/.tor.pid
+posix=`type -P tsocks`
+
+argv0=`readlink -f "$0"`
+IFS=:
+for p in $PATH; do
+    rp=`readlink -f "$p/$posix"`
+    [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+done
+unset IFS
+
+if [ -z "$prog" ]; then
+    echo "Unable to locate binary for program: $posix" 1>&2
+    exit 1
+fi
+
+if [ ! -e "$HOME/.tor.pid" ]; then
+    echo "Pidfile $HOME/.tor.pid not found!" 1>&2
+    exit 1
 fi
 
 if $( test -e $HOME/.tsocks.conf ); then
@@ -9,4 +25,4 @@ else
     TSOCKS_CONF_FILE=/etc/tor/tor-tsocks.conf
 fi
 export TSOCKS_CONF_FILE
-exec tsocks "$@"
+exec "$prog" "$@"

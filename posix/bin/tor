@@ -1,2 +1,17 @@
 #!/bin/sh
-/usr/sbin/tor -f $HOME/.torrc
+posix=`type -P tor`
+
+argv0=`readlink -f "$0"`
+IFS=:
+for p in $PATH; do
+    rp=`readlink -f "$p/$posix"`
+    [ -x "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+done
+unset IFS
+
+if [ -z "$prog" ]; then
+    echo "Unable to locate binary for program: $posix" 1>&2
+    exit 1
+fi
+
+exec "$prog" --RunAsDaemon --PidFile $HOME/.tor.pid -f $HOME/.torrc
