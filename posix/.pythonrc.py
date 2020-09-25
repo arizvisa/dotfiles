@@ -28,10 +28,14 @@ finstance = lambda *type: frpartial(builtins.isinstance, type)
 fhasitem = fitemQ = lambda key: fcompose(fcatch(frpartial(operator.getitem, key)), builtins.iter, builtins.next, fpartial(operator.eq, builtins.None))
 # return a closure that will get a particular element from an object
 fgetitem = fitem = lambda item, *default: lambda object: default[0] if default and item not in object else object[item] 
+# return a closure that will set a particular element on an object
+fsetitem = lambda item: lambda value: lambda object: operator.setitem(object, item, value) or object
 # return a closure that will check if its argument has an ``attribute``.
 fhasattr = fattributeQ = lambda attribute: frpartial(builtins.hasattr, attribute)
 # return a closure that will get a particular attribute from an object
 fgetattr = fattribute = lambda attribute, *default: lambda object: getattr(object, attribute, *default)
+# return a closure that will set a particular attribute on an object
+fsetattr = fsetattribute = lambda attribute: lambda value: lambda object: builtins.setattr(object, attribute, value) or object
 # return a closure that always returns ``object``.
 fconstant = fconst = falways = lambda object: lambda *a, **k: object
 # a closure that returns it's argument always
