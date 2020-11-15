@@ -245,7 +245,7 @@ if test -f "$outpath/$error"; then
     printf "[%s] backing up current log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$error" "$outpath/$errortmp"
     mv "$outpath/$error" "$outpath/$errortmp"
     errorcat=1
-    trap 'rm -f "$tmpunix"; test ! -z "$errorcat" && printf "[%s] restoring previous log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error" && mv -f "$outpath/$errortmp" $outpath/$error"; exit $?' INT TERM EXIT
+    trap 'rm -f "$tmpunix"; test ! -z "$errorcat" && printf "[%s] restoring previous log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error" && mv -f "$outpath/$errortmp" "$outpath/$error"; exit $?' INT TERM EXIT
 else
     trap 'rm -f "$tmpunix"; exit $?' INT TERM EXIT
 
