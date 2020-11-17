@@ -17,7 +17,7 @@ map(sys.path.append, __import__('glob').iglob(os.path.join(os.environ.get('HOME'
 # box any specified arguments
 fbox = fboxed = lambda *a: a
 # return a closure that executes ``f`` with the arguments unboxed.
-funbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + functools.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **builtins.dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+funbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + functools.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return the first argument
 fcar = lambda *a: a[:1][0]
 # return the rest of the arguments
@@ -54,25 +54,25 @@ fcondition = fcond = lambda crit: lambda t, f: \
 # return a closure that takes a list of functions to execute with the provided arguments
 fmap = lambda *fa: lambda *a, **k: (f(*a, **k) for f in fa)
 #lazy = lambda f, state={}: lambda *a, **k: state[(f, a, builtins.tuple(builtins.sorted(k.items())))] if (f, a, builtins.tuple(builtins.sorted(k.items()))) in state else state.setdefault((f, a, builtins.tuple(builtins.sorted(k.items()))), f(*a, **k))
-#lazy = lambda f, *a, **k: lambda *ap, **kp: f(*(a+ap), **dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+#lazy = lambda f, *a, **k: lambda *ap, **kp: f(*(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a memoized closure that's lazy and only executes when evaluated
 def flazy(f, *a, **k):
     sortedtuple, state = fcompose(builtins.sorted, builtins.tuple), {}
     def lazy(*ap, **kp):
         A, K = a + ap, sortedtuple(builtins.tuple(k.items()) + builtins.tuple(kp.items()))
-        return state[(A, K)] if (A, K) in state else state.setdefault((A, K), f(*A, **builtins.dict(builtins.tuple(k.items())+builtins.tuple(kp.items()))))
+        return state[(A, K)] if (A, K) in state else state.setdefault((A, K), f(*A, **{ key : value for key, value in itertools.chain(k.items(), kp.items())}))
     return lazy
 fmemo = flazy
 # return a closure with the function's arglist partially applied
 fpartial = functools.partial
 # return a closure that applies the provided arguments to the function ``f``.
-fapply = lambda f, *a, **k: lambda *ap, **kp: f(*(a+ap), **builtins.dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+fapply = lambda f, *a, **k: lambda *ap, **kp: f(*(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a closure that will use the specified arguments to call the provided function.
-fcurry = lambda *a, **k: lambda f, *ap, **kp: f(*(a+ap), **builtins.dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+fcurry = lambda *a, **k: lambda f, *ap, **kp: f(*(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a closure that applies the initial arglist to the end of function ``f``.
-frpartial = lambda f, *a, **k: lambda *ap, **kp: f(*(ap + builtins.tuple(builtins.reversed(a))), **builtins.dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+frpartial = lambda f, *a, **k: lambda *ap, **kp: f(*(ap + builtins.tuple(builtins.reversed(a))), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a closure that applies the arglist to function ``f`` in reverse.
-freverse = lambda f, *a, **k: lambda *ap, **kp: f(*builtins.reversed(a + ap), **builtins.dict(builtins.tuple(k.items()) + builtins.tuple(kp.items())))
+freverse = lambda f, *a, **k: lambda *ap, **kp: f(*builtins.reversed(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a closure that executes function ``f`` and includes the caught exception (or None) as the first element in the boxed result.
 def fcatch(f, *a, **k):
     def fcatch(*a, **k):
@@ -94,8 +94,3 @@ iget = lambda count: fcompose(builtins.iter, fmap(*(builtins.next,)*(count)), bu
 islice, imap, ifilter, ichain, izip = itertools.islice, builtins.map, builtins.filter, itertools.chain, builtins.zip
 # count number of elements of a container
 count = fcompose(builtins.iter, builtins.list, builtins.len)
-
-__all__ = ['functools', 'operator', 'itertools', 'types', 'builtins']
-__all__+= ['first', 'second', 'third', 'last']
-__all__+= ['fpartial', 'imap', 'ifilter', 'ichain', 'izip']
-__all__+= filter( fcompose(fpartial(operator.getitem,locals()), finstance(types.FunctionType)), locals())
