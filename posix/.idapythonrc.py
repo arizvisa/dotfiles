@@ -1,5 +1,5 @@
 import functools, itertools, types, builtins, operator, six
-import logging, user
+import logging
 logging.root = logging.RootLogger(logging.WARNING)
 
 import function as fn
@@ -48,7 +48,7 @@ except ImportError:
 # shortcuts
 def whereami(ea=None):
     res = db.h() if ea is None else ea
-    print '{:s}+{:x}'.format(db.module(), db.getoffset(res))
+    print('{:s}+{:x}'.format(db.module(), db.getoffset(res)))
     return res
 
 def h():
