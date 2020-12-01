@@ -85,9 +85,9 @@ ilist, liter = fcompose(builtins.list, builtins.iter), fcompose(builtins.iter, b
 # converts a tuple to an iterator, or an iterator to a tuple
 ituple, titer = fcompose(builtins.tuple, builtins.iter), fcompose(builtins.iter, builtins.tuple)
 # take `count` number of elements from an iterator
-itake = lambda count: fcompose(builtins.iter, fmap(*(builtins.next,)*count), builtins.tuple)
+itake = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple)
 # get the `nth` element from an iterator
-iget = lambda count: fcompose(builtins.iter, fmap(*(builtins.next,)*(count)), builtins.tuple, operator.itemgetter(-1))
+iget = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple, operator.itemgetter(-1))
 # copy from itertools
 islice, imap, ifilter, ichain, izip = itertools.islice, builtins.map, builtins.filter, itertools.chain, builtins.zip
 # count number of elements of a container
