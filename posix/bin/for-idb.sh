@@ -165,33 +165,33 @@ runscript()
     workingdir="$3"
 
     cat <<EOF
-import __builtin__,sys,time,os
+import builtins,sys,time,os
 sys.argv = __import__('idc').ARGV = ['$script'] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
 os.chdir(r"$workingdir")
 for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils'):
     try:
-        globals()[_] = __builtin__.__import__(_)
+        globals()[_] = builtins.__import__(_)
     except ImportError:
-        print "$arg0:unable to import module %s. skipping."% _
+        print("$arg0:unable to import module %s. skipping."% _)
     continue
-#print "%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime()))
+#print("%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime())))
 #idaapi.auto_wait()
-print "~"*65
-__builtin__._ = time.time()
-print "%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv)
+print("~"*65)
+builtins._ = time.time()
+print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv))
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
-try: execfile(r"$scriptpath", globals())
-except SystemExit: __builtin__.__EXITCODE__, = sys.exc_info()[1].args
-except Exception: print '%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info()))
-print "%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-__builtin__._, time.asctime(time.localtime()))
-print "~"*65
-print "%s:saving to %s"% (r"$arg0", r"$input")
+try: exec(open(r"$scriptpath").read(), globals())
+except SystemExit: builtins.__EXITCODE__, = sys.exc_info()[1].args
+except Exception: print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
+print("%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
+print("~"*65)
+print("%s:saving to %s"% (r"$arg0", r"$input"))
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
     idaapi.save_database(idaapi.cvar.database_idb, 0)
 else:
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
-idaapi.qexit(getattr(__builtin__, '__EXITCODE__', 0))
+idaapi.qexit(getattr(builtins, '__EXITCODE__', 0))
 EOF
 }
 

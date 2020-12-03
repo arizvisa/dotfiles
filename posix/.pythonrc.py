@@ -89,6 +89,6 @@ itake = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), bu
 # get the `nth` element from an iterator
 iget = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple, operator.itemgetter(-1))
 # copy from itertools
-islice, imap, ifilter, ichain, izip = itertools.islice, builtins.map, builtins.filter, itertools.chain, builtins.zip
+islice, imap, ifilter, ichain, izip = itertools.islice, fcompose(builtins.map, builtins.iter), fcompose(builtins.filter, builtins.iter), itertools.chain, fcompose(builtins.zip, builtins.iter)
 # count number of elements of a container
 count = fcompose(builtins.iter, builtins.list, builtins.len)
