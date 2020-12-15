@@ -16,12 +16,19 @@ httpsize()
 filesize()
 {
     filename=$1
-    stat -c '%s' "$filename"
+    case "$platform" in
+    freebsd*)
+        stat -f '%z' "$filename"
+        ;;
+    linux*)
+        stat -c '%s' "$filename"
+        ;;
+    esac
 }
 
 calculatepercent()
 {
-    echo "BEGIN { print $1/$2*100 }" | awk -f-
+    echo "scale=3;$1/$2*100" | bc
 }
 
 transferstatus()
@@ -30,7 +37,7 @@ transferstatus()
     maxsize=$2
     size=0
 
-    while test "$size" -lt "$maxsize"; do
+    while [ "$size" -lt "$maxsize" ]; do
         size=$( filesize "$filename" )
         perc=$( calculatepercent $size $maxsize )
         echo "$filename $perc% $size $maxsize"
@@ -63,7 +70,7 @@ download()
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
     curl_get --compressed -C- --retry 65535 --retry-delay 0 --retry-max-time 0 -o "$target" -- "$url" 1>&2 &
     pid=$!
-    if test "$size" != ""; then
+    if [ "$size" != "" ]; then
         transferstatus $target $size &
         pid=$!
         killthis=
@@ -72,7 +79,7 @@ download()
         killthis=$!
     fi
     wait $pid
-    test "$killthis" = "" || kill "$killthis"
+    [ "$killthis" = "" ] || kill "$killthis"
 }
 
 filename=$(basename "$url")
