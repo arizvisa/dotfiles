@@ -20,7 +20,7 @@ if [ -z "$prog" ]; then
     unset IFS
 fi
 
-# go for it...or not.
+## go for it...or not.
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
 "$prog" "$@"

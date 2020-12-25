@@ -1,8 +1,12 @@
 import functools, itertools, types, builtins, operator, six
-import logging
+import sys, logging
 logging.root = logging.RootLogger(logging.WARNING)
 
-import function as fn
+import internal, function as fn
+if sys.version_info.major < 3:
+    pass
+else:
+    import importlib as imp
 
 try:
     import sys, ptypes
@@ -76,4 +80,3 @@ previous_written = fcompose(fmap(fidentity, fcompose(fmap(fpartial(fpartial, ins
 
 freg_written = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_write(ea) if ins.opt(ea, i) == 'register')
 freg = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_read(ea) if isinstance(ins.op(ea, i), symbol_t)) or any(reg.relatedQ(ins.op(ea, i)) for i in ins.ops_write(ea) if isinstance(ins.op(ea, i), symbol_t) and ins.opt(ea, i) == 'register') or any(any(r.relatedQ(reg) for r in ins.op(ea, i).symbols) for i in range(ins.ops_count(ea)) if ins.opt(ea, i) == 'phrase')
-

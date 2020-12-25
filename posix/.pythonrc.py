@@ -15,9 +15,9 @@ map(sys.path.append, __import__('glob').iglob(os.path.join(os.environ.get('HOME'
 
 ## some functional primitives in the default namespace
 # box any specified arguments
-fbox = lambda *a: a
+fbox = fpack = lambda *a: a
 # return a closure that executes `f` with the arguments unboxed.
-funbox = lambda f, *a, **k: lambda *ap, **kp: f(*(a + functools.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
+funbox = funpack = lambda f, *a, **k: lambda *ap, **kp: f(*(a + functools.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return the first argument
 fcar = lambda *a: a[:1][0]
 # return the rest of the arguments
