@@ -1,6 +1,5 @@
 #!/bin/sh
 args=""
-args="$args --append --append-verify"
 args="$args -avvzc0XPS"
 
 ## paths to our binaries based on the platform
