@@ -1,0 +1,3 @@
+#!/bin/sh
+format='%4Y%2m%2d%2H%2M%2S'
+exec date "+${format}" "$@"
