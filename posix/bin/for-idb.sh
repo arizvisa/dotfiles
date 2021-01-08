@@ -165,15 +165,16 @@ runscript()
     workingdir="$3"
 
     cat <<EOF
-import builtins,sys,time,os
+import builtins, sys, time, os
 sys.argv = __import__('idc').ARGV = ['$script'] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
 os.chdir(r"$workingdir")
-for _ in ('traceback','logging','os','idaapi','idaapi','idc','idautils'):
+for module in ['traceback','logging','os','idaapi','idaapi','idc','idautils']:
     try:
-        globals()[_] = builtins.__import__(_)
+        globals()[module] = __import__(module)
     except ImportError:
         print("$arg0:unable to import module %s. skipping."% _)
     continue
+del(module)
 #print("%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime())))
 #idaapi.auto_wait()
 print("~"*65)
