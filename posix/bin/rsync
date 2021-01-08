@@ -1,6 +1,8 @@
 #!/bin/sh
 args=""
-args="$args -avvzc0XPS"
+args="$args -rlHptogDX"
+args="$args -ihzcs0PS"
+args="$args --stats"
 
 ## paths to our binaries based on the platform
 posix=rsync
