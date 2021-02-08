@@ -52,7 +52,7 @@ fdiscard = lambda f: lambda *a, **k: f()
 fcondition = lambda crit: lambda t, f: \
     lambda *a, **k: (t(*a, **k) if builtins.callable(t) else t) if crit(*a, **k) else (f(*a, **k) if builtins.callable(f) else f)
 # return a closure that takes a list of functions to execute with the provided arguments
-fmap = lambda *fa: lambda *a, **k: (f(*a, **k) for f in fa)
+fmap = lambda *fa: lambda *a, **k: builtins.tuple(f(*a, **k) for f in fa)
 #lazy = lambda f, state={}: lambda *a, **k: state[(f, a, builtins.tuple(builtins.sorted(k.items())))] if (f, a, builtins.tuple(builtins.sorted(k.items()))) in state else state.setdefault((f, a, builtins.tuple(builtins.sorted(k.items()))), f(*a, **k))
 #lazy = lambda f, *a, **k: lambda *ap, **kp: f(*(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a memoized closure that's lazy and only executes when evaluated
@@ -81,14 +81,16 @@ def fcatch(f, *a, **k):
 # boolean inversion of the result of a function
 fcomplement = fnot = frpartial(fcompose, operator.not_)
 # converts a list to an iterator, or an iterator to a list
-ilist, liter = fcompose(builtins.list, builtins.iter), fcompose(builtins.iter, builtins.list)
+ilist, liter = fcompose(builtins.iter, builtins.list), fcompose(builtins.list, builtins.iter)
 # converts a tuple to an iterator, or an iterator to a tuple
-ituple, titer = fcompose(builtins.tuple, builtins.iter), fcompose(builtins.iter, builtins.tuple)
+ituple, titer = fcompose(builtins.iter, builtins.tuple), fcompose(builtins.tuple, builtins.iter)
 # take `count` number of elements from an iterator
 itake = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple)
 # get the `nth` element from an iterator
 iget = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple, operator.itemgetter(-1))
 # copy from itertools
-islice, imap, ifilter, ichain, izip = itertools.islice, fcompose(builtins.map, builtins.iter), fcompose(builtins.filter, builtins.iter), itertools.chain, fcompose(builtins.zip, builtins.iter)
+islice, imap, ifilter, ichain, izip, lzip = itertools.islice, fcompose(builtins.map, builtins.iter), fcompose(builtins.filter, builtins.iter), itertools.chain, fcompose(builtins.zip, builtins.iter), fcompose(builtins.zip, builtins.list)
+# restoration of the Py2-compatible list types
+lslice, lmap, lfilter, lzip = fcompose(itertools.islice, builtins.list), fcompose(builtins.map, builtins.list), fcompose(builtins.filter, builtins.list), fcompose(builtins.zip, builtins.list)
 # count number of elements of a container
 count = fcompose(builtins.iter, builtins.list, builtins.len)
