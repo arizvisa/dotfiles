@@ -649,7 +649,8 @@ tbreak main
 
 ## options
 set stop-on-solib-events 0
-#set follow-fork-mode child
+set follow-fork-mode child
+set detach-on-fork off
 set input-radix 0x10
 set output-radix 0x10
 #set width unlimited
