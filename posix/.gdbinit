@@ -655,6 +655,7 @@ set input-radix 0x10
 set output-radix 0x10
 #set width unlimited
 #set height unlimited
+set max-value-size unlimited
 
 ## registers ($ps)
 set variable $cf = 1 << 0
