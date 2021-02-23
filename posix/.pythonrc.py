@@ -97,3 +97,14 @@ islice, imap, ifilter, ichain, izip = itertools.islice, fcompose(builtins.map, b
 lslice, lmap, lfilter, lzip = fcompose(itertools.islice, builtins.list), fcompose(builtins.map, builtins.list), fcompose(builtins.filter, builtins.list), fcompose(builtins.zip, builtins.list)
 # count number of elements of a container
 count = fcompose(builtins.iter, builtins.list, builtins.len)
+
+# some miscellaneous utilities
+def scan(source, pattern):
+    position, state = 0, source[:]
+    while len(state):
+        current, position = len(source) - len(state), state.find(pattern)
+        rest = slice(1 + position or len(state), None)
+        if position >= 0:
+            yield current + position
+        state = state[rest]
+    return
