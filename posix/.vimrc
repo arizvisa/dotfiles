@@ -48,7 +48,7 @@ if has("eval")
 
 """ default configuration
 
-    "" site-local script paths
+    "" rcfile script paths
     if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
     let s:rcfilename = ".vimrc"
     let s:rcfilename_site = ".vimrc.local"
@@ -176,11 +176,11 @@ if has("eval")
         " if we didn't find a match, then we can source the file without issue. otherwise, just
         " warn the user about it and don't do anything else.
         if !l:found
-            echomsg printf('Sourcing file "%s" as requested by user.', a:path)
+            silent echomsg printf('Sourcing file "%s" as requested by user.', a:path)
             execute printf("source %s", l:realpath)
             let g:rcfilename_history += [l:realpath]
         else
-            echomsg printf('Refusing to source file "%s" due to being sourced previously.', a:path)
+            silent echomsg printf('Refusing to source file "%s" due to having been previously sourced.', a:path)
         endif
     endfunction
 
@@ -228,6 +228,13 @@ if has("eval")
     endfunction
 
     if has("autocmd")
+        augroup assembler
+            let g:asmsyntax='asm'
+            autocmd!
+            autocmd BufNewFile,BufRead *.asm,*.[sS],*.lst call dist#ft#FTasm()
+            autocmd FileType assembler setlocal expandtab tabstop=2 shiftwidth=2
+        augroup end
+
         augroup cs
             autocmd!
             autocmd FileType cs call s:map_braces()
@@ -296,20 +303,20 @@ if has("eval")
         augroup end
     endif
 
-""" site-local .vimrc
+""" user-local .vimrc
     if filereadable(g:rcfilename_site)
         try
             call <SID>source_vimrc(g:rcfilename_site)
         catch
-            echoerr printf("Error: unable to source site-local .vimrc : %s", g:rcfilename_site)
+            echoerr printf("Error: unable to source user-local .vimrc : %s", g:rcfilename_site)
         endtry
     else
-        if !filereadable(g:rcfilename_site) | echohl WarningMsg | echomsg printf("Warning: site-local .vimrc does not exist : %s", g:rcfilename_site) | echohl None | endif
+        if !filereadable(g:rcfilename_site) | echohl WarningMsg | echomsg printf("Warning: user-local .vimrc does not exist : %s", g:rcfilename_site) | echohl None | endif
     endif
 
 """ directory-local .vimrc
     if has("autocmd")
-        augroup vimrc-directory-local
+        augroup rcfile_local
             " FIXME: instead of checking the path to see if it's g:home, it'd probably be better to
             "        check against the runtimepath or the global list.
             " FIXME: would be pretty cool if we saved the options via option_safe() and restored them
