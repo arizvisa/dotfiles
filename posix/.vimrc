@@ -149,6 +149,41 @@ if has("eval")
         return synIDattr(id, "name")
     endfunction
 
+    let g:rcfilename_history = exists("g:rcfilename_history")? g:rcfilename_history : [expand('~/.vimrc')]
+    function! <SID>source_vimrc(path)
+        if type(a:path) != v:t_string
+            throw printf('E474: Invalid argument; expected a string: %s', a:path)
+        endif
+        if !exists('g:rcfilename_history')
+            throw printf('E121: Undefined variable; not initialized: %s', 'g:rcfilename_history')
+        endif
+
+        " check that the file actually exists
+        let l:realpath = fnamemodify(a:path, ":p")
+        if !filereadable(l:realpath)
+            throw printf('E210: Error trying to read filename; file is not readable: %s', l:realpath)
+        endif
+
+        " check if the path we're going to source has already been sourced once before, this way
+        " we can skip over it if necessary.
+        let l:found = v:false
+        for l:item in g:rcfilename_history
+            if l:item == l:realpath
+                let l:found = v:true
+            endif
+        endfor
+
+        " if we didn't find a match, then we can source the file without issue. otherwise, just
+        " warn the user about it and don't do anything else.
+        if !l:found
+            echomsg printf('Sourcing file "%s" as requested by user.', a:path)
+            execute printf("source %s", l:realpath)
+            let g:rcfilename_history += [l:realpath]
+        else
+            echomsg printf('Refusing to source file "%s" due to being sourced previously.', a:path)
+        endif
+    endfunction
+
 """ autocommand configuration
 
     "" match and then jump to a specified regex whilst updating the +jumplist
@@ -161,7 +196,7 @@ if has("eval")
         execute printf('normal %dgg0%dl', l:l, l:c + 1)
     endfunction
 
-    function s:matchjump(pattern, ...)
+    function! s:matchjump(pattern, ...)
         let F = function('s:matchjump_internal')
         try
             let _ =  call(F, [a:pattern] + a:000)
@@ -262,11 +297,9 @@ if has("eval")
     endif
 
 """ site-local .vimrc
-    if !exists("g:vimrc_site") | let g:vimrc_site = 0 | endif
-    if g:vimrc_site == 0 && filereadable(g:rcfilename_site)
+    if filereadable(g:rcfilename_site)
         try
-            exec printf("source %s", g:rcfilename_site)
-            let g:vimrc_site += 1
+            call <SID>source_vimrc(g:rcfilename_site)
         catch
             echoerr printf("Error: unable to source site-local .vimrc : %s", g:rcfilename_site)
         endtry
@@ -277,7 +310,11 @@ if has("eval")
 """ directory-local .vimrc
     if has("autocmd")
         augroup vimrc-directory-local
-            exec printf("autocmd BufRead,BufNewFile * if expand('%%:p:h') != g:home && filereadable(join([expand('%%:p:h'),\"%s\"], s:pathsep)) | exec printf(\"source %%s\", join([expand('%%:p:h'), \"%s\"], s:pathsep)) | endif", s:rcfilename_local, s:rcfilename_local)
+            " FIXME: instead of checking the path to see if it's g:home, it'd probably be better to
+            "        check against the runtimepath or the global list.
+            " FIXME: would be pretty cool if we saved the options via option_safe() and restored them
+            "        with option_restore() if possible.
+            execute printf("autocmd BufRead,BufNewFile * if expand('%%:p:h') != g:home && filereadable(join([expand('%%:p:h'),\"%s\"], s:pathsep)) | call %ssource_vimrc(join([expand('%%:p:h'), \"%s\"], s:pathsep)) | endif", s:rcfilename_local, expand('<SID>'), s:rcfilename_local)
         augroup end
     endif
 endif
