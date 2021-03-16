@@ -4,7 +4,9 @@
 [core]
 	eol = lf
 	autocrlf = false
-[push]
-	default = matching
 [http]
 	sslVerify = false
+[pull]
+	ff = only
+[push]
+	default = matching
