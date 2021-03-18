@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 posix=`type -P gvim || type -P vim`
 pf_x86=`env | egrep "^ProgramFiles\(x86\)=" | cut -d= -f2- | xargs cygpath -u`
 pf=`env | egrep "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
