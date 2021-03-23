@@ -163,6 +163,7 @@ if has("cscope")
         " let the user know if we had to figure out the right program
         if s:cscopeprg != &cscopeprg
             echomsg printf("Decided upon a %s (%s) database for navigation: %s", s:csdescription, s:cstype, s:cscopeprg)
+            let &cscopeprg = s:cscopeprg
         endif
     else
         throw printf("Unable to identify a valid program for %s.", "&cscopeprg")
