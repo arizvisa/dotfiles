@@ -1,4 +1,4 @@
-import os, sys, logging
+import os, sys, logging, math
 import functools, itertools, types, builtins, operator, six
 
 # remove crlf from std{out,err} because CPython is pretty fucking stupid
@@ -108,3 +108,20 @@ def scan(source, pattern):
             yield current + position
         state = state[rest]
     return
+
+def entropy(bytes):
+    length = len(bytes)
+
+    count = {}
+    for octet in bytearray(bytes):
+        count.setdefault(octet, 0)
+        count[octet] += 1
+
+    frequency = []
+    for item in count.values():
+        frequency.append(float(item) / float(length))
+
+    res = 0.0
+    for item in frequency:
+        res = res + item * math.log(item, 2)
+    return -res / 8
