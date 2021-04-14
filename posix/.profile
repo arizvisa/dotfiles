@@ -128,6 +128,9 @@ case "$platform" in
 
         # FIXME: add support for python's user-local site-packages
         ;;
+    freebsd*)
+        # Nothing necessary to do here because this platform is PERFECT.
+        ;;
     *)
         echo "$0 : Unsupported platform \"$platform\"." 1>&2
         ;;
