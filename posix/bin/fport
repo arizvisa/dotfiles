@@ -5,9 +5,10 @@
 for pid in `fuser -n tcp $1|cut -d ":" -f 2`
 do
 if ((myfirst==0)); then
-/bin/ps -p $pid -wwo  user,pid,args|head -n 1
+/bin/ps -p $pid -hwwo  user,pid,args|head -n 1
 myfirst=1;
+else
+/bin/ps -p $pid -hwwo  user=,pid=,args=
 fi
-/bin/ps -p $pid -wwo  user=,pid=,args=
 done
 unset myfirst;
