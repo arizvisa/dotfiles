@@ -12,6 +12,8 @@ if test -z "$input" -o -z "$script"; then
     exit 1
 fi
 
+# This takes a relative path and echos an absolute path (realpath) converting
+# the '/' path separator to the one for your platform ('/' or '\').
 getportablepath()
 {
     case "$os" in
@@ -23,6 +25,32 @@ getportablepath()
         ;;
     esac
     return 0
+}
+
+# This function should echo the full path to your instance of IDA,
+# using '/' as its path delimiter, and returns 1 on failure.
+find_idapath()
+{
+    local path="$IDAPATH"
+    local file="ida.hlp"
+    local programfiles=`resolvepath "$ProgramFiles"`
+
+    if test -z "$path" && test -d "$programfiles"; then
+        local IFS=$'\n\t'
+        for cp in $programfiles*/IDA*; do
+            rp=`resolvepath "$cp"`
+            if test -e "$rp/$file"; then
+                path=$rp
+                break
+            fi
+        done
+    fi
+
+    # if we couldn't find anything, then bail
+    test -z "$path" && return 1
+
+    # otherwise emit it to the caller
+    echo "$path"
 }
 
 get_idabinary32()
@@ -61,30 +89,6 @@ get_idabinary64()
             echo "$1/ida64"
         fi
     esac
-}
-
-find_idapath()
-{
-    local path="$IDAPATH"
-    local file="ida.hlp"
-    local programfiles=`resolvepath "$ProgramFiles"`
-
-    if test -z "$path" && test -d "$programfiles"; then
-        local IFS=$'\n\t'
-        for cp in $programfiles*/IDA*; do
-            rp=`resolvepath "$cp"`
-            if test -e "$rp/$file"; then
-                path=$rp
-                break
-            fi
-        done
-    fi
-
-    # if we couldn't find anything, then bail
-    test -z "$path" && return 1
-
-    # otherwise emit it to the caller
-    echo "$path"
 }
 
 

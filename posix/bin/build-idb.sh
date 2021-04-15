@@ -5,6 +5,8 @@ usage()
     printf "builds a %s ida database for file. writes output to file.{idb,log}.\n" "$bits"
 }
 
+# This takes a relative path and echos an absolute path (realpath) converting
+# the '/' path separator to the one for your platform ('/' or '\').
 getportablepath()
 {
     case "$os" in
@@ -18,17 +20,30 @@ getportablepath()
     return 0
 }
 
-getshortpath()
+# This function should echo the full path to your instance of IDA,
+# using '/' as its path delimiter, and returns 1 on failure.
+find_idapath()
 {
-    case "$os" in
-    windows)
-        cygpath -s "$1"
-        ;;
-    *)
-        cygpath -u "$1"
-        ;;
-    esac
-    return 0
+    local path="$IDAPATH"
+    local file="ida.hlp"
+    local programfiles=`resolvepath "$ProgramFiles"`
+
+    if test -z "$path" && test -d "$programfiles"; then
+        local IFS=$'\n\t'
+        for cp in $programfiles*/IDA*; do
+            rp=`resolvepath "$cp"`
+            if test -e "$rp/$file"; then
+                path=$rp
+                break
+            fi
+        done
+    fi
+
+    # if we couldn't find anything, then bail
+    test -z "$path" && return 1
+
+    # otherwise emit it to the caller
+    echo "$path"
 }
 
 get_idabinary32()
@@ -67,30 +82,6 @@ get_idabinary64()
             echo "$1/ida64"
         fi
     esac
-}
-
-find_idapath()
-{
-    local path="$IDAPATH"
-    local file="ida.hlp"
-    local programfiles=`resolvepath "$ProgramFiles"`
-
-    if test -z "$path" && test -d "$programfiles"; then
-        local IFS=$'\n\t'
-        for cp in $programfiles*/IDA*; do
-            rp=`resolvepath "$cp"`
-            if test -e "$rp/$file"; then
-                path=$rp
-                break
-            fi
-        done
-    fi
-
-    # if we couldn't find anything, then bail
-    test -z "$path" && return 1
-
-    # otherwise emit it to the caller
-    echo "$path"
 }
 
 currentdate()
@@ -235,9 +226,9 @@ output="$output.$ext"
 tmp=".ida.analysis.$$.py"
 
 # create script that is going to be executed
-tmpunix=`cygpath -u "$outpath/$tmp"`
-tmpwin=`getshortpath "$outpath/$tmp"`
-makeanalysis >| "$tmpunix"
+tmppath=`realpath "$outpath/$tmp"`
+tmppath_ida=`getportablepath "$outpath/$tmp"`
+makeanalysis >| "$tmppath"
 
 # back up error log
 errortmp=".ida.prevlog.$error.$$"
@@ -245,9 +236,9 @@ if test -f "$outpath/$error"; then
     printf "[%s] backing up current log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$error" "$outpath/$errortmp"
     mv "$outpath/$error" "$outpath/$errortmp"
     errorcat=1
-    trap 'rm -f "$tmpunix"; test ! -z "$errorcat" && printf "[%s] restoring previous log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error" && mv -f "$outpath/$errortmp" "$outpath/$error"; exit $?' INT TERM EXIT
+    trap 'rm -f "$tmppath"; test ! -z "$errorcat" && printf "[%s] restoring previous log from \"%s\" to \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error" && mv -f "$outpath/$errortmp" "$outpath/$error"; exit $?' INT TERM EXIT
 else
-    trap 'rm -f "$tmpunix"; exit $?' INT TERM EXIT
+    trap 'rm -f "$tmppath"; exit $?' INT TERM EXIT
 
 fi
 
@@ -261,11 +252,11 @@ fi
 beginning=`currentdate`
 if test -f "$outpath/$output"; then
     printf "[%s] updating database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -A "-S\"$tmpwin\"" -P+ "$@" "-L$error" "$output" )
+    ( cd "$outpath" && "$ida" -A "-S\"$tmppath_ida\"" -P+ "$@" "-L$error" "$output" )
     result=$?
 else
     printf "[%s] building database \"%s\" for \"%s\"\n" "`currentdate`" "$output" "$input"
-    ( cd "$outpath" && "$ida" -B -A "-S\"$tmpwin\"" -c -P+ "$@" "-L$error" "-o$output" "$input" )
+    ( cd "$outpath" && "$ida" -B -A "-S\"$tmppath_ida\"" -c -P+ "$@" "-L$error" "-o$output" "$input" )
     result=$?
 fi
 ending=`currentdate`
@@ -275,12 +266,12 @@ if test ! -e "$outpath/$error" && test -e "$outpath/$errortmp"; then
     printf "[%s] error while updating ida database \"%s\". expected ida to write logfile to \"%s\"\n" "`currentdate`" "$output" "$outpath/$error"
     printf "[%s] restoring logfile from \"%s\"\n" "`currentdate`" "$errortmp"
     mv -f "$outpath/$errortmp" "$outpath/$error"
-    rm -f "$tmpunix"
+    rm -f "$tmppath"
     exit 1
 
 elif test ! -e "$outpath/$error"; then
     printf "[%s] error while building ida database \"%s\". expected ida to write logfile to \"%s\"\n" "`currentdate`" "$output" "$outpath/$error"
-    rm -f "$tmpunix"
+    rm -f "$tmppath"
     exit 1
 fi
 
@@ -302,5 +293,5 @@ fi
 
 # and we're done. so do some cleanup
 printf "[%s] completed \"%s\" for \"%s\".\n" "`currentdate`" "$output" "$input"
-rm -f "$tmpunix"
+rm -f "$tmppath"
 trap - INT TERM EXIT
