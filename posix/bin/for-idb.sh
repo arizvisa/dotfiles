@@ -206,8 +206,7 @@ beginning=`currentdate`
 #"ida" -A -L$progress -S"$tmp" "$input"
 #"$ida" -A -L$progress -S"$tmp $*" "$input"
 unquoted=("$@")
-quoted=(${unquoted[@]/#/\"})
-quoted=(${quoted[@]/%/\"})
+quoted=(`printf "\"%s\" " "${unquoted[@]}"`)
 tmppath_ida=`getportablepath "$tmp"`
 progresspath_ida=`getportablepath "$progress"`
 "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
