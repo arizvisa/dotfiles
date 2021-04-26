@@ -333,12 +333,14 @@ end
 
 define show_code32
     emit "\n-=[disassembly]=-\n"
-    x/6i $pc
+    x/-3i $pc
+    x/4i $pc
 end
 
 define show_code64
     emit "\n-=[disassembly]=-\n"
-    x/6i $pc
+    x/-3i $pc
+    x/4i $pc
 end
 
 #      |11|10|F|E|D|C|B|A|9|8|7|6|5|4|3|2|1|0|

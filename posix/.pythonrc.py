@@ -1,5 +1,5 @@
-import os, sys, logging, math
-import functools, itertools, types, builtins, operator, six
+import logging, six
+import builtins, os, operator, math, functools, itertools, sys, types   # boomfist
 
 # remove crlf from std{out,err} because CPython is pretty fucking stupid
 if sys.platform == 'win32':
