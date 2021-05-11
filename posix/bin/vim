@@ -27,5 +27,4 @@ fi
 # go for it...or not.
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
-"$prog" "$@"
-exit $?
+exec "$prog" -f "$@"
