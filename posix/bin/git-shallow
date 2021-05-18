@@ -17,45 +17,56 @@ h,help              show the help
 q,quiet             only print error messages
 v,verbose           run verbosely
 d,depth=level       use this depth when performing the clone
+o,option=           transmit given string to server when communicating with git protocol
 since=date          include history since the given date
 exclude=revision    exclude commits reachable from the given revision
 "
 
 NONGIT_OK=1
-DEFAULT_PARAMETERS="--filter=blob:none --single-branch"
+DEFAULT_LIST_PARAMETERS="--tags --heads --refs --sort=version:refname"
+DEFAULT_CLONE_PARAMETERS="--filter=blob:none --single-branch"
 
 . git-sh-setup
 
-parameters=( ${DEFAULT_PARAMETERS} )
+parameters=()
+list_parameters=( ${DEFAULT_LIST_PARAMETERS} )
+clone_parameters=( ${DEFAULT_CLONE_PARAMETERS} )
 while test $# -ne 0; do
     case "$1" in
     --quiet)
-        GIT_QUIET=1
+        parameters=( ${parameters[@]} "--quiet" )
         ;;
     --depth=*)
         IFS== read _ arg <<< "$1"
-        parameters=( ${parameters[@]} "--depth=${arg}" )
+        clone_parameters=( ${clone_parameters[@]} "--depth=${arg}" )
         ;;
     --help)
         usage
         ;;
     --since=*)
         IFS== read _ arg <<< "$1"
-        parameters=( ${parameters[@]} "--shallow-since=${arg}" )
+        clone_parameters=( ${clone_parameters[@]} "--shallow-since=${arg}" )
         ;;
     --exclude=*)
         IFS== read _ arg <<< "$1"
-        parameters=( ${parameters[@]} "--shallow-exclude=${arg}" )
+        clone_parameters=( ${clone_parameters[@]} "--shallow-exclude=${arg}" )
         ;;
     --verbose)
-        parameters=( ${parameters[@]} "--verbose" )
+        list_parameters=( ${list_parameters[@]} "--verbose" )
+        clone_parameters=( ${clone_parameters[@]} "--verbose" )
+        ;;
+    --option=*)
+        IFS== read _ arg <<< "$1"
+        list_parameters=( ${list_parameters[@]} "--server-option=${arg}" )
+        clone_parameters=( ${clone_parameters[@]} "--server-option=${arg}" )
         ;;
     --)
         shift
         break
         ;;
     -*)
-        parameters=( ${parameters[@]} $1 )
+        list_parameters=( ${list_parameters[@]} "$1" )
+        clone_parameters=( ${clone_parameters[@]} "$1" )
         ;;
     *)
         usage
@@ -69,7 +80,7 @@ if [ "$#" -eq 0 ]; then
     usage
 elif [ "$#" -eq 1 ]; then
     url="$1"
-    git ls-remote --tags --heads --refs --sort version:refname "${url}"
+    git ls-remote "${parameters[@]}" "${list_parameters[@]}" "${url}"
 elif [ "$#" -le 3 ]; then
     url="$1"
     ref="$2"
@@ -80,10 +91,10 @@ elif [ "$#" -le 3 ]; then
     else
         directory=`basename "${url}" .git`
     fi
-    git clone "${parameters[@]}" --branch="${ref}" -- "${url}" "${directory}" && {
+    git clone "${parameters[@]}" "${clone_parameters[@]}" --branch="${ref}" -- "${url}" "${directory}" && {
         name=`basename "${ref}"`
         current=`git -C "${directory}" branch --show-current`
-        [ -z "${current}" ] && git -C "${directory}" checkout -b "${name}"
+        [ -z "${current}" ] && git -C "${directory}" checkout "${parameters[@]}" -b "${name}"
     }
 
 else
