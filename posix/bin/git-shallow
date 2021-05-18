@@ -65,16 +65,27 @@ while test $# -ne 0; do
 done
 
 set -- "$@"
-if [ "$#" == 0 ]; then
+if [ "$#" -eq 0 ]; then
     usage
-elif [ "$#" == 1 ]; then
+elif [ "$#" -eq 1 ]; then
     url="$1"
-    git ls-remote --tags --heads --refs --sort version:refname "$url"
+    git ls-remote --tags --heads --refs --sort version:refname "${url}"
 elif [ "$#" -le 3 ]; then
     url="$1"
     ref="$2"
     shift 2
-    git clone "${parameters[@]}" --branch="${ref}" -- "$url" "$@"
+
+    if [ "$#" -gt 0 ]; then
+        directory="$1"
+    else
+        directory=`basename "${url}" .git`
+    fi
+    git clone "${parameters[@]}" --branch="${ref}" -- "${url}" "${directory}" && {
+        name=`basename "${ref}"`
+        current=`git -C "${directory}" branch --show-current`
+        [ -z "${current}" ] && git -C "${directory}" checkout -b "${name}"
+    }
+
 else
     die_with_status 1 "${dashless}: unexpected number of parameters ($#). expected 1 to 3"
 fi
