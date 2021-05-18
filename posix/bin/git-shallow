@@ -2,8 +2,8 @@
 dashless=$(basename "$0" | sed -e 's/-/ /')
 
 USAGE=
-OPTIONS_STUCKLONG=Yes
-OPTIONS_KEEPDASHDASH=Yes
+OPTIONS_STUCKLONG=1
+OPTIONS_KEEPDASHDASH=1
 OPTIONS_SPEC="${dashless} [<options>] -- <url> [<refspec> [<dir>]]
 
 Display all of the available references for the given url.
@@ -23,29 +23,29 @@ exclude=revision    exclude commits reachable from the given revision
 
 NONGIT_OK=1
 DEFAULT_PARAMETERS="--filter=blob:none --single-branch"
-DEFAULT_DEPTH=1
 
 . git-sh-setup
 
-depth=${DEFAULT_DEPTH}
 parameters=( ${DEFAULT_PARAMETERS} )
-
 while test $# -ne 0; do
     case "$1" in
     --quiet)
         GIT_QUIET=1
         ;;
     --depth=*)
-        depth=$1
+        IFS== read _ arg <<< "$1"
+        parameters=( ${parameters[@]} "--depth=${arg}" )
         ;;
     --help)
         usage
         ;;
     --since=*)
-        parameters=( ${parameters[@]} "--shallow-since=$1" )
+        IFS== read _ arg <<< "$1"
+        parameters=( ${parameters[@]} "--shallow-since=${arg}" )
         ;;
     --exclude=*)
-        parameters=( ${parameters[@]} "--shallow-exclude=$1" )
+        IFS== read _ arg <<< "$1"
+        parameters=( ${parameters[@]} "--shallow-exclude=${arg}" )
         ;;
     --verbose)
         parameters=( ${parameters[@]} "--verbose" )
@@ -74,7 +74,7 @@ elif [ "$#" -le 3 ]; then
     url="$1"
     ref="$2"
     shift 2
-    git clone "${parameters[@]}" --depth="${depth}" --branch="${ref}" -- "$url" "$@"
+    git clone "${parameters[@]}" --branch="${ref}" -- "$url" "$@"
 else
     die_with_status 1 "${dashless}: unexpected number of parameters ($#). expected 1 to 3"
 fi
