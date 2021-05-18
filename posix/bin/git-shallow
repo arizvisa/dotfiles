@@ -1,0 +1,80 @@
+#!/bin/sh
+dashless=$(basename "$0" | sed -e 's/-/ /')
+
+USAGE=
+OPTIONS_STUCKLONG=Yes
+OPTIONS_KEEPDASHDASH=Yes
+OPTIONS_SPEC="${dashless} [<options>] -- <url> [<refspec> [<dir>]]
+
+Display all of the available references for the given url.
+  <url>       the location of the remote to query or clone
+
+If the following parameters are given, the reference will be shallow cloned.
+  <refspec>   the reference to clone from
+  <dir>       the directory to clone into
+--
+h,help              show the help
+q,quiet             only print error messages
+v,verbose           run verbosely
+d,depth=level       use this depth when performing the clone
+since=date          include history since the given date
+exclude=revision    exclude commits reachable from the given revision
+"
+
+NONGIT_OK=1
+DEFAULT_PARAMETERS="--filter=blob:none --single-branch"
+DEFAULT_DEPTH=1
+
+. git-sh-setup
+
+depth=${DEFAULT_DEPTH}
+parameters=( ${DEFAULT_PARAMETERS} )
+
+while test $# -ne 0; do
+    case "$1" in
+    --quiet)
+        GIT_QUIET=1
+        ;;
+    --depth=*)
+        depth=$1
+        ;;
+    --help)
+        usage
+        ;;
+    --since=*)
+        parameters=( ${parameters[@]} "--shallow-since=$1" )
+        ;;
+    --exclude=*)
+        parameters=( ${parameters[@]} "--shallow-exclude=$1" )
+        ;;
+    --verbose)
+        parameters=( ${parameters[@]} "--verbose" )
+        ;;
+    --)
+        shift
+        break
+        ;;
+    -*)
+        parameters=( ${parameters[@]} $1 )
+        ;;
+    *)
+        usage
+        ;;
+    esac
+    shift
+done
+
+set -- "$@"
+if [ "$#" == 0 ]; then
+    usage
+elif [ "$#" == 1 ]; then
+    url="$1"
+    git ls-remote --tags --heads --refs --sort version:refname "$url"
+elif [ "$#" -le 3 ]; then
+    url="$1"
+    ref="$2"
+    shift 2
+    git clone "${parameters[@]}" --depth="${depth}" --branch="${ref}" -- "$url" "$@"
+else
+    die_with_status 1 "${dashless}: unexpected number of parameters ($#). expected 1 to 3"
+fi
