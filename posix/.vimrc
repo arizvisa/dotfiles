@@ -134,7 +134,7 @@ if has("eval")
                 return path
             endif
         endfor
-        throw printf("Unable to locate %s in $PATH", a:program)
+        throw printf('Unable to locate %s in $PATH', a:program)
     endfunction
 
     " Replace the current buffer with the contents of the specified files concatenated together
@@ -177,7 +177,7 @@ if has("eval")
         " warn the user about it and don't do anything else.
         if !l:found
             silent echomsg printf('Sourcing file "%s" as requested by user.', a:path)
-            execute printf("source %s", l:realpath)
+            execute printf('source %s', l:realpath)
             let g:rcfilename_history += [l:realpath]
         else
             silent echomsg printf('Refusing to source file "%s" due to having been previously sourced.', a:path)
@@ -185,6 +185,179 @@ if has("eval")
     endfunction
 
 """ autocommand configuration
+    function! s:apply_layout_(info, type, layout)
+
+        " Iterate through each item in our layout in order to extract the window
+        " information for each id that's stored.
+        for item in a:layout
+            let l:layout_t = item[0]
+
+            " If our item type is a column or a row, then we're going to need to
+            " treat the items as a layout and recurse into it. For safety, we will
+            " also verify that it's of the correct type.
+            if match(['row', 'col'], '^' . l:layout_t . '$') >= 0
+                call assert_equal(type(item[1]), v:t_list)
+                call s:apply_layout_(a:info, l:layout_t, item[1])
+                continue
+            endif
+
+            " Otherwise this should be a leaf and will actually be responsible for
+            " creating and formatting the window at our current point in the layout.
+            call assert_equal(l:layout_t, 'leaf')
+            call assert_equal(type(item[1]), v:t_number)
+            let l:info = a:info[item[1]]
+
+            " Now that we have the correct window information, we can use it to
+            " split our current window with the saved buffer and dimensions. Our
+            " type parameter determines whether we use the "split" or "vsplit"
+            " commands which in itself chooses whether we use the width or height.
+            if a:type == 'col'
+                let [N, split_cmd] = [l:info['height'], 'split']
+            elseif a:type == 'row'
+                let [N, split_cmd] = [l:info['width'], 'vsplit']
+            else
+                throw printf('E474: Invalid argument; not sure how to handle unknown layout type: %s', a:type)
+            endif
+
+            " Now we can actually split out our window. First store the command
+            " that selects the correct buffer, and then use it when doing the split.
+            let switch_buffer = printf('buffer %d', l:info['bufnr'])
+            execute printf('%d%s +%s', N, split_cmd, fnameescape(switch_buffer))
+        endfor
+    endfunction
+
+    function! s:apply_layout(info, layout)
+        let [layout_t, items] = a:layout
+
+        " Grab the information for our current window so that we know how to
+        " switch back to it after applying the layout.
+        let l:tabnr = tabpagenr()
+        let l:current = tabpagewinnr(l:tabnr)
+        let l:current_info = getwininfo()
+
+        " Now we grab all of the windows for the current tab. This is because
+        " when we apply our layout, all of the splitting is going to happen
+        " via the currently selected window and we're going to need to use
+        " this list in order to know which windows we'll need to close after
+        " we apply the new layout.
+        let l:windows = []
+        for info in l:current_info
+            if info['tabnr'] == l:tabnr
+                let l:windows = add(l:windows, info['winnr'])
+            endif
+        endfor
+
+        " Now we can apply our layout to the current tab by calling our
+        " recursive case using our parameters. Afterwards, we can just
+        " iterate through the window numbers we saved, and close them
+        " one-by-one.
+        call s:apply_layout_(a:info, layout_t, items)
+
+        for winnr in l:windows
+            execute printf('%dclose', winnr)
+        endfor
+
+        " Before we return, we now can switch back to the window that
+        " was previously in focus.
+        execute printf('%dwincmd w', l:current)
+
+        " collects the dimensions of each window in the tab
+        ":let cmd = winrestcmd()
+        ":{winnr}resize {size}, :vertical :{winnr}resize {size}
+    endfunction
+
+    function! SaveLayout(tabnr)
+        let l:nr = a:tabnr
+
+        " Figure out which tabinfo is ours, and verify the tabinfo matches.
+        for info in gettabinfo()
+            if info['tabnr'] == l:nr
+                break
+            endif
+        endfor
+        if info['tabnr'] != l:nr
+            throw printf('E92: Unable to find information on current tab; tab number is not listed in tab information: %d', tabpagenr())
+        endif
+        let l:tabinfo = info
+
+        " Iterate through all of the window information, and grab all the
+        " windows for the current tab. Afterwards we pivot this list into
+        " a dictionary using the window id as its key. This is because the
+        " layout uses the window id which is unique per vim instance.
+        let items = []
+        for info in getwininfo()
+            if info['tabnr'] == l:tabinfo['tabnr']
+                let items = add(items, info)
+            endif
+        endfor
+
+        let l:windowinfo = {}
+        for item in items
+            let id = item['winid']
+            let l:windowinfo[id] = item
+        endfor
+
+        " As a sanity check, we'll walk through the window ids in our
+        " tabinfo and verify that each id is within our window info.
+        for id in l:tabinfo['windows']
+            let ok = exists('l:windowinfo[id]')
+            call assert_true(ok, printf('W14: Unable to store window information for tab %d; window id was not found: %d', l:tabinfo['tabnr'], id))
+        endfor
+
+        " Now we have our tab information and window information for the
+        " tab that we can return. We also need the actual layout, so we'll
+        " include that in our result too.
+        let l:layout = winlayout(l:tabinfo['tabnr'])
+        return [l:windowinfo, l:layout]
+    endfunction
+
+    function! RestoreLayout(tabnr, state)
+        let l:nr = a:tabnr
+        let [l:windowinfo, l:layout] = a:state
+
+        " We need to select the tab the user wants to restore the given
+        " state over, but first we save our current window id and then
+        " select the tab the layout is being restored to.
+        let [l:ctab, l:cwin] = [tabpagenr(), winnr()]
+        execute printf('%dtabnext', l:nr)
+
+        " Now that we're at the right place and we've saved the old place,
+        " we need to apply the layout.
+        if !s:apply_layout(l:windowinfo, l:layout)
+            throw printf('W14: Unable to apply layout to tab: %d', l:nr)
+        endif
+
+        " Afterwards, we can just jump back to the tabnumber and window id.
+        execute printf('%dtabnext', l:ctab)
+        execute printf('%dwincmd w', l:cwin)
+    endfunction
+
+    "" allow for window zoom/unzoom in the current tab
+    function! s:toggle_zoom(state)
+        let l:tabnr = tabpagenr()
+
+        " If we currently have a zoom state, then we need to restore
+        " what the user has given us.
+        if exists("a:state[l:tabnr]")
+            let l:state = remove(a:state, l:tabnr)
+
+            " All we need to do is take the popped state, and then restore
+            " the layout to its tab.
+            call RestoreLayout(l:tabnr, l:state)
+
+        " Otherwise we save our current window state, and then zoom
+        " in on the current window.
+        else
+            " Grab the layout for the current tab number.
+            let l:nr = l:tabnr
+            let l:state = SaveLayout(l:nr)
+
+            " Now we just need to push our window information and the layout
+            " into our state parameter keyed by the tab number.
+            if !exists('a:state[l:nr]') | let a:state[l:nr] = [] | endif
+            let a:state[l:nr] = add(a:state[l:nr], l:state)
+        endif
+    endfunction
 
     "" match and then jump to a specified regex whilst updating the +jumplist
     " XXX: look into using searchpair or searchpairpos to deal with nested braces
@@ -308,10 +481,10 @@ if has("eval")
         try
             call <SID>source_vimrc(g:rcfilename_site)
         catch
-            echoerr printf("Error: unable to source user-local .vimrc : %s", g:rcfilename_site)
+            echoerr printf('Error: unable to source user-local .vimrc : %s', g:rcfilename_site)
         endtry
     else
-        if !filereadable(g:rcfilename_site) | echohl WarningMsg | echomsg printf("Warning: user-local .vimrc does not exist : %s", g:rcfilename_site) | echohl None | endif
+        if !filereadable(g:rcfilename_site) | echohl WarningMsg | echomsg printf('Warning: user-local .vimrc does not exist : %s', g:rcfilename_site) | echohl None | endif
     endif
 
 """ directory-local .vimrc
