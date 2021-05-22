@@ -126,3 +126,10 @@ def advisegdb(tag, outfile):
    [ six.print_(r'echo # {!s}\n'.format(item.replace('\\', '\\\\')), file=outfile) for item in note.split('\n') ]
    six.print_("x/{:d}i {:#x}".format(cnt, ea), file=outfile)
  return outfile
+
+def strucrefs(structure):
+ for item in struc.by(structure).members:
+  for ref in item.refs():
+   yield ref
+  continue
+ return
