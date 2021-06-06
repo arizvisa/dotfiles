@@ -107,8 +107,8 @@ if has("cscope")
             throw printf("File \"%s\" does not exist", l:argpath)
         endif
 
-        " break the path into its directory and filename components
-        let l:directory=s:basedirectory(l:argpath)
+        " break the path into its directory (absolute) and filename components
+        let l:directory=fnamemodify(s:basedirectory(l:argpath), ":p")
         let l:path=fnamemodify(l:argpath, printf(":p:gs?%s?/?", s:pathsep))
 
         " store the path in GTAGSROOT in order to deal with gtags-cscope which
