@@ -53,17 +53,21 @@ set -o vi
 unalias -a
 complete -r
 
+# modify core utility parameters to improve their safety
 alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
 alias cat='cat -v'
 
+# remapping of common utilities
 alias l="`type -P less || type -P more`"
 alias info="`type -P info` --vi-keys"
 alias strings="`type -P stringsext || type -P strings`"
 
-# because some fucks alias `ls` to `ls -g`
-alias ls 2>/dev/null && unalias ls
+# remove any distro-specific aliases that have been added
+# for some of our core posix utilities.
+alias ls &>/dev/null && unalias ls
+alias cat &>/dev/null && unalias cat
 
 ## platform-specific fixes
 # darwin
