@@ -4,9 +4,11 @@ cursor-movement-scrolls=Off
 
 #info
 #stop
+
 ^l      redraw-display
 =       display-file-info
 \mx     execute-command
+^c      abort-key
 ^g      abort-key
 q       quit
 :q      quit
@@ -35,40 +37,56 @@ G       end-of-node
 >       last-node
 u       up-node
 
+^xg     goto-node
+^xu     top-node
+^xd     dir-node
+^xD     dir-node
+^xI     dir-node
+^xm     find-menu
+
 \r      select-reference-this-line
 o       select-reference-this-line
 ^]      select-reference-this-line
 ^t      history-node
-^v      list-visited-nodes
+
+^h      list-visited-nodes
+^xh     list-visited-nodes
+^w?     list-visited-nodes
+^x?     describe-key
 
 /       search
 ?       search-backward
 n       search-next
 N       search-previous
 
+\T      move-to-prev-xref
 \ku     move-to-prev-xref
-\kd     move-to-next-xref
 \kl     move-to-prev-xref
+\t      move-to-next-xref
+\kd     move-to-next-xref
 \kr     move-to-next-xref
 
 \kU     scroll-other-window-backward
 \kD     scroll-other-window
 
-^w^w    next-window
 ^wj     next-window
+^w^w    next-window
 ^wk     prev-window
+^ww     prev-window
 ^ws     split-window
 ^wc     delete-window
 ^wo     keep-one-window
+^w=     tile-windows
 ^w+     grow-window
 ^w-     grow-window
-^w=     tile-windows
 
 #echo-area
 #stop
 \r      echo-area-newline
-\m^c    echo-area-abort
-\mu     echo-area-abort
+^c      echo-area-abort
+^g      echo-area-abort
+#\m^c    echo-area-abort
+#\mu     echo-area-abort
 \t      echo-area-complete
 
 ^w      echo-area-backward-kill-word
