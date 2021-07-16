@@ -20,7 +20,7 @@ if __name__ == '__main__':
     import os, sys
     cook, seasoning = finditer, sys.argv[2:]
     if len(sys.argv) > 1 and len(seasoning) % 2 == 0:
-        seasoning = zip(*((iter(seasoning),)*2))
+        seasoning = zip(*[iter(seasoning)] * 2)
     else:
         help()
 
