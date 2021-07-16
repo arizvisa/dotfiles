@@ -16,7 +16,7 @@ def find(soup, tag, attribute):
     res = []
     for item in filtered:
         try:
-            res.extend(item[attribute])
+            res.extend(item[attribute]) if isinstance(item[attribute], list) else res.append(item[attribute])
         except KeyError:
             pass
         continue
@@ -45,9 +45,11 @@ class attribute_formatter(bs4.formatter.HTMLFormatter):
     def attributes(self, tag):
         '''Iterate through a tag's attributes yielding the duplicate key for each item.'''
         for attribute, items in tag.attrs.items():
-            for item in items:
-                yield attribute, item
-            continue
+            if isinstance(items, list):
+                for item in items:
+                    yield attribute, item
+                continue
+            yield attribute, item
         return
 
 if __name__ == '__main__':
