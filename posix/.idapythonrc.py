@@ -133,3 +133,13 @@ def strucrefs(structure):
    yield ref
   continue
  return
+
+def nameswitch(sw, translate=lambda item: item):
+ res = {}
+ for c in sw.cases:
+  ea = sw.case(c)
+  res.setdefault(ea, []).append(c)
+ for ea, items in res.items():
+  translated = map(translate, items)
+  db.name(ea, 'case({:s})'.format(','.join(map("{:x}".format,translated))), db.offset(ea))
+ return
