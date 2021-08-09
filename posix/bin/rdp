@@ -2,7 +2,7 @@
 mstsc_args='-f'
 xfreerdp_args=""
 xfreerdp_args="$xfreerdp_args +heartbeat +auto-reconnect"
-xfreerdp_args="$xfreerdp_args +sec-tls +sec-rdp -sec-nla -sec-ext +authentication"
+xfreerdp_args="$xfreerdp_args +sec-tls +sec-rdp +authentication"
 xfreerdp_args="$xfreerdp_args +dynamic-resolution +home-drive"
 xfreerdp_args="$xfreerdp_args +offscreen-cache +bitmap-cache +glyph-cache +gfx +nscodec +home-drive"
 
@@ -62,7 +62,7 @@ server="$1"
 ## if it's an option, then just pass through to $prog
 case "$1" in
 -*|/*)
-    echo "$prog" $args "$@"
+    "$prog" $args "$@"
     exit $$
     ;;
 esac
