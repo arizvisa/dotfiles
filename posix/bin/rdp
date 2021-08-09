@@ -68,8 +68,16 @@ case "$1" in
 esac
 
 ## otherwise, assume it's the server and pass the rest through
-server="$1"
+hostport="$1"
 shift 1
 
-"$prog" $args "-v:$server" "$@"
+case "$hostport" in
+*:*)
+    IFS=: read host port <<< "$hostport"
+    "$prog" $args "-port:$port" "-v:$host" "$@"
+    ;;
+*)
+    "$prog" $args "-v:$hostport" "$@"
+    ;;
+esac
 exit $$
