@@ -56,21 +56,11 @@ if [ -z "$prog" ]; then
 fi
 printf "Discovered RDP client: %s\n" "$prog" 1>&2
 
-## figure out the first argument
-server="$1"
-
-## if it's an option, then just pass through to $prog
-case "$1" in
--*|/*)
-    "$prog" $args "$@"
-    exit $$
-    ;;
-esac
-
-## otherwise, assume it's the server and pass the rest through
+## grab the first argument and assume it's the target host
 hostport="$1"
 shift 1
 
+## figure out what we were given and pass the arguments correctly
 case "$hostport" in
 *:*)
     IFS=: read host port <<< "$hostport"
