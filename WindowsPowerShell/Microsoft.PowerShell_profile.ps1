@@ -93,6 +93,36 @@ function StringSplitAny ([String]$string, [String]$ifs = " `u{09}`u{0A}`u{0D}") 
     return $result
 }
 
+# ripped mostly from https://stackoverflow.com/questions/1078920/equivalent-of-more-or-less-command-in-powershell
+function Pager {
+    [CmdletBinding()]
+    Param(
+        [Parameter(ValueFromPipeline=$true)]$$
+    )
+
+    # construct a steppable pipeline for Out-Host using our current invocation
+    begin {
+        $command = $ExecutionContext.InvokeCommand.GetCommand('Out-Host', [System.Management.Automation.CommandTypes]::Cmdlet)
+        $pager = { & $command @($PSBoundParameters) -Paging }
+        $pipeline = $pager.GetSteppablePipeline($myInvocation.CommandOrigin)
+        $pipeline.Begin($PSCmdlet)
+    }
+
+    # feed each block of input to our pipeline
+    process {
+        try {
+            $pipeline.Process($_)
+        } catch {
+            break
+        }
+    }
+
+    # close the pipeline when we're done
+    end {
+        $pipeline.End()
+    }
+}
+
 ## Site
 if ($Global:OS -ne "posix") {
     $vsver = "9.0"
