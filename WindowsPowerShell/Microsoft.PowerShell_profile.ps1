@@ -5,14 +5,12 @@ $Global:WarningPreference = "Continue"
 $Global:DebugPreference = "SilentlyContinue"
 $Global:VerbosePreference = "SilentlyContinue"
 
-# for some reason vi-mode does not work on powershell core, so
-# we instead use emacs-mode and fallback to vi if we're using
-# the desktop version of powershell.
-if ($PSEdition -ne "Desktop") {
-    Set-PSReadLineOption -EditMode Emacs
-} else {
-    Set-PSReadLineOption -EditMode Vi
-}
+# it appears that when the PSReadLineOption EditMode is set to Vi,
+# the escape chord is not consistently detected on both powershell
+# core ($PSEdition -eq "Core") or powershell desktop ($PSEdition -eq "Desktop").
+# so we instead use the PSReadLineOption EditMode set to Emacs. this is
+# okay, since I grew up with emacs as my first editor anyways...
+Set-PSReadLineOption -EditMode Emacs
 
 ## Posix aliases
 Set-Alias -Name ls -Value Get-ChildItem
