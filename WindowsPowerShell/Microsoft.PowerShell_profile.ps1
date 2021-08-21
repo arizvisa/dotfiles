@@ -5,7 +5,14 @@ $Global:WarningPreference = "Continue"
 $Global:DebugPreference = "SilentlyContinue"
 $Global:VerbosePreference = "SilentlyContinue"
 
-Set-PSReadLineOption -EditMode Vi
+# for some reason vi-mode does not work on powershell core, so
+# we instead use emacs-mode and fallback to vi if we're using
+# the desktop version of powershell.
+if ($PSEdition -ne "Desktop") {
+    Set-PSReadLineOption -EditMode Emacs
+} else {
+    Set-PSReadLineOption -EditMode Vi
+}
 
 ## Posix aliases
 Set-Alias -Name ls -Value Get-ChildItem
@@ -14,15 +21,15 @@ Set-Alias -Name jobs -Value Get-Job
 Set-Alias -Name job -Value Receive-Job
 
 function lsd {
-    ls | where { $_.PsIsContainer }
+    Get-ChildItem @($args) | Where-Object { $_.PsIsContainer }
 }
 
 function find {
-    ls -recurse | %{ $_.FullName }
+    Get-ChildItem -recurse @($args) | %{ $_.FullName }
 }
 
-#set-alias ss select-string
-set-alias grep select-string
+#Set-Alias ss select-string
+Set-Alias grep select-string
 
 ## Environment (variables)
 $Global:OS = (Test-Path Env:OS)? $Env:OS : $Env:os
@@ -38,7 +45,7 @@ $Global:SEP = ($Global:OS -eq "posix")? "/" : "\"
 function searchin {
     param ($string);
     foreach ($file in $input) {
-        select-string $string $file
+        Select-String $string $file
     }
 }
 
