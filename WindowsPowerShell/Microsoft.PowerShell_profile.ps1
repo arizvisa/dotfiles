@@ -13,10 +13,10 @@ $Global:VerbosePreference = "SilentlyContinue"
 Set-PSReadLineOption -EditMode Emacs
 
 ## Posix aliases
-Set-Alias -Name ls -Value Get-ChildItem
-Set-Alias -Name alias -Value Get-Alias
-Set-Alias -Name jobs -Value Get-Job
-Set-Alias -Name job -Value Receive-Job
+Set-Alias -Option AllScope -Name ls -Value Get-ChildItem
+Set-Alias -Option AllScope -Name alias -Value Get-Alias
+Set-Alias -Option AllScope -Name jobs -Value Get-Job
+Set-Alias -Option AllScope -Name job -Value Receive-Job
 
 function lsd {
     Get-ChildItem @($args) | Where-Object { $_.PsIsContainer }
@@ -30,14 +30,20 @@ function find {
 Set-Alias grep select-string
 
 ## Environment (variables)
-$Global:OS = (Test-Path Env:OS)? $Env:OS : $Env:os
+$Global:OS = @($Env:OS, $Env:os)[!(Test-Path Env:OS)]
 if ($Global:OS -eq "posix") {
-    $Global:USERPROFILE = $Env:USERPROFILE ?? $Env:HOME
+    $Global:USERPROFILE = @($Env:USERPROFILE, $Env:HOME)[!$Env:USERPROFILE]
+
+# If the global variable is already set on Windows, then forcefully
+# remove it and assign it using the USERPROFILE environment variable.
 } else {
-    $Global:HOME = $Env:HOME ?? $Env:USERPROFILE
+    if ($Global:HOME) {
+        Remove-Variable -Name HOME -Force
+    }
+    $Global:HOME = @($Env:HOME, $Env:USERPROFILE)[!$Env:HOME]
 }
-$Global:PATHSEP = ($Global:OS -eq "posix")? ":" : ";"
-$Global:SEP = ($Global:OS -eq "posix")? "/" : "\"
+$Global:PATHSEP = @(":", ";")[!($Global:OS -eq "posix")]
+$Global:SEP = @("/", "\")[!($Global:OS -eq "posix")]
 
 ## Utilities
 function searchin {
@@ -59,7 +65,7 @@ function addvariablepath {
         $contents = get-content -path env:$var
         set-content -path env:$var -value (($contents,$path) -join $Global:PATHSEP)
     } else {
-        new-item -path env:$var -value "$path"
+        new-item -path env:$var -value "$path" | Out-Null
     }
 }
 
@@ -82,7 +88,7 @@ function StringSplitAny ([String]$string, [String]$ifs = " `u{09}`u{0A}`u{0D}") 
             $result += $state
             $state = $null
         } else {
-            $state = ($state ?? "") + $_
+            $state = @($state, "")[!$state] + $_
         }
     }
     if ($state -ne $null) {
@@ -138,13 +144,17 @@ if ($Global:OS -ne "posix") {
 }
 
 ## Remoting
-$variable = (Test-Path -Path Env:REMOTE)? [String](Get-Content -Path Env:REMOTE) : ""
-$session_hosts = ($variable.Length -gt 0)? @(StringSplitAny $variable) : @()
+if (Test-Path -Path Env:REMOTE) {
+    $variable = [String](Get-Content -Path Env:REMOTE)
+} else {
+    $variable = ""
+}
+$session_hosts = @( @(StringSplitAny $variable), @() )[!($variable.Length -gt 0)]
 Remove-Variable -Name variable
 
 if ($session_hosts.Length -gt 0) {
     $session_options = New-PSSessionOption -SkipCACheck -SkipCNCheck -Verbose
-    $session_creds = Get-Credential -UserName $env:USER -Message ("Requesting credentials for username `"{0}`"." -f $env:USER) -Title ("Attempting connection to {0} host{1}." -f $session_hosts.Length,($session_hosts.Length -eq 1? "" : "s"))
+    $session_creds = Get-Credential -UserName $env:USER -Message ("Requesting credentials for username `"{0}`"." -f $env:USER) -Title ("Attempting connection to {0} host{1}." -f $session_hosts.Length,@("", "s")[!($session_hosts.Length -eq 1)])
 
     $session = $session_hosts | ForEach-Object {
         Write-Information ("Creating new PSSession for host `"{1}@{0}`"" -f $_,$session_creds.UserName)
