@@ -69,6 +69,9 @@ alias strings="`type -P stringsext || type -P strings`"
 alias ls &>/dev/null && unalias ls
 alias cat &>/dev/null && unalias cat
 
+# aliases for common utilities that add default parameters
+alias readelf="readelf -W"
+
 ## platform-specific fixes
 # darwin
 if [ "$platform" == "Darwin" ]; then
