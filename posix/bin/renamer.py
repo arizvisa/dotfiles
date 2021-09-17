@@ -183,7 +183,7 @@ def main_files(*paths):
 #		return []
 
 	count = rename(newsource, target)
-	logging.info("renamer.main(...) - renamed {:d} files.".format(count))
+	logging.info("renamer.main(...) - renamed {:s} file{:s}.".format("{:d}".format(count) if count == 1 else "a total of {:d}".format(count), '' if count == 1 else 's'))
 	return count
 
 def main_directories(*paths):
@@ -210,7 +210,7 @@ def main_directories(*paths):
 #		return []
 
 	count = rename(newsource, target)
-	logging.info("renamer.main(...) - renamed {:d} directories.".format(count))
+	logging.info("renamer.main(...) - renamed {:s} director{:s}.".format("{:d}".format(count) if count == 1 else "a total of {:d}".format(count), 'y' if count == 1 else 'ies'))
 	return count
 
 if __name__ == '__main__':
