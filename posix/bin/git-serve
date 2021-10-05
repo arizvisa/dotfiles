@@ -76,11 +76,30 @@ if [ "$#" -gt 0 ]; then
     shift
 fi
 
+# check that we were given a hostname to bind to.
 test -z "$bind_host" && usage
-isnumber "$bind_port" || usage
 
-# now we can finally serve the directory
-printf "Serving repository %s from %s: git://%s:%d/%s\n" "$name" "$toplevel" "$bind_host" "$bind_port" "$name"
+# check if the user gave us a valid port number, and then serve it if so.
+if [ ! -z "$bind_port" ]; then
+    isnumber "$bind_port" || usage
 
-base_path=`resolvepath "$toplevel/.."`
-git daemon $DEFAULT_DAEMON_PARAMETERS "$@" --export-all --listen="$bind_host" --port="$bind_port" --base-path="$base_path" "$toplevel"
+    # notify the user where we'll be serving the directory.
+    printf "Serving repository %s from %s: git://%s:%d/%s\n" "$name" "$toplevel" "$bind_host" "$bind_port" "$name" 1>&2
+
+    # now we can finally serve the directory from the toplevel.
+    base_path=`resolvepath "$toplevel/.."`
+    git daemon $DEFAULT_DAEMON_PARAMETERS "$@" --export-all --listen="$bind_host" --port="$bind_port" --base-path="$base_path" "$toplevel"
+
+# otherwise, let the user know what the default will likely be...
+else
+    expected="9418/tcp"
+    printf "Unable to determine the default port. (git will likely default to %s).\n" "$expected" 1>&2
+
+    # and notify them about it.
+    printf "Serving repository %s from %s: git://%s/%s\n" "$name" "$toplevel" "$bind_host" "$name" 1>&2
+
+    # finally serve the directory from the toplevel without specifying the --port option.
+    base_path=`resolvepath "$toplevel/.."`
+    git daemon $DEFAULT_DAEMON_PARAMETERS "$@" --export-all --listen="$bind_host" --base-path="$base_path" "$toplevel"
+fi
+exit $?
