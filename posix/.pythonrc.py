@@ -125,3 +125,27 @@ def entropy(bytes):
     for item in frequency:
         res = res + item * math.log(item, 2)
     return -res / 8
+
+### define some generalized ptypes to use
+try:
+    import ptypes
+
+except ImportError:
+    pass
+
+else:
+    from ptypes import *
+
+    class u8(pint.uint_t): length=1
+    class u16(pint.uint_t): length=2
+    class u32(pint.uint_t): length=4
+    class u24(pint.uint_t): length=3
+    class u64(pint.uint_t): length=8
+    class u128(pint.uint_t): length=16
+
+    class s8(pint.sint_t): length=1
+    class s16(pint.sint_t): length=2
+    class s32(pint.sint_t): length=4
+    class s24(pint.sint_t): length=3
+    class s64(pint.sint_t): length=8
+    class s128(pint.sint_t): length=16
