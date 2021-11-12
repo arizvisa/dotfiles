@@ -31,6 +31,18 @@ default2cygwin()
     sed 's/^\([a-zA-Z]\):\//\/cygdrive\/\l\1\//' <<< "$1"
 }
 
+default2dos()
+{
+    echo "$1"
+    delimited=`tr '/' $'\n' <<< "$1"`
+    #filtered=`sed 's/^\([^\.]\{,8\}\)\(\.[[:alnum:]]\{,3\}\).*/\1\2/' <<< "$delimited"`
+    #filtered=`sed 's/^\([^\.]\{,8\}\).*/\1/' <<< "$delimited"`
+    filtered=( $delimited )
+
+    printf '\%s' "${filtered[@]}"
+    printf '%s' $'\n'
+}
+
 default2windows()
 {
     sed 's/^\/\([a-zA-Z]\)\//\1:\//;s/\//\\/g' <<< "$1"
@@ -101,13 +113,13 @@ EOF
 ## parse arguments
 while getopts uwsopmWSPvil? opt; do
     case $opt in
-        u) FORMAT=unix ;;       # posixy form (msys|cygwin)
+        u) FORMAT=unix ;;           # posixy form (msys|cygwin)
         m|w|l) FORMAT=windows ;;    # windows form
-        s) FORMAT=win ;;        # windows (8.3) form
+        s) FORMAT=dos ;;            # windows (8.3) form
 
-        W) OUTPUT=windows ;;    # windows directory
-        S) OUTPUT=system ;;     # windows system directory
-        P) OUTPUT=program ;;    # program files
+        W) OUTPUT=windows ;;        # windows directory
+        S) OUTPUT=system ;;         # windows system directory
+        P) OUTPUT=program ;;        # program files
         p)
             # filename arg is a path (ignore this)
             ;;
@@ -185,8 +197,13 @@ case "$FORMAT" in
         esac
         ;;
 
+    # Use the dos-style (8.3) for the path
+    dos)
+        default2dos "$normal"
+        ;;
+
     # Use the windows-style of path
-    windows|win)
+    windows)
         default2windows "$normal"
         ;;
 
