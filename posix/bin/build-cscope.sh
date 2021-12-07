@@ -8,7 +8,7 @@ usage()
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
 }
 
-filter=
+declare -a filter
 while getopts hf: opt; do
     case "$opt" in
         h|\?)
@@ -17,15 +17,15 @@ while getopts hf: opt; do
             ;;
         f)
             printf "%s: adding filter : %s\n" "$arg0" "$OPTARG"
-            [ "$filter" = "" ] && filter="$OPTARG" || filter="$filter $OPTARG"
+            filter=( "${filter[@]}" "$OPTARG" )
             ;;
     esac
 done
 shift `expr "$OPTIND" - 1`
 
 if [ "$filter" = "" ]; then
-    filter="*.c *.h *.cc *.cpp *.hpp"
-    printf "%s: using filter : %s\n" "$arg0" "$filter"
+    filter=(*.c *.h *.cc *.cpp *.hpp)
+    printf "%s: using filter : %s\n" "$arg0" "${filter[*]}"
 fi
 
 if [ -z "$CSPROG" ]; then
@@ -50,8 +50,10 @@ gtags|gtags.*)
 esac
 
 if [ "$#" -eq 0 ]; then
-    printf "%s: building %s database : %s\n" "$arg0" "$description" "$filter"
-    ( echo "$filter " | while read -d' ' glob; do find ./ -type f -a -name "$glob"; done ) | $command
+    printf "%s: building %s database : %s\n" "$arg0" "$description" "${filter[*]}"
+    for glob in "${filter[@]}"; do
+        find ./ -type f -a -name "$glob"
+    done | $command
     exit $?
 fi
 
@@ -61,7 +63,7 @@ for path in "$@"; do
         continue
     fi
     printf "%s: building %s database : %s\n" "$arg0" "$description" "$path"
-    ( cd -- "$path" && echo "$filter " | while read -d' ' glob; do
+    ( cd -- "$path" && for glob in "${filter[@]}"; do
         find ./ -type f -a -name "$glob"
     done | $command )
 done
