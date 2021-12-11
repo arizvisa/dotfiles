@@ -28,36 +28,40 @@ filesize()
 
 calculatepercent()
 {
-    echo "scale=3;$1/$2*100" | bc
+    numerator=$1
+    denominator=$2
+    scale=$3
+    printf "scale=%d; %d / %d * 100.\n" "${scale:-3}" "$numerator" "$denominator" | bc -s
 }
 
 transferstatus()
 {
     filename=$1
-    maxsize=$2
-    size=0
+    expected=$2
 
-    while [ "$size" -lt "$maxsize" ]; do
-        size=$( filesize "$filename" )
-        perc=$( calculatepercent $size $maxsize )
-        echo "$filename $perc% $size $maxsize"
+    size=0
+    while [ "$size" -lt "$expected" ]; do
+        size=`filesize "$filename"`
+        percentage=`calculatepercent "$size" "$expected"`
+        printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected"
         sleep 1
         echo -ne "\r\x1b[1A\x1b[K"
     done
-    echo "$filename $perc% $size $maxsize"
+    printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected"
 }
 
 filestatus()
 {
     filename=$1
+
     size=0
     while true; do
-        size=$( filesize "$filename" )
-        echo "$filename $size"
+        size=`filesize "$filename"`
+        printf "%s %d\n" "$filename" "$size"
         sleep 1
         echo -ne "\r\x1b[1A\x1b[K"
     done
-    echo "$filename $size"
+    printf "%s %d\n" "$filename" "$size"
 }
 
 download()
@@ -65,22 +69,38 @@ download()
     url=$1
     target=$2
 
-    size=$(httpsize "$url")
+    size=`httpsize "$url"`
     touch "$target"
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
     curl_get --compressed -C- --retry 65535 --retry-delay 0 --retry-max-time 0 -o "$target" -- "$url" 1>&2 &
     pid=$!
-    if [ "$size" != "" ]; then
-        transferstatus $target $size &
+    if [ -z "$size" ]; then
+        filestatus "$target" &
+        killthis=$!
+    else
+        transferstatus "$target" "$size" &
         pid=$!
         killthis=
-    else
-        filestatus $target &
-        killthis=$!
     fi
     wait $pid
-    [ "$killthis" = "" ] || kill "$killthis"
+    [ -z "$killthis" ] || kill "$killthis"
 }
 
-filename=$(basename "$url")
-eval 'download "$url" "$filename"'
+abort()
+{
+    url=$1
+    target=$2
+    printf "Aborting download of \"%s\" to \"%s\"\n" "$url" "$target" 1>&2
+}
+
+filename=`basename "$url"`
+if [ -e "$filename" ]; then
+    resume=`filesize "$filename"`
+    printf "Resuming transfer at offset %d of file from url \"%s\" in \"%s\"...\n" "$resume" "$url" "$filename" 1>&2
+else
+    printf "Downloading file from url \"%s\" to \"%s\"...\n" "$url" "$filename" 1>&2
+fi
+trap "abort \"$url\" \"$filename\"" INT
+
+download "$url" "$filename"
+trap - INT
