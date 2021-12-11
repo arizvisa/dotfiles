@@ -1,12 +1,50 @@
 #!/usr/bin/env bash
 url=$1
-CURL=$(type -P curl.sh || type -P curl)
 
+## curl(1) related utilities
+CURL=$(type -P curl.sh || type -P curl)
 curl_get()
 {
     "$CURL" -L -s -S -k --compressed "$@"
 }
 
+## openssl(1) related utilities
+OPENSSL=$(type -P openssl.sh || type -P openssl)
+openssl_digest_types()
+{
+    "$OPENSSL" dgst -list | grep '^-' | paste -sd' ' | tr -s ' ' | xargs printf "%s\0"
+}
+
+openssl_digest_file()
+{
+    path="$1" && shift
+    maxwidth=$((2 ** 64))
+    "$OPENSSL" dgst "$@" -binary "$path" | od -w131072 -A none -tx1 | tr -d ' '
+}
+
+openssl_digest_everything()
+{
+    path="$1" && shift
+    if [ ! -e "$path" ]; then
+        printf "Unable to locate the requested filename (%s)\n" "$path" 1>&2
+        return 1
+    fi
+
+    openssl_digest_types | while read -d $'\0' option; do
+        IFS=- read _ algorithm <<< "$option"
+        (printf "%s\n" "$algorithm" && openssl_digest_file "$path" "$option") | xargs printf "%s:%s\n"
+    done
+}
+
+openssl_digest_sorted()
+{
+    openssl_digest_everything "$@" | while IFS=$'\n' read line; do
+        count=`wc -c <<< "$line"`
+        printf "%s\t%s\n" "$count" "$line"
+    done | sort -r -t $'\t' -n -k 1 | cut -d $'\t' -f2
+}
+
+## utilities for determining the expected and actual size
 httpsize()
 {
     url=$1
@@ -26,6 +64,7 @@ filesize()
     esac
 }
 
+## utilities for performing the actual transfer and updating the user
 calculatepercent()
 {
     numerator=$1
@@ -43,11 +82,11 @@ transferstatus()
     while [ "$size" -lt "$expected" ]; do
         size=`filesize "$filename"`
         percentage=`calculatepercent "$size" "$expected"`
-        printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected"
+        printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected" 1>&2
         sleep 1
-        echo -ne "\r\x1b[1A\x1b[K"
+        echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
-    printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected"
+    printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected" 1>&2
 }
 
 filestatus()
@@ -57,13 +96,14 @@ filestatus()
     size=0
     while true; do
         size=`filesize "$filename"`
-        printf "%s %d\n" "$filename" "$size"
+        printf "%s %d\n" "$filename" "$size" 1>&2
         sleep 1
-        echo -ne "\r\x1b[1A\x1b[K"
+        echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
-    printf "%s %d\n" "$filename" "$size"
+    printf "%s %d\n" "$filename" "$size" 1>&2
 }
 
+## entrypoints that will be used to perform the user's requested action
 download()
 {
     url=$1
@@ -71,17 +111,21 @@ download()
 
     size=`httpsize "$url"`
     touch "$target"
+
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
     curl_get --compressed -C- --retry 65535 --retry-delay 0 --retry-max-time 0 -o "$target" -- "$url" 1>&2 &
     pid=$!
     if [ -z "$size" ]; then
         filestatus "$target" &
         killthis=$!
+
+    # if there was a size, then we can monitor
     else
         transferstatus "$target" "$size" &
         pid=$!
         killthis=
     fi
+
     wait $pid
     [ -z "$killthis" ] || kill "$killthis"
 }
@@ -90,17 +134,35 @@ abort()
 {
     url=$1
     target=$2
-    printf "Aborting download of \"%s\" to \"%s\"\n" "$url" "$target" 1>&2
+    trap - INT
+    printf "Abort!\n" 1>&2
+
+    printf "Aborted download of \"%s\" to \"%s\"\n" "$url" "$target" 1>&2
+    openssl_digest_everything "$target"
+    exit 4
 }
 
+## actual logic for the script
 filename=`basename "$url"`
+
+# if the filename exists, then let the user know that we're resuming
 if [ -e "$filename" ]; then
     resume=`filesize "$filename"`
     printf "Resuming transfer at offset %d of file from url \"%s\" in \"%s\"...\n" "$resume" "$url" "$filename" 1>&2
+
+# otherwise, we just let the user know we're downloading the file
 else
     printf "Downloading file from url \"%s\" to \"%s\"...\n" "$url" "$filename" 1>&2
 fi
-trap "abort \"$url\" \"$filename\"" INT
 
+# allow the user to abort. after aborting, calculate all of the digests
+# for the file that we downloaded, sort them, and display them tohe caller
+trap "abort \"\$url\" \"\$filename\"" INT
 download "$url" "$filename"
-trap - INT
+ec=$?
+printf "Complete!\n" 1>&2
+
+# we downloaded the file and only need to calculate all the available
+# digests before we properly exit
+openssl_digest_sorted "$filename"
+exit "$ec"
