@@ -1,4 +1,4 @@
-import logging, six
+import logging
 import builtins, os, operator, math, functools, itertools, sys, types   # boomfist
 
 # remove crlf from std{out,err} because CPython is pretty fucking stupid
