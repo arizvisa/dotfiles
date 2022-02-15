@@ -61,6 +61,6 @@ if __name__ == '__main__':
     else:
         help()
 
-    ingredients = sys.stdin.read()
+    ingredients = sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer
     soup = bs4.BeautifulSoup(ingredients, 'html.parser', on_duplicate_attribute=accumulate_attributes)
     six.print_(cook(soup, *sys.argv[1:]))

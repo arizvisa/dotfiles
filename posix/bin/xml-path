@@ -56,7 +56,8 @@ if __name__ == '__main__':
         six.print_('Error : Too many arguments specified : {!r}'.format(args), file=sys.stderr)
         help(sys.argv[0], 1)
 
-    result = select(sys.stdin.read(), path)
+    infile = sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer
+    result = select(infile.read(), path)
     if count:
         six.print_(len(result))
         sys.exit(0)
