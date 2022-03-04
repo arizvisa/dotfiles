@@ -1,0 +1,34 @@
+#!/bin/sh
+ARG0=$0
+u=https://dis.yaxpeax.net
+arch=x86_64
+strip=html-strip
+
+usage()
+{
+    curl "$u" | html-strip | ssam -e '/usage:/ /`[^`]+`/ c/dis [-qs] [-a arch] bytes/'
+    exit 1
+}
+
+[ "$#" -gt 0 ] || usage
+
+while getopts qnha: OPT; do
+    case "$OPT" in
+        q)
+            q=?q
+            ;;
+        n)
+            strip=cat
+            ;;
+        a)
+            arch=$OPTARG
+            ;;
+        h|?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+shift `expr "$OPTIND" - 1`
+
+printf "%s/%s/%s%s\n" "$u" "$arch" "$1" "$q" | xargs curl | $strip
