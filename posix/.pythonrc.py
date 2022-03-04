@@ -129,6 +129,7 @@ def entropy(bytes):
 ### define some generalized ptypes to use
 try:
     import ptypes
+    from ptypes import bitmap
 
 except ImportError:
     pass
