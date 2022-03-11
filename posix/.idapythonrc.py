@@ -165,6 +165,12 @@ from string import Template
 ## types and data structures
 from ptypes import *
 
+def complexity(G):
+    edges = len(G.edges())
+    nodes = len(G.nodes())
+    parts = nx.components.number_strongly_connected_components(G)
+    return edges - nodes + parts
+
 # op_t.dtype
 class dtype(ptype.definition): cache = {}
 
