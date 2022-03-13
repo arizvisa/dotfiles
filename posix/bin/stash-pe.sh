@@ -64,9 +64,27 @@ fi
 echo "The PE machine type was determined as #$machine." 1>&2
 
 case "$machine" in
-    332) builder="build-idb.sh" ;;
-    34404) builder="build-idb64.sh" ;;
-    *) echo "Unsupported machine type : $inpath" 1>&2; exit 1 ;;
+
+    # 16-bit
+    614|870|1126)
+        builder="build-idb.sh" ;;
+
+    # 32-bit
+    332|352|354|361|387|388|418|419|420|422|424|448|450|452|467|496|497|3311|36929)
+        builder="build-idb.sh" ;;
+
+    # 64-bit
+    358|360|512|644|34404|43620)
+        builder="build-idb64.sh" ;;
+
+    # mixed
+    3772|49390)
+        builder="build-idb64.sh" ;;
+
+    *)
+        echo "Unsupported machine type : $inpath" 1>&2
+        exit 1
+        ;;
 esac
 echo "Decided on $builder to build the database." 1>&2
 
