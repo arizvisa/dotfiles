@@ -171,6 +171,26 @@ def complexity(G):
     parts = nx.components.number_strongly_connected_components(G)
     return edges - nodes + parts
 
+def makeptr(info):
+    pi = idaapi.ptr_type_data_t()
+    pi.obj_type = info
+    ti = idaapi.tinfo_t()
+    if not ti.create_ptr(pi):
+        raise ValueError
+    return ti
+
+import custom
+def get_breakpoint(ea, index=None):
+    inputs32 = map("{:#x}".format, itertools.accumulate(itertools.repeat(4), operator.add, initial=4))
+    inputs64 = itertools.chain(['@rcx', '@rdx', '@r8', '@r9'], map("{:#x}".format, itertools.accumulate(itertools.repeat(8), operator.add, initial=0x20)))
+
+    fname, names = func.name(ea), func.t.args.names(ea)
+    inputs = {32: inputs32, 64:inputs64}[db.config.bits()]
+    params = map("{:s}=%p".format, names)
+    formatted = "{name:s}({params:s})".format(name=fname, params=', '.join(params))
+    message = ".printf \"%p: {:s}\\n\", {:s}{:s};g".format(custom.windbg.escape(formatted, 1), '@eip', ", {:s}".format(', '.join(map("poi(@esp+{:s})".format, itertools.islice(inputs, len(names))))) if names else '')
+    return "bu{:s} {:s}{:+#x} \"{:s}\"".format('' if index is None else "{:d}".format(index), db.config.module()[:-1], db.offset(ea), custom.windbg.escape(message, 1))
+
 # op_t.dtype
 class dtype(ptype.definition): cache = {}
 
