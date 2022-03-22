@@ -79,6 +79,7 @@
 " float  g:incpy#WindowRatio    -- the ratio of the window size when creating it
 " string g:incpy#WindowPosition -- the position at which to create the window. can be
 "                                  either "above", "below", "left", or "right".
+" string g:incpy#PythonStartup  -- the name of the dotfile to seed python's globals with.
 "
 " Todo:
 " - When the filetype of the current buffer was specified, the target output buffer
@@ -241,6 +242,13 @@ function! incpy#SetupOptions()
     let defopts["InputFormat"] = "{}\n"
     let defopts["EchoFormat"] = "# >>> {}"
 
+    " If the PYTHONSTARTUP environment-variable exists, then use it. Otherwise use the default one.
+    if exists("$PYTHONSTARTUP")
+        let defopts["PythonStartup"] = $PYTHONSTARTUP
+    else
+        let defopts["PythonStartup"] = printf("%s/.pythonrc.py", $HOME)
+    endif
+
     " Default window options that the user will override
     let defopts["CoreWindowOptions"] = {"buftype": has("terminal")? "terminal" : "nowrite", "swapfile": v:false, "updatecount":0, "buflisted": v:false}
 
@@ -279,6 +287,15 @@ function! incpy#SetupPython(currentscriptpath)
     endif
 
     throw printf("Unable to determine basepath from script %s", m)
+endfunction
+
+function! incpy#ImportDotfile()
+    " Check to see if a python site-user dotfile exists in the users home-directory.
+    let source = g:incpy#PythonStartup
+    if filereadable(source)
+        let input = printf("with open(\"%s\") as infile: exec(infile.read())", escape(source, "\"\\"))
+        execute printf("pythonx __incpy__.cache.communicate('%s', silent=True)", escape(input, "'\\"))
+    endif
 endfunction
 
 """ Mapping of vim commands and keys
@@ -354,7 +371,7 @@ class interpreter(object):
     @__incpy__.builtin.classmethod
     def new(cls, **options):
         options.setdefault('buffer', None)
-        return cls(**options).startup()
+        return cls(**options)
 
     def __init__(self, **kwds):
         opt = {}.__class__(__incpy__.vim.gvars['incpy#CoreWindowOptions'])
@@ -384,10 +401,6 @@ class interpreter(object):
     def communicate(self, command, silent=False):
         """Sends commands to interpreter"""
         raise __incpy__.builtin.NotImplementedError
-
-    def startup(self):
-        """Initialize the recently started interpreter"""
-        return self
 
     def start(self):
         """Starts the interpreter"""
@@ -449,12 +462,6 @@ class interpreter_python_internal(__incpy__.interpreter):
     def start(self):
         __incpy__.logger.warning("internal interpreter has already been (implicitly) started")
 
-    def startup(self):
-        boolean = "'PYTHONSTARTUP' in __import__('os').environ"
-        execute = "exec(open(__import__('os').environ['PYTHONSTARTUP'], 'rt').read())"
-        self.communicate(' and '.join([boolean, execute]), silent=True)
-        return self
-
     def stop(self):
         __incpy__.logger.fatal("unable to stop internal interpreter as it is always running")
 __incpy__.interpreter_python_internal = interpreter_python_internal; del(interpreter_python_internal)
@@ -465,7 +472,7 @@ class interpreter_external(__incpy__.interpreter):
 
     @__incpy__.builtin.classmethod
     def new(cls, command, **options):
-        res = cls(**options).startup()
+        res = cls(**options)
         [ options.pop(item, None) for item in cls.view_options ]
         res.command, res.options = command, options
         return res
@@ -891,6 +898,11 @@ endfunction
     call incpy#Setup()
     call incpy#SetupCommands()
     call incpy#SetupKeys()
+
+    " if we're using an external program, then there's no dotfile we need to seed with.
+    if g:incpy#Program == ""
+        call incpy#ImportDotfile()
+    endif
 
     " on entry, silently import the user module to honor any user-specific configurations
     autocmd VimEnter * pythonx hasattr(__incpy__, 'cache') and __incpy__.cache.attach()
