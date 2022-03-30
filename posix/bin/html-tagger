@@ -49,7 +49,7 @@ class attribute_formatter(bs4.formatter.HTMLFormatter):
                 for item in items:
                     yield attribute, item
                 continue
-            yield attribute, item
+            yield attribute, items
         return
 
 if __name__ == '__main__':
