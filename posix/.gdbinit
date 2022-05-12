@@ -517,7 +517,7 @@ define ln
 end
 
 define lm
-    info sharedlibrary
+    info proc mappings
 end
 
 define bl
