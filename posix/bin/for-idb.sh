@@ -187,15 +187,21 @@ print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localt
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
 try: exec(open(r"$scriptpath").read(), globals())
-except SystemExit: builtins.__EXITCODE__, = sys.exc_info()[1].args
-except Exception: print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
+except SystemExit:
+    builtins.__EXITCODE__, = sys.exc_info()[1].args
+    builtins.flags = idaapi.DBFL_KILL
+except Exception:
+    builtins.flags = idaapi.DBFL_KILL
+    print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
+else:
+    builtins.flags = idaapi.DBFL_COMP | idaapi.DBFL_BAK
 print("%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
 print("~"*65)
-print("%s:saving to %s"% (r"$arg0", r"$input"))
+print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if getattr(builtins, '__EXITCODE__', 0) else 'unhandled exception')) if builtins.flags & idaapi.DBFL_KILL else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
-    idaapi.save_database(idaapi.cvar.database_idb, 0)
+    idaapi.save_database(idaapi.cvar.database_idb, builtins.flags)
 else:
-    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
+    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), builtins.flags)
 idaapi.qexit(getattr(builtins, '__EXITCODE__', 0))
 EOF
 }
