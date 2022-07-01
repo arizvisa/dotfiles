@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 import sys, itertools
-from scapy.base_classes import Net
-from scapy.utils6 import Net6
+import netaddr
 
 for line in itertools.chain(sys.argv[1:]):
-    network = Net6(line) if ':' in line else Net(line)
+    network = netaddr.IPRange(*(item.strip() for item in line.split('-'))) if '-' in line else netaddr.IPGlob(line.strip()) if '*' in line else netaddr.IPNetwork(line.strip())
     for ip in network:
         print(ip)
     continue
