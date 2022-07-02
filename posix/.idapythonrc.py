@@ -1,5 +1,5 @@
 import functools, itertools, types, builtins, operator, six
-import sys, logging, importlib, networkx as nx
+import sys, logging, importlib, fnmatch, re, networkx as nx
 #logging.root = logging.RootLogger(logging.WARNING)
 #for item in [logging.DEBUG, logging.INFO, logging.WARNING, logging.CRITICAL]:
 #    logging.root._cache[item] = True
@@ -12,7 +12,7 @@ if sys.version_info.major < 3:
 else:
     import importlib as imp
 
-ui.hooks.idb.disable('segm_moved')
+#ui.hooks.idb.disable('segm_moved')
 try:
     import sys, ptypes
 
@@ -604,3 +604,354 @@ def collect_functions(ea, state=set()):
         res = collect_functions(ea, state | children)
         state |= res
     return state
+
+import miasm
+import miasm.analysis
+import miasm.analysis.machine
+import miasm.core.bin_stream
+import miasm.core.locationdb
+import miasm.core.utils
+import miasm.expression.expression
+import miasm.ir.symbexec #.SymbolicExecutionEngine
+
+class bsida(miasm.core.bin_stream.bin_stream_vm):
+    def __init__(self, base=None):
+        self.base_address, self.offset = base, 0
+        self.endianness = miasm.core.utils.LITTLE_ENDIAN
+        self.bin = bytearray()  # wtf
+    def _getbytes(self, start, l=1):
+        base = 0 if self.base_address is None else db.baseaddress()
+        return db.read(base + start, l)
+    def readbs(self, l=1):
+        base = 0 if self.base_address is None else db.baseaddress()
+        res = db.read(base + self.offset, l)
+        self.offset += len(res)
+        return res
+    def __bytes__(self):
+        raise NotImplementedError('what the fuck are you doing?')
+
+M32, M64 = (miasm.analysis.machine.Machine('x86_%d'% bits) for bits in [32, 64])
+LDB = miasm.core.locationdb.LocationDB()
+D32, D32 = (M.dis_engine(bsida(), loc_db=LDB) for M in [M32, M64])
+L32, L64 = (M.ir(LDB) for M in [M32, M64])
+S32, S64 = (miasm.ir.symbexec.SymbolicExecutionEngine(L) for L in [L32, L64])
+
+def expr2method(expr):
+    'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
+    'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
+
+    'ExprAff', 'ExprAssign',
+    'eval_updt_expr',
+#exprmap = {
+#    'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
+#    'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
+# 'eval_updt_expr',
+# 'eval_updt_assignblk',
+#    'eval_assignblk',
+#'ExprInt1', 'ExprInt16', 'ExprInt32', 'ExprInt64', 'ExprInt8',
+#'ExprInt_from',
+#}
+
+def exec32(ea):
+    insn = D32.dis_instr(ea)
+    for item in L32.get_ir(insn):
+        yield item
+    return
+def exec64(ea):
+    insn = D64.dis_instr(ea)
+    for item in L64.get_ir(insn):
+        yield item
+    return
+
+## temporary hexrays things
+def find_expr_addr(cfunc, cexpr):
+    if cexpr.ea == idaapi.BADADDR:
+        while True:
+            cexpr = cfunc.body.find_parent_of(cexpr)
+            if cexpr is None:
+                ea = cfunc.entry_ea
+                break
+            if cexpr.ea != idaapi.BADADDR:
+                ea = cexpr.ea
+                break
+            continue
+        return ea
+    return cexpr.ea
+
+def find_addr(vu):
+    citem = vu.item
+    if citem.citype in {idaapi.VDI_EXPR}:
+        return find_expr_addr(vu.cfunc, citem.e)
+    elif citem.citype in {idaapi.VDI_TAIL}:
+        return citem.loc.ea
+    elif citem.citype in {idaapi.VDI_LVAR}:
+        return citem.l.defea
+    elif citem.citype in {idaapi.VDI_FUNC}:
+        return citem.f.entry_ea
+    raise NotImplementedError(citem.citype)
+
+class lvars(object):
+    @classmethod
+    def __iterate__(cls, D):
+        lvars = D.get_lvars()
+        for index in range(lvars.size()):
+            yield lvars[index]
+        return
+
+    __matcher__ = internal.utils.matcher()
+    __matcher__.boolean('name', lambda name, item: name.lower() == item.lower(), fgetattr('name'))
+    __matcher__.combinator('like', utils.fcompose(fnmatch.translate, utils.fpartial(re.compile, flags=re.IGNORECASE), operator.attrgetter('match')), fgetattr('name'))
+    __matcher__.predicate('predicate'), __matcher__.predicate('pred')
+
+    @internal.utils.multicase()
+    @classmethod
+    def iterate(cls, **type):
+        return cls.iterate(None, **type)
+    @internal.utils.multicase(name=str)
+    @classmethod
+    def iterate(cls, name, **type):
+        return cls.iterate(name, None, **type)
+    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def iterate(cls, name, D, **type):
+        type.setdefault('like', name)
+        return cls.iterate(D, **type)
+    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def iterate(cls, D, **type):
+        state = D if D else idaapi.decompile(func.address())
+        iterable = cls.__iterate__(state)
+        for key, value in (type or {'predicate': utils.fconstant(True)}).items():
+            iterable = cls.__matcher__.match(key, value, iterable)
+        for item in iterable: yield item
+
+    @internal.utils.multicase()
+    @classmethod
+    def list(cls, **type):
+        return cls.list(None, **type)
+    @internal.utils.multicase(name=str)
+    @classmethod
+    def list(cls, name, **type):
+        return cls.list(name, None, **type)
+    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def list(cls, name, D, **type):
+        type.setdefault('like', name)
+        return cls.list(D, **type)
+    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def list(cls, D, **type):
+        state = D if D else idaapi.decompile(func.address())
+        res = [item for item in cls.iterate(state, **type)]
+
+        print_t = lambda item: idaapi.print_tinfo('', 0, 0, 0, item.type(), item.name, '')
+
+        maxdisasm = max(map(fcompose(fgetattr('defea'), db.disasm, len), res))
+        maxname = max(map(fcompose(print_t, len), res))
+
+        for item in res:
+            t_s = print_t(item)
+            print("{:<{:d}s} // {:<{:d}s} : {!s}".format(db.disasm(item.defea), maxdisasm, t_s, maxname, cls.vdloc(state, item)))
+        return
+
+    @internal.utils.multicase()
+    @classmethod
+    def by(cls, **type):
+        return cls.by(None, **type)
+    @internal.utils.multicase(name=str)
+    @classmethod
+    def by(cls, name, **type):
+        return cls.by(name, None, **type)
+    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def by(cls, name, D, **type):
+        type.setdefault('like', name)
+        return cls.by(D, **type)
+    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def by(cls, D, **type):
+        state = D if D else idaapi.decompile(func.address())
+        return next(item for item in cls.iterate(state, **type))
+
+    @internal.utils.multicase()
+    @classmethod
+    def get(cls, **type):
+        return cls.get(None, **type)
+    @internal.utils.multicase(name=str)
+    @classmethod
+    def get(cls, name, **type):
+        return cls.get(name, None, **type)
+    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def get(cls, name, D, **type):
+        type.setdefault('like', name)
+        return cls.get(D, **type)
+    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def get(cls, D, **type):
+        state = D if D else idaapi.decompile(func.address())
+        res = cls.by(state, **type)
+        return cls.vdloc(state, res)
+
+    @internal.utils.multicase()
+    @classmethod
+    def name(cls, **type):
+        return cls.name(None, **type)
+    @internal.utils.multicase(name=str)
+    @classmethod
+    def name(cls, name, **type):
+        return cls.name(name, None, **type)
+    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def name(cls, name, D, **type):
+        type.setdefault('like', name)
+        return cls.name(D, **type)
+    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
+    @classmethod
+    def name(cls, D, **type):
+        state = D if D else idaapi.decompile(func.address())
+        res = cls.by(state, **type)
+        return res.name
+
+    @classmethod
+    def vdloc(cls, state, lv):
+        loc = lv.location
+        atype, vtype = loc.atype(), lv.type()
+        if atype in {idaapi.ALOC_REG1}:
+            regname = idaapi.print_vdloc(loc, vtype.get_size())
+            return ins.arch.byname(regname)
+        elif atype in {idaapi.ALOC_STACK}:
+            fr = func.frame(lv.defea)
+            delta = state.get_stkoff_delta()
+            realoffset = loc.stkoff() - delta
+            return fr.members.by_realoffset(realoffset) if 0 <= realoffset < fr.size else location_t(realoffset, vtype.get_size())
+        raise NotImplementedError(atype)
+
+    @classmethod
+    def collect_block_xrefs(cls, out, mlist, blk, ins, find_uses):
+        p = ins
+        while p and not mlist.empty():
+            use = blk.build_use_list(p, ida_hexrays.MUST_ACCESS); # things used by the insn
+            _def = blk.build_def_list(p, ida_hexrays.MUST_ACCESS); # things defined by the insn
+            plst = use if find_uses else _def
+            if mlist.has_common(plst):
+                if not p.ea in out:
+                    out.append(p.ea) # this microinstruction seems to use our operand
+            mlist.sub(_def)
+            p = p.next if find_uses else p.prev
+        return
+
+    @classmethod
+    def collect_xrefs(cls, out, ctx, mop, mlist, du, find_uses):
+        # first collect the references in the current block
+        start = ctx.topins.next if find_uses else ctx.topins.prev;
+        cls.collect_block_xrefs(out, mlist, ctx.blk, start, find_uses)
+
+        # then find references in other blocks
+        serial = ctx.blk.serial; # block number of the operand
+        bc = du[serial]          # chains of that block
+        voff = ida_hexrays.voff_t(mop)
+        ch = bc.get_chain(voff)   # chain of the operand
+        if not ch:
+            return # odd
+        for bn in ch:
+            b = ctx.mba.get_mblock(bn)
+            ins = b.head if find_uses else b.tail
+            tmp = ida_hexrays.mlist_t()
+            tmp.add(mlist)
+            cls.collect_block_xrefs(out, tmp, b, ins, find_uses)
+        return
+
+    @classmethod
+    def microcode(cls, D):
+        state = D if D else idaapi.decompile(func.address())
+        hf = ida_hexrays.hexrays_failure_t()
+        mbr = ida_hexrays.mba_ranges_t(state)
+        mba = ida_hexrays.gen_microcode(mbr, hf, None, ida_hexrays.DECOMP_WARNINGS | ida_hexrays.DECOMP_NO_CACHE, ida_hexrays.MMAT_PREOPTIMIZED)
+        if not mba:
+            raise Exception("{:#x}: {:s}".format(hf.errea, hf.str))
+        return mba
+
+    @classmethod
+    def _refs(cls, state, lv):
+        mba = cls.microcode(state)
+        merr = mba.build_graph()
+        if merr != ida_hexrays.MERR_OK:
+            raise Exception("{:#x}: {:s}".format(errea, ida_hexrays.get_merror_desc(merr, mba)))
+
+        gco = ida_hexrays.gco_info_t()
+        if not ida_hexrays.get_current_operand(gco):
+            raise Exception("No register or stkvar in operand")
+
+        mlist = ida_hexrays.mlist_t()
+        if not gco.append_to_list(mlist, mba):
+            raise Exception('no microcode list')
+
+        ctx = ida_hexrays.op_parent_info_t()
+        mop = mba.find_mop(ctx, ea, gco.is_def(), mlist)
+        if not mop:
+            raise Exception('no operand')
+
+        graph = mba.get_graph()
+        ud = graph.get_ud(ida_hexrays.GC_REGS_AND_STKVARS)
+        du = graph.get_du(ida_hexrays.GC_REGS_AND_STKVARS)
+
+        xrefs = ida_pro.eavec_t()
+        if gco.is_use():
+            cls.collect_xrefs(xrefs, ctx, mop, mlist, ud, False)
+        if gco.is_def():
+            cls.collect_xrefs(xrefs, ctx, mop, mlist, du, True)
+        return xrefs
+
+    @classmethod
+    def refs(cls, D):
+        state = D if D else idaapi.decompile(func.address())
+        return cls._refs(state, None)
+
+class hxqueue(object):
+    def __init__(self, hx, event=idaapi.hxe_create_hint):
+        import queue
+        self.Q = queue.Queue()
+        self.hx = hx
+        hx.add(event, self.activate)
+
+    def activate(self, vu):
+        item = ui.current.symbol(), vu
+        self.Q.put(item)
+
+    def get(self):
+        return self.Q.get_nowait()
+
+def hxhint(vu):
+    cfunc, citem, mba, cpos = (getattr(vu, item) for item in ['cfunc', 'item', 'mba', 'cpos'])
+
+    # figure out the operand instead of using this symbol name
+    symbol = ui.current.symbol()
+
+    if citem.citype in {idaapi.VDI_EXPR, idaapi.VDI_TAIL}:
+        ea = find_addr(vu)
+        meta = db.tag(ea)
+        print(db.disasm(ea), meta)
+        result = ea, meta
+    elif citem.citype in {idaapi.VDI_LVAR}:
+        lv = citem.l
+        lvar = lvars.vdloc(vu.cfunc, lv)
+        meta = lvar.tag() if hasattr(lvar, 'tag') else {}
+        print(lvar, meta)
+        result = lvar, meta
+    elif citem.citype in {idaapi.VDI_FUNC}:
+        f = citem.f
+        ea = f.entry_ea
+        meta = func.tag(ea)
+        print(func.name(ea), func.tags(ea), meta)
+        result = ea, meta
+    else:
+        raise NotImplementedError(citem.citype)
+    global _
+    _ = result
+
+def hxinstall():
+    global hx, Q
+    hx = internal.interface.priorityhxevent()
+    Q = hxqueue(hx)
+    hx.add(idaapi.hxe_curpos, hxhint)
