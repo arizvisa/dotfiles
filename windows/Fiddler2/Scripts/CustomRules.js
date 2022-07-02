@@ -10,6 +10,165 @@ import Fiddler;
 // FiddlerScript Reference
 // http://fiddler2.com/r/?fiddlerscriptcookbook
 
+/** general configuration **/
+class User
+{
+    static class Config {
+        static var WorkingPath: String = "";
+    }
+
+    /*
+    static function NewWorkspace() {
+        User.Config.WorkingPath = User.Config.WorkingPath? User.Config.WorkingPath : Utils.Path.ChooseDirectory();
+    }
+    */
+
+    static function Action(oSession: Session) {
+        throw Exception.NotImplementedError;
+    }
+}
+
+/** general exception types **/
+class Exception
+{
+    static var NotImplementedError: Error = new Error(0, "NotImplementedError");
+    static var SystemError: Error = new Error(0, "SystemError");
+    static var RuntimeError: Error = new Error(0, "RuntimeError");
+    static var FileNotFoundError: Error = new Error(0, "FileNotFoundError");
+    static var FileExistsError: Error = new Error(0, "FileExistsError");
+    static var NotADirectoryError: Error = new Error(0, "NotADirectoryError");
+}
+
+/** general utilities because jscript is retarded **/
+class Utils
+{
+    static class String
+    {
+        static function Replace(string: String, substring: String, newstring: String): String {
+            var items: String[] = string.Split([substring]);
+            if (!items.Length)
+                return string;
+            var result: String = items[0];
+            for (var index: int = 1; index < items.Length; index++) {
+                result += newstring;
+                result += items[index];
+            }
+            return result;
+        }
+        static function Join(separator: String, items: String[]): String {
+            var result: String = items[0];
+            for (var index: int = 1; index < items.Length; index++) {
+                result += separator;
+                result += items[index];
+            }
+            return result;
+        }
+    }
+
+    /** utilities for interacting with both posix and windows paths **/
+    static class Path
+    {
+        // Return whether a file or a directory exists
+        static function FileExists(sPath: String): Boolean {
+            return System.IO.File.Exists(Utils.Path.Windows(sPath));
+        }
+        static function DirectoryExists(sPath: String): Boolean {
+            var path: String = sPath? sPath : User.Config.WorkingPath;
+            return System.IO.Directory.Exists(Utils.Path.Windows(path));
+        }
+
+        // Convert a path to either its general (posix) form or its windows form
+        static function Posix(sPath: String): String {
+            return Utils.String.Replace(sPath, "\\", "/");
+        }
+        static function Windows(sPath: String): String {
+            return Utils.String.Replace(sPath, "/", "\\");
+        }
+
+        static function ChooseFile(): String {
+            var workingDirectory: String = Utils.Path.Windows(User.Config.WorkingPath);
+            var filter: String = "All Files (*.*)|*.*";
+            return Fiddler.Utilities.ObtainOpenFilename("Choose a file", filter, workingDirectory);
+        }
+        static function ChooseFiles(): String[] {
+            var workingDirectory: String = Utils.Path.Windows(User.Config.WorkingPath);
+            var filter: String = "All Files (*.*)|*.*";
+            return Fiddler.Utilities.ObtainFilenames("Choose some files", filter, workingDirectory, true);
+        }
+        static function ChooseDirectory(): String {
+            var dlg = new System.Windows.Forms.FolderBrowserDialog();
+            dlg.Description = "Choose a directory";
+            dlg.SelectedPath = Utils.Path.Windows(User.Config.WorkingPath);
+            dlg.RootFolder = System.Environment.SpecialFolder.Desktop;
+            var result = dlg.ShowDialog();
+            return (result == System.Windows.Forms.DialogResult.OK)? Utils.Path.Posix(dlg.SelectedPath) : "";
+        }
+    }
+
+    /** utilities for interacting with an individual session **/
+    static class Session
+    {
+        // Return the default filename for a session
+        static function Name(oSession: Fiddler.Session, sExtension: String): String {
+            var suffix: String = sExtension? "." + sExtension : "";
+            return suffix? oSession.id + "_" + suffix : oSession.SuggestedFilename;
+        }
+        // Return the path to a file in the working directory
+        static function Path(oSession: Fiddler.Session, sExtension: String): String {
+            var filename: String = Utils.Session.Name(oSession, sExtension);
+            if (!Utils.Path.DirectoryExists(User.Config.WorkingPath))
+                throw Exception.NotADirectoryError;
+            return Utils.Path.Posix(User.Config.WorkingPath + "/" + filename);
+        }
+        // Return if the file for a session exists (in the working directory)
+        static function Exists(oSession: Fiddler.Session, sExtension: String): Boolean {
+            var path: String = Utils.Session.Path(oSession, sExtension);
+            return System.IO.File.Exists(Utils.Path.Windows(path));
+        }
+
+        // Shortcuts for interacting with selections in the current workspace
+        static function Everything(): Fiddler.Session[] {
+            return FiddlerApplication.UI.GetAllSessions();
+        }
+        static function Selected(): Fiddler.Session[] {
+            return FiddlerApplication.UI.GetSelectedSessions();
+        }
+
+        /** interacting with a session response **/
+        static class Response
+        {
+            static class Headers
+            {
+                static function Get(oSession: Fiddler.Session): String {
+                    return oSession.ResponseHeaders.ToString();
+                }
+                static function Set(oSession: Fiddler.Session, sHeaders: String): Boolean {
+                    return oSession.ResponseHeaders.AssignFromString(sHeaders);
+                }
+            }
+
+            // Replace the body of a session with the contents of a file
+            static function Replace(oSession: Fiddler.Session, sExtension: String): byte[] {
+                if (!Utils.Session.Exists(oSession, sExtension))
+                    throw Exception.FileNotFoundError;
+
+                var path: String = Utils.Session.Path(oSession, sExtension);
+                var headers: String = Headers.Get(oSession);
+                var result: byte[] = oSession.ResponseBody.Clone();
+
+                FiddlerObject.log("Replacing response body of " + oSession.id + ": " + path);
+                if (!oSession.LoadResponseFromFile(Utils.Path.Windows(path)))
+                    FiddlerObject.log("Failure trying to load response body" + "(" + path + ")" + " into session " + oSession.id);
+
+                // always ensure that the headers are restored when modifying the body
+                Headers.Set(oSession, headers);
+                return result;
+            }
+        }
+    }
+}
+
+/** Preferences and settings for Fiddler **/
 class Handlers
 {
     /* preferences for simple breakpointing & other quickexec rules */
@@ -32,6 +191,13 @@ class Handlers
     static function Main() {
         var today: Date = new Date();
         FiddlerObject.StatusText = "Session is starting at: " + today;
+
+        if (!User.Config.WorkingPath)
+            FiddlerObject.log("No workspace directory has been set!");
+        else if (!Utils.Path.DirectoryExists(User.Config.WorkingPath))
+            FiddlerObject.log("Working directory (" + Utils.Path.Posix(User.Config.WorkingPath) + ") does not exist!");
+        else
+            FiddlerObject.log("Using workspace: " + Utils.Path.Posix(User.Config.WorkingPath));
 
         FiddlerObject.log("To transparently proxy for a specific host: !listen $port $hostname");
         FiddlerObject.log("QuickExec help can be found at https://docs.telerik.com/fiddler/knowledge-base/quickexec");
@@ -111,6 +277,13 @@ class Handlers
                 oSessions[x].utilDecodeResponse();
             }
             UI.actUpdateInspector(true,true);
+        }
+
+        public static ContextAction("Custom User Action")
+        function CustomContextAction(oSessions: Session[]) {
+            for (var index:int = 0; index < oSessions.Length; index++)
+                User.Action(oSessions[index]);
+            return;
         }
 
     /** Events **/
