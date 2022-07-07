@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2022-07-06 18:57:55" build="210912">
+		<key name=".Vanilla" modified="2022-07-06 19:11:25" build="210912">
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data="C:\MinGW\msys\1.0\bin\bash.exe --login"/>
 			<value name="StartTasksFile" type="string" data=""/>
@@ -87,13 +87,16 @@
 			<value name="StoreTaskbarCommands" type="hex" data="00"/>
 			<value name="SaveCmdHistory" type="hex" data="01"/>
 			<value name="CmdLineHistory" type="multi">
+				<line data="{PowerShell::Admin}"/>
+				<line data="{Language::Fsharp}"/>
 				<line data="{Language::Python}"/>
 				<line data="{cmd::SDK::vs17 (x86)}"/>
+				<line data="{Tests::Show ANSI colors}"/>
+				<line data="{cmd::SDK::vs17 (x64)}"/>
 				<line data="{Bash::msys::Admin}"/>
 				<line data="{Bash::cygwin}"/>
 				<line data="{cmd::SDK::vs14 (x86)}"/>
 				<line data="{PowerShell::User}"/>
-				<line data="{PowerShell::Admin}"/>
 				<line data="{cmd::Admin}"/>
 				<line data="{Bash::msys}"/>
 				<line data="{cmd::SDK::vs14 (x64)}"/>
@@ -114,7 +117,6 @@
 				<line data="{Bash::msys::User}"/>
 				<line data="{Language::Ocaml}"/>
 				<line data="{Scripts::Chocolatey (Admin)}"/>
-				<line data="{Tests::Show ANSI colors}"/>
 			</value>
 			<value name="SingleInstance" type="hex" data="01"/>
 			<value name="ShowHelpTooltips" type="hex" data="00"/>
@@ -609,8 +611,8 @@
 				<value name="Key.EditMenu" type="dword" data="00000000"/>
 				<value name="Key.EditMenu2" type="dword" data="00000000"/>
 			</key>
-			<key name="Tasks" modified="2022-07-06 17:54:58" build="180528">
-				<value name="Count" type="long" data="23"/>
+			<key name="Tasks" modified="2022-07-06 19:05:58" build="210912">
+				<value name="Count" type="long" data="24"/>
 				<key name="Task1" modified="2022-07-06 18:52:46" build="210912">
 					<value name="Name" type="string" data="{Bash::msys}"/>
 					<value name="Flags" type="dword" data="00000003"/>
@@ -773,43 +775,52 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task19" modified="2022-07-06 18:59:53" build="210912">
+				<key name="Task19" modified="2022-07-06 19:10:59" build="210912">
 					<value name="Name" type="string" data="{Language::Python}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Python\Python.exe" -i" -new_console:sT33V'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Python\Python.exe" -i" -new_console:sT45V'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task20" modified="2022-07-06 18:58:21" build="210912">
-					<value name="Name" type="string" data="{Language::Ocaml}"/>
-					<value name="Flags" type="dword" data="00000000"/>
+				<key name="Task20" modified="2022-07-06 19:10:59" build="210912">
+					<value name="Name" type="string" data="{Language::Fsharp}"/>
+					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
-					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ocaml\bin\ocaml.exe"" -new_console:sT33V'/>
+					<value name="Cmd1" type="string" data='""%ProgramFiles%\dotnet\dotnet.exe" fsi --consolecolors+ --readline+ --utf8output" -new_console:sT45V'/>
 				</key>
-				<key name="Task21" modified="2022-07-06 18:58:21" build="210912">
-					<value name="Name" type="string" data="{Language::Ruby}"/>
-					<value name="Flags" type="dword" data="00000000"/>
-					<value name="Hotkey" type="dword" data="00000000"/>
-					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Active" type="long" data="0"/>
-					<value name="Count" type="long" data="1"/>
-					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ruby21\bin\irb.bat"" -new_console:sT33V'/>
-				</key>
-				<key name="Task22" modified="2022-07-06 17:54:58" build="180528">
+				<key name="Task21" modified="2022-07-06 19:10:59" build="210912">
 					<value name="Name" type="string" data="{Language::Go}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
-					<value name="Cmd1" type="string" data='""%USERPROFILE%\.go\bin\go-repl.exe"" -new_console:a:sT33V'/>
+					<value name="Cmd1" type="string" data='""%USERPROFILE%\.go\bin\go-repl.exe"" -new_console:sT45V'/>
 				</key>
-				<key name="Task23" modified="2022-07-06 17:54:58" build="180528">
+				<key name="Task22" modified="2022-07-06 19:10:59" build="210912">
+					<value name="Name" type="string" data="{Language::Ocaml}"/>
+					<value name="Flags" type="dword" data="00000000"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ocaml\bin\ocaml.exe"" -new_console:sT45V'/>
+				</key>
+				<key name="Task23" modified="2022-07-06 19:10:59" build="210912">
+					<value name="Name" type="string" data="{Language::Ruby}"/>
+					<value name="Flags" type="dword" data="00000000"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ruby21\bin\irb.bat"" -new_console:sT45V'/>
+				</key>
+				<key name="Task24" modified="2022-07-06 19:05:58" build="210912">
 					<value name="Name" type="string" data="{Mimikatz}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
