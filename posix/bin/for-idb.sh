@@ -219,7 +219,11 @@ unquoted=("$@")
 quoted=(`printf "\"%s\" " "${unquoted[@]}"`)
 tmppath_ida=`getportablepath "$tmp"`
 progresspath_ida=`getportablepath "$progress"`
-"$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
+if [ "$#" -gt 0 ]; then
+    "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
+else
+    "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\"" "$input"
+fi
 result=$?
 ending=`currentdate`
 trap - INT TERM EXIT
