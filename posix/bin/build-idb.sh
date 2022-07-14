@@ -89,13 +89,25 @@ currentdate()
     date --rfc-3339=seconds
 }
 
+awklength()
+{
+    awk 'length > maximum { maximum=length } END { print maximum }'
+}
+
+allahu_awkbar()
+{
+    width="$1"
+    test "$#" -gt 1 && horizontal="$2" || horizontal='-'
+    test "$#" -gt 2 && vertical="$3" || vertical='| '
+    test "$#" -gt 3 && corner="$4" || corner='+'
+    awk -v "vert=$vertical" -v "horz=$horizontal" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz, "") } { print vert $0 }'
+}
+
 logprefix()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
-    printf "+--------------------------------------------------------------------------------------------\n"
-    printf "| $arg0 began at : %s\n" "$current"
-    printf "+--------------------------------------------------------------------------------------------\n"
+    printf '%s began at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '-'
 }
 
 logsuffix()
@@ -103,9 +115,7 @@ logsuffix()
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf "\n"
-    printf "+============================================================================================\n"
-    printf "| $arg0 completed at : %s\n" "$current"
-    printf "+============================================================================================\n"
+    printf '%s completed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '='
 }
 
 makeanalysis()
