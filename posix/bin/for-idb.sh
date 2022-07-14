@@ -111,18 +111,27 @@ allahu_awkbar()
     awk -v "vert=$vertical" -v "horz=$horizontal" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz, "") } { print vert $0 }'
 }
 
-logprefix()
+logfile_begin()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf '%s began at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '-'
 }
 
-logsuffix()
+logfile_end()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
+    printf '\n'
     printf '%s completed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '='
+}
+
+logfile_abort()
+{
+    arg0=`basename "$0"`
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
+    printf '\n'
+    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '~'
 }
 
 if test ! -f "$input"; then
@@ -191,7 +200,7 @@ for module in ['traceback','logging','os','idaapi','idaapi','idc','idautils']:
 del(module)
 #print("%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime())))
 #idaapi.auto_wait()
-print("~"*65)
+print("~"*90)
 builtins._ = time.time()
 print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv))
 try: sys.dont_write_bytecode = True
@@ -199,28 +208,29 @@ except AttributeError: pass
 try: exec(open(r"$scriptpath").read(), globals())
 except SystemExit:
     builtins.__EXITCODE__, = sys.exc_info()[1].args
-    builtins.flags = idaapi.DBFL_KILL
+    builtins.__ABORT__ = True
 except Exception:
-    builtins.flags = idaapi.DBFL_KILL
+    builtins.__ABORT__ = True
     print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
 else:
-    builtins.flags = idaapi.DBFL_COMP | idaapi.DBFL_BAK
+    builtins.__ABORT__ = False
 print("%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
-print("~"*65)
-print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if getattr(builtins, '__EXITCODE__', 0) else 'unhandled exception')) if builtins.flags & idaapi.DBFL_KILL else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
-if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
-    idaapi.save_database(idaapi.cvar.database_idb, builtins.flags)
+print("~"*90)
+print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
+if builtins.__ABORT__:
+    idaapi.process_ui_action('Abort', 0x0)      # FIXME: the default value for this in batch is "No"
+    #idaapi.term_database()                     # FIXME: this saves the database anyways
+elif not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
+    idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP | idaapi.DBFL_BAK)
 else:
-    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), builtins.flags)
-idaapi.qexit(getattr(builtins, '__EXITCODE__', 0))
+    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP | idaapi.DBFL_BAK)
+idaapi.qexit(getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0))
 EOF
 }
 
 workingdir=`getportablepath .`
 runscript "$scriptname" "$scriptpath" "$workingdir" >| $tmp
 trap 'rm -f "$tmp" "$progress"; exit $?' INT TERM EXIT
-
-printf "[%s] running \"%s\" against \"%s\"\n" "`currentdate`" "$script" "$input"
 
 beginning=`currentdate`
 #"ida" -A -L$progress -S"$tmp" "$input"
@@ -230,8 +240,10 @@ quoted=(`printf "\"%s\" " "${unquoted[@]}"`)
 tmppath_ida=`getportablepath "$tmp"`
 progresspath_ida=`getportablepath "$progress"`
 if [ "$#" -gt 0 ]; then
+    printf "[%s] script \"%s\" started on \"%s\" with parameters: %s\n" "`currentdate`" "$script" "$input" "${quoted[*]}"
     "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
 else
+    printf "[%s] script \"%s\" started on \"%s\"\n" "`currentdate`" "$script" "$input"
     "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\"" "$input"
 fi
 result=$?
@@ -243,16 +255,21 @@ logfile="$inputdir/"`basename "$input" ".$idaext"`.log
 if test -f "$logfile"; then
     printf "[%s] appending log from \"%s\" to \"%s\"\n" "`currentdate`" "$progress" "$logfile"
     mv -f "$logfile" "$clog"
-    logprefix "$beginning" >> "$clog"
+    logfile_begin "$beginning" >> "$clog"
     cat "$clog" "$progress" >| "$logfile"
-    logsuffix "$ending" >> "$logfile"
 else
     printf "[%s] writing log to \"%s\"\n" "`currentdate`" "$logfile"
     mv -f "$progress" "$clog"
-    logprefix "$beginning" >| "$logfile"
+    logfile_begin "$beginning" >| "$logfile"
     cat "$clog" >> "$logfile"
-    logsuffix "$ending" >> "$logfile"
 fi
-printf "[%s] completed \"%s\" on \"%s\"\n" "`currentdate`" "$script" "$input"
+
+if [ "$result" -gt 0 ]; then
+    logfile_abort "$ending" >> "$logfile"
+    printf "[%s] script \"%s\" failed(%d) on \"%s\"\n" "`currentdate`" "$script" "$result" "$input"
+else
+    logfile_end "$ending" >> "$logfile"
+    printf "[%s] script \"%s\" finished on \"%s\"\n" "`currentdate`" "$script" "$input"
+fi
 rm -f "$clog" "$progress" "$tmp"
 exit "$result"

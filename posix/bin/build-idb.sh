@@ -103,19 +103,27 @@ allahu_awkbar()
     awk -v "vert=$vertical" -v "horz=$horizontal" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz, "") } { print vert $0 }'
 }
 
-logprefix()
+logfile_begin()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf '%s began at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '-'
 }
 
-logsuffix()
+logfile_end()
 {
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
-    printf "\n"
+    printf '\n'
     printf '%s completed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '='
+}
+
+logfile_abort()
+{
+    arg0=`basename "$0"`
+    test "$#" -gt 0 && current="$1" || current=`currentdate`
+    printf '\n'
+    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '~'
 }
 
 makeanalysis()
@@ -123,17 +131,17 @@ makeanalysis()
     arg0=`basename "$0"`
     cat <<EOF
 import idaapi,time
-print("~"*65)
+print("~"*90)
 _ = time.time()
 print("$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime())))
 idaapi.auto_wait()
 print("$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime())))
-print("~"*65)
+print("~"*90)
 print("%s:saving to %s"% (r"$arg0", r"$output"))
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
-    idaapi.save_database(idaapi.cvar.database_idb, 0)
+    idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP)
 else:
-    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), 0)
+    idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP)
 idaapi.qexit(0)
 EOF
 }
@@ -288,21 +296,29 @@ fi
 
 # surround logfile with timestamps
 mv -f "$outpath/$error" "$outpath/.ida.log.$error.$$"
-logprefix "$beginning" >| "$outpath/.ida.prefix.$error.$$"
+logfile_begin "$beginning" >| "$outpath/.ida.prefix.$error.$$"
 cat "$outpath/.ida.prefix.$error.$$" "$outpath/.ida.log.$error.$$" >| "$outpath/$error"
 rm -f "$outpath/.ida.prefix.$error.$$" "$outpath/.ida.log.$error.$$"
-logsuffix "$ending" >> "$outpath/$error"
+
+# check our result and update the log with whatever happened
+[ "$result" -eq 0 ] && logfile_end "$ending" >> "$outpath/$error" || logfile_abort "$ending" >> "$outpath/$error"
 
 # restore previous log to the beginning of the file
 if test ! -z "$errorcat"; then
-    printf "[%s] inserting previous log \"%s\" into \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error"
+    printf "[%s] combining previous log \"%s\" with \"%s\".\n" "`currentdate`" "$outpath/$errortmp" "$outpath/$error"
     errorcat=
     mv -f "$outpath/$error" "$outpath/.ida.log.$error.$$"
     cat "$outpath/$errortmp" "$outpath/.ida.log.$error.$$" >| "$outpath/$error"
     rm -f "$outpath/.ida.log.$error.$$" "$outpath/$errortmp"
 fi
 
+# check our result and see if it was okay
+if [ "$result" -eq 0 ]; then
+    printf "[%s] finished building database \"%s\" for \"%s\".\n" "`currentdate`" "$output" "$input"
+else
+    printf "[%s] error building database \"%s\" for \"%s\".\n" "`currentdate`" "$output" "$input"
+fi
+
 # and we're done. so do some cleanup
-printf "[%s] completed \"%s\" for \"%s\".\n" "`currentdate`" "$output" "$input"
 rm -f "$tmppath"
 trap - INT TERM EXIT
