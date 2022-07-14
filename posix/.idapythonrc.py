@@ -79,7 +79,7 @@ def memberFromOp(st, ea, opnum, name=None):
 mop = memberFromOp
 
 dbname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(db.offset, fdiscard(db.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(db.name))
-fnname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name))
+fnname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name, listed=True))
 selectall = fcompose(db.selectcontents, fpartial(imap, funpack(func.select)), funpack(itertools.chain))
 
 has_immediate_ops = fcompose(fmap(fpartial(fpartial, ins.op_type), ins.opsi_read), funpack(map), set, fmap(fcompose(len,fpartial(operator.eq, 1)), freverse(operator.contains, 'immediate')), all)
