@@ -1,4 +1,7 @@
 # paths = []
+[alias]
+#build = "build --release --all-features"   # yep. completely fucking stupid
+fuckyou = "build --release --all-features"
 
 [cargo-new]
 vcs = "none"
@@ -7,8 +10,27 @@ vcs = "none"
 jobs = 1
 rustc = "rustc"
 rustdoc = "rustdoc"
-target-dir = "target"
 incremental = true
+cargo_profile = "release"
+
+[env]
+PROFILE = "release"             # not this either, docs are fucking wrong.
+CARGO_PROFILE = "release"       # these strings aren't even in the fucking binary
+FUCKYOU = ""
+
+[profile]       # ...because FUCK cargo. That's why.
+opt-level = 3
+debug = false
+split-debuginfo = "off"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+#rpath = false
+rpath = true
+#dir-name = "release"    # cargo is completely fucking stupid
 
 [term]
 verbose = true
@@ -16,3 +38,6 @@ color = "never"
 
 [target.'cfg(target_env="msvc")']
 rustflags = ["-Clink-arg=/DEBUG:NONE"]
+
+[target.'cfg(target_env="unix")']
+#rustflags = ["--profile=release"]       # nope
