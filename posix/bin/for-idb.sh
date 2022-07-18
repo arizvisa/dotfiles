@@ -201,7 +201,8 @@ del(module)
 #print("%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime())))
 #idaapi.auto_wait()
 print("~"*90)
-builtins._ = time.time()
+builtins.clock = (lambda: time.time_ns() * 1e-9) if hasattr(time, 'time_ns') else time.time
+builtins._ = builtins.clock()
 print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv))
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
@@ -214,19 +215,19 @@ except Exception:
     print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
 else:
     builtins.__ABORT__ = False
-print("%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
+print("%s:completed %s in %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
 print("~"*90)
 print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
 if builtins.__ABORT__:
     idaapi.set_database_flag(idaapi.DBFL_KILL)  # thanks to rolf and (indirectly) misty
 elif not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
-    builtins._ = time.time()
+    builtins._ = builtins.clock()
     idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP | idaapi.DBFL_BAK)
-    print("%s:saving %s took %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
+    print("%s:saving %s took %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
 else:
-    builtins._ = time.time()
+    builtins._ = builtins.clock()
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP | idaapi.DBFL_BAK)
-    print("%s:saving %s took %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
+    print("%s:saving %s took %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
 idaapi.qexit(getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0))
 EOF
 }

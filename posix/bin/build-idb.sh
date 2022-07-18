@@ -132,16 +132,20 @@ makeanalysis()
     cat <<EOF
 import idaapi,time
 print("~"*90)
-_ = time.time()
+clock = (lambda: time.time_ns() * 1e-9) if hasattr(time, 'time_ns') else time.time
+ts = clock()
 print("$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime())))
 idaapi.auto_wait()
-print("$arg0:finished in %.3f seconds (%s)"% (time.time()-_, time.asctime(time.localtime())))
+print("$arg0:finished in %.5f seconds (%s)"% (clock() - ts, time.asctime(time.localtime())))
 print("~"*90)
 print("%s:saving to %s"% (r"$arg0", r"$output"))
+save_ts = clock()
 if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
     idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP)
 else:
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP)
+print("$arg0:saving took %.5f seconds (%s)"% (clock() - save_ts, time.asctime(time.localtime())))
+print("~"*90)
 idaapi.qexit(0)
 EOF
 }
