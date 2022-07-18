@@ -218,12 +218,15 @@ print("%s:completed %s in %.3f seconds (%s)"% ("$arg0", "$script", time.time()-b
 print("~"*90)
 print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
 if builtins.__ABORT__:
-    idaapi.process_ui_action('Abort', 0x0)      # FIXME: the default value for this in batch is "No"
-    #idaapi.term_database()                     # FIXME: this saves the database anyways
+    idaapi.set_database_flag(idaapi.DBFL_KILL)  # thanks to rolf and (indirectly) misty
 elif not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
+    builtins._ = time.time()
     idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP | idaapi.DBFL_BAK)
+    print("%s:saving %s took %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
 else:
+    builtins._ = time.time()
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP | idaapi.DBFL_BAK)
+    print("%s:saving %s took %.3f seconds (%s)"% ("$arg0", "$script", time.time()-builtins._, time.asctime(time.localtime())))
 idaapi.qexit(getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0))
 EOF
 }
