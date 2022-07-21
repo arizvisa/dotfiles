@@ -1,15 +1,32 @@
 #!/usr/bin/env bash
 url=$1
 
+## options
+CURL=`type -P curl.sh || type -P curl`
+CURL_PARAMS=(-L -s -S)
+CURL_OPTIONS=(-k --compressed)
+
+OPENSSL=`type -P openssl.sh || type -P openssl`
+
 ## curl(1) related utilities
-CURL=$(type -P curl.sh || type -P curl)
-curl_get()
+curl_support()
 {
-    "$CURL" -L -s -S -k --compressed "$@"
+    "$CURL" ${CURL_PARAMS[*]} "$1" 2>&1 | grep -q URL
 }
 
+curl_get()
+{
+    "$CURL" ${CURL_PARAMS[*]} ${CURL_ARGS[*]} "$@"
+}
+
+CURL_ARGS=()
+for opt in "${CURL_OPTIONS[@]}"; do
+    if curl_support "$opt"; then
+        CURL_ARGS=($CURL_ARGS $opt)
+    fi
+done
+
 ## openssl(1) related utilities
-OPENSSL=$(type -P openssl.sh || type -P openssl)
 openssl_digest_types()
 {
     "$OPENSSL" dgst -list | grep '^-' | paste -sd' ' - | tr -s ' ' | xargs printf "%s\0"
@@ -18,7 +35,6 @@ openssl_digest_types()
 openssl_digest_file()
 {
     path="$1" && shift
-    maxwidth=$((2 ** 64))
     "$OPENSSL" dgst "$@" -binary "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
 }
 
