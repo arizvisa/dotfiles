@@ -138,7 +138,7 @@ abort()
     printf "Abort!\n" 1>&2
 
     printf "Aborted download of \"%s\" to \"%s\"\n" "$url" "$target" 1>&2
-    openssl_digest_everything "$target"
+    openssl_digest_sorted "$target"
     exit 4
 }
 
