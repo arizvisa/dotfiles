@@ -70,7 +70,7 @@ calculatepercent()
     numerator=$1
     denominator=$2
     scale=$3
-    printf "scale=%d; %d / %d * 100.\n" "${scale:-3}" "$numerator" "$denominator" | bc -s
+    printf "scale=%d; %d / %d * 100.\n" "${scale:-3}" "$numerator" "$denominator" | bc
 }
 
 transferstatus()
