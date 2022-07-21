@@ -12,7 +12,7 @@ curl_get()
 OPENSSL=$(type -P openssl.sh || type -P openssl)
 openssl_digest_types()
 {
-    "$OPENSSL" dgst -list | grep '^-' | paste -sd' ' | tr -s ' ' | xargs printf "%s\0"
+    "$OPENSSL" dgst -list | grep '^-' | paste -sd' ' - | tr -s ' ' | xargs printf "%s\0"
 }
 
 openssl_digest_file()
