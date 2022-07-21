@@ -19,7 +19,7 @@ openssl_digest_file()
 {
     path="$1" && shift
     maxwidth=$((2 ** 64))
-    "$OPENSSL" dgst "$@" -binary "$path" | od -w131072 -A none -tx1 | tr -d ' '
+    "$OPENSSL" dgst "$@" -binary "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
 }
 
 openssl_digest_everything()
