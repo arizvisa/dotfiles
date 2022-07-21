@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 path=`dirname "$0"`
 arg0=`basename "$0"`
 prog=`type -P "for-idb.sh"`
