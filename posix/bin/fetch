@@ -40,7 +40,7 @@ openssl_digest_types()
 openssl_digest_file()
 {
     path="$1" && shift
-    "$OPENSSL" dgst "$@" -binary "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
+    "$OPENSSL" dgst "$@" -binary -- "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
 }
 
 openssl_digest_everything()
@@ -69,7 +69,7 @@ openssl_digest_sorted()
 httpsize()
 {
     url=$1
-    curl_get --head "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//'
+    curl_get --head -- "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//'
 }
 
 filesize()
