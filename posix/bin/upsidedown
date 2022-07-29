@@ -175,7 +175,8 @@ if(@ARGV) {
     print upsidedown("@ARGV"),"\n";
 } else {
     while(<>) {
-	print upsidedown($_),"\n";
+	$nl=chomp;
+	print upsidedown($_),$/ x $nl;
     }
 }
 
