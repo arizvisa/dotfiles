@@ -1,4 +1,4 @@
 #!/bin/sh
 tty=/dev/tty
 read _ width < <(stty -aF "$tty" | tr ';' $'\n' | grep -oe '\<columns\>.*$')
-grep -oe "^.\{,$width\}"
+grep -oe "^.\{,$width\}" -- "$@"
