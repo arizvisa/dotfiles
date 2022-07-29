@@ -1,4 +1,4 @@
 #!/bin/sh
 tty=/dev/tty
-width=$( stty -aF$tty | head -n 1 | sed -e 's/;/\n/g' | grep columns | cut -f 3 -d ' ' )
-sed -e 's/^\(.\{'$width'\}\).*$/\1/g'
+read _ width < <(stty -aF "$tty" | tr ';' $'\n' | grep -oe '\<columns\>.*$')
+grep -oe "^.\{,$width\}"
