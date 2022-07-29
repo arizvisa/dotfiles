@@ -128,7 +128,8 @@ def edit(list):
 		logging.info("renamer.edit(...) - using source filename {:s}".format(quote(t1.name)))
 		logging.info("renamer.edit(...) - using destination filename {:s}".format(quote(t2.name)))
 
-		params = [EDITOR] + shlex.split(EDITOR_ARGS) + ['--', t1.name, t2.name]
+		# switch the parameters so that the destination filename is first
+		params = [EDITOR] + shlex.split(EDITOR_ARGS) + ['--', t2.name, t1.name]
 		message = "os.spawnv(os.P_WAIT, {:s}, {:s})".format(quote(EDITOR_BIN), "[{:s}]".format(', '.join(map(quote, params))))
 
 		logging.debug("renamer.edit(...) - calling {:s}".format(message))
