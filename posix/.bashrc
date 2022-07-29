@@ -63,6 +63,7 @@ alias cat='cat -v'
 alias l="`type -P less || type -P more`"
 alias info="`type -P info` --vi-keys"
 alias strings="`type -P stringsext || type -P strings`"
+alias strace="`type -P strace` -vitttTs 131072"
 
 # remove any distro-specific aliases that have been added
 # for some of our core posix utilities.
