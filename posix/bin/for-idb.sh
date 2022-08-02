@@ -134,6 +134,36 @@ logfile_abort()
     printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '~'
 }
 
+unbase() { tr 'a-z' 'A-Z' | cat <( printf 'ibase=%d\n' "$1") - | bc; }
+chunk() { dd iflag=skip_bytes "skip=$1" count="$2" bs="$3" 2>/dev/null | od -Anone -tx$3 | xargs printf '%s\n'; }
+check_header()
+{
+    infile="$1"
+
+    # https://github.com/williballenthin/python-idb
+    read _version < <(dd "if=$infile" skip=30 bs=1 count=2 2>/dev/null | od -Anone -tx2 | tr -d ' ' | xargs printf 'ibase=%d; %s\n' 16 | bc)
+    [ $_version -le 4 ] && length=4 || length=8
+    if [ $_version -le 4 ]; then
+        printf '%d %d\n' 6 5 58 1
+    else
+        printf '%d %d\n' 6 2 32 3 76 1
+    fi | while read offset count; do
+        <"$infile" chunk $offset $count $length
+    done | unbase 16 | grep -v -e '^0$' | while read offset; do
+        chunk $offset 1 1 <"$infile" | unbase 16
+        expr 1 + $offset | xargs printf '%d\n' $length 1 | tac | paste -s -d ' '
+        expr 1 + $length + $offset
+    done | paste -d $'\t' - - - | while IFS=$'\t' read shtype shlazysize shdata; do
+        read size < <( chunk $shlazysize <"$infile" | unbase 16 )
+        if [ $shtype -eq 2 ]; then
+            <"$infile" dd iflag=skip_bytes skip=$shdata bs=1 skip=$shdata count=$size 2>/dev/null | cat <( printf '\x1f\x8b\x08\x00\x00\x00\x00\x00') - | zcat | xxd
+            break
+        else
+            echo nozlib $shdata $size
+        fi
+    done
+}
+
 if test ! -f "$input"; then
     printf "[%s] Database %s not found.\n" "`currentdate`" "$input" 1>&2
     exit 1
