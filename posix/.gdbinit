@@ -42,9 +42,9 @@ class sprintf(function):
                 val = int(value.cast(gdb.lookup_type(intcast(value))))
                 absint = (2**(8*size)+val) if val < 0 else val
                 if typestr.startswith('-'):
-                    res += ('-' if val < 0 else '') + '0x{:0{size:d}x}'.format(abs(val), size=size*2)
+                    res += ('-' if val < 0 else '') + '{:#0{size:d}x}'.format(abs(val), size=2+size*2)
                 else:
-                    res += '0x{:0{size:d}x}'.format(absint, size=size*2)
+                    res += '{:#0{size:d}x}'.format(absint, size=2+size*2)
             elif realtype == 'f':
                 res += '{:{typestr:s}}'.format(float(val), typestr=typestr)
             else:
@@ -92,7 +92,27 @@ class Memory(object):
         return res.tobytes() if isinstance(res, memoryview) else res[:]
     @classmethod
     def write(cls, inferior, address, buffer):
-        return inferior.write_memory(address, count)
+        return inferior.write_memory(address, buffer)
+    @classmethod
+    def readable(cls, inferior, address, count):
+        try: inferior.read_memory(address, count)
+        except gdb.MemoryError: ok = False
+        else: ok = True
+        return ok
+    @classmethod
+    def writable(cls, inferior, address, count):
+        raise NotImplementedError("unable to determine whether {:#x}{:+#x} is writable".format(address, count))
+        try: inferior.read_memory(address, count)
+        except gdb.MemoryError: ok = False
+        else: ok = True
+        return ok
+    @classmethod
+    def executable(cls, inferior, address, count):
+        raise NotImplementedError("unable to determine whether {:#x}{:+#x} is executable".format(address, count))
+        try: inferior.read_memory(address, count)
+        except gdb.MemoryError: ok = False
+        else: ok = True
+        return ok
 
     ## dumping
     @classmethod
@@ -276,7 +296,13 @@ class bindump(function):
     def invoke(self, address, count, kind):
         inf, val = gdb.selected_inferior(), address
         return Memory.bindump(inf, int(val.cast(gdb.lookup_type(intcast(val)))), int(count), chr(kind)) + '\n'
-hexdump(),itemdump(),bindump()
+class access(function):
+    _rwx_ = {4: Memory.readable, 2: Memory.writable, 1: Memory.executable}
+    def invoke(self, address, count, permissions=4):
+        inf, ea, length = gdb.selected_inferior(), int(address.cast(gdb.lookup_type(intcast(address)))), int(count)
+        items = [callable for flag, callable in self._rwx_.items() if permissions & flag]
+        return all(callable(inf, ea, length) for callable in items)
+hexdump(),itemdump(),bindump(),access()
 
 end
 
