@@ -88,26 +88,26 @@ class Memory(object):
 
     @classmethod
     def read(cls, inferior, address, count):
-        res = inferior.read_memory(address, count)
+        res = inferior.read_memory(address, count=1)
         return res.tobytes() if isinstance(res, memoryview) else res[:]
     @classmethod
     def write(cls, inferior, address, buffer):
         return inferior.write_memory(address, buffer)
     @classmethod
-    def readable(cls, inferior, address, count):
+    def readable(cls, inferior, address, count=1):
         try: inferior.read_memory(address, count)
         except gdb.MemoryError: ok = False
         else: ok = True
         return ok
     @classmethod
-    def writable(cls, inferior, address, count):
+    def writable(cls, inferior, address, count=1):
         raise NotImplementedError("unable to determine whether {:#x}{:+#x} is writable".format(address, count))
         try: inferior.read_memory(address, count)
         except gdb.MemoryError: ok = False
         else: ok = True
         return ok
     @classmethod
-    def executable(cls, inferior, address, count):
+    def executable(cls, inferior, address, count=1):
         raise NotImplementedError("unable to determine whether {:#x}{:+#x} is executable".format(address, count))
         try: inferior.read_memory(address, count)
         except gdb.MemoryError: ok = False
@@ -298,7 +298,7 @@ class bindump(function):
         return Memory.bindump(inf, int(val.cast(gdb.lookup_type(intcast(val)))), int(count), chr(kind)) + '\n'
 class access(function):
     _rwx_ = {4: Memory.readable, 2: Memory.writable, 1: Memory.executable}
-    def invoke(self, address, count, permissions=4):
+    def invoke(self, address, count=1, permissions=4):
         inf, ea, length = gdb.selected_inferior(), int(address.cast(gdb.lookup_type(intcast(address)))), int(count)
         items = [callable for flag, callable in self._rwx_.items() if permissions & flag]
         return all(callable(inf, ea, length) for callable in items)
@@ -327,46 +327,93 @@ end
 
 define show_stack32
     emit "\n-=[stack]=-\n"
-    emit $hexdump($esp, 4 * sizeof(long), 'I')
-    #x/6wx $esp
+    if $access($esp, sizeof(long))
+        emit $hexdump($esp, 4 * sizeof(long), 'I')
+        #x/6wx $esp
+    else
+        emit $sprintf("... address %p not available ...\n", $esp)
+    end
 end
 
 define show_stack64
     emit "\n-=[stack]=-\n"
-    #x/6gx $rsp
-    emit $hexdump($rsp, 1 * sizeof(long), 'L')
+    if $access($esp, sizeof(long))
+        emit $hexdump($rsp, 1 * sizeof(long), 'L')
+        #x/6gx $rsp
+    else
+        emit $sprintf("... address %p not available ...\n", $rsp)
+    end
 end
 
 define show_data32
     set variable $_data_rows = 8
 
-    if $argc > 1
-        emit $hexdump($arg0, $arg1 * 0x10 / sizeof(int), 'I')
+    if $access($arg0, sizeof(int))
+        if $argc > 1
+            emit $hexdump($arg0, $arg1 * 0x10 / sizeof(int), 'I')
+        else
+            emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(int), 'I')
+        end
     else
-        emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(int), 'I')
+        emit $sprintf("... address %p not available ...\n", $arg0)
     end
 end
 
 define show_data64
     set variable $_data_rows = 8
 
-    if $argc > 1
-        emit $hexdump($arg0, $arg1 * 0x10 / sizeof(long), 'L')
+    if $access($arg0, sizeof(int))
+        if $argc > 1
+            emit $hexdump($arg0, $arg1 * 0x10 / sizeof(long), 'L')
+        else
+            emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(long), 'L')
+        end
     else
-        emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(long), 'L')
+        emit $sprintf("... address %p not available ...\n", $arg0)
     end
 end
 
 define show_code32
+    set variable $_max_instruction = 0x10 - 1
+    # FIXME: better way to figure this out per-architecture?
+
     emit "\n-=[disassembly]=-\n"
-    x/-3i $pc
-    x/4i $pc
+    if $access($pc, 1)
+        if $access($pc + -3 * $_max_instruction, 1)
+            x/-3i $pc
+        else
+            emit $sprintf("...")
+        end
+
+        if $access($pc + +4 * $_max_instruction, 1)
+            x/4i $pc
+        else
+            x/i $pc
+        end
+    else
+        emit $sprintf("... address %p not available ...\n", $pc)
+    end
 end
 
 define show_code64
+    set variable $_max_instruction = 0x10 - 1
+    # FIXME: better way to figure this out per-architecture?
+
     emit "\n-=[disassembly]=-\n"
-    x/-3i $pc
-    x/4i $pc
+    if $access($pc, 1)
+        if $access($pc + -3 * $_max_instruction, 1)
+            x/-3i $pc
+        else
+            emit $sprintf("...")
+        end
+        if $access($pc + +4 * $_max_instruction, 1)
+            x/4i $pc
+        else
+            x/i $pc
+        end
+    else
+        emit $sprintf("... address %p not available ...\n", $pc)
+    end
 end
 
 #      |11|10|F|E|D|C|B|A|9|8|7|6|5|4|3|2|1|0|
