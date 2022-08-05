@@ -8,26 +8,31 @@ CURL_OPTIONS=(-k --compressed '--retry 65535' '--retry-delay 0' '--retry-max-tim
 
 OPENSSL=`type -P openssl.sh || type -P openssl`
 
+# wtf, curl. why are these only available in libcurl?
+[ -z "$CURLOPT_COOKIE" ] ||     CURL_PARAMS=("${CURL_PARAMS[@]}" "-b $CURLOPT_COOKIE")
+[ -z "$CURLOPT_COOKIEFILE" ] || CURL_PARAMS=("${CURL_PARAMS[@]}" "-b $CURLOPT_COOKIEFILE")
+[ -z "$CURLOPT_COOKIEJAR" ] ||  CURL_PARAMS=("${CURL_PARAMS[@]}" "-c $CURLOPT_COOKIEJAR")
+
 ## curl(1) related utilities
 curl_support()
 {
-    "$CURL" ${CURL_PARAMS[*]} $1 2>&1 | grep -q URL
+    "$CURL" "${CURL_PARAMS[@]}" $1 2>&1 | grep -q URL
 }
 
 curl_get()
 {
-    "$CURL" ${CURL_PARAMS[*]} ${CURL_ARGS[*]} "$@"
+    printf '%s\n' "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "$@"
 }
 
 curl_resume()
 {
-    "$CURL" ${CURL_PARAMS[*]} ${CURL_ARGS[*]} -C- "$@"
+    "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" -C- "$@"
 }
 
 CURL_ARGS=()
 for opt in "${CURL_OPTIONS[@]}"; do
     if curl_support "$opt"; then
-        CURL_ARGS=($CURL_ARGS $opt)
+        CURL_ARGS=("${CURL_ARGS[@]}" $opt)
     fi
 done
 
