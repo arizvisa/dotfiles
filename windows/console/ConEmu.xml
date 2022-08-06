@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2022-07-06 19:20:00" build="210912">
+		<key name=".Vanilla" modified="2022-08-05 20:00:33" build="210912">
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data="C:\MinGW\msys\1.0\bin\bash.exe --login"/>
 			<value name="StartTasksFile" type="string" data=""/>
@@ -87,20 +87,20 @@
 			<value name="StoreTaskbarCommands" type="hex" data="00"/>
 			<value name="SaveCmdHistory" type="hex" data="01"/>
 			<value name="CmdLineHistory" type="multi">
+				<line data="{cmd::SDK::vs17 (x86)}"/>
+				<line data="{cmd::SDK::vs17 (x64)}"/>
+				<line data="{PowerShell::User}"/>
+				<line data="{Bash::msys::Admin}"/>
+				<line data="{cmd::User}"/>
 				<line data="{PowerShell::Admin}"/>
 				<line data="{Language::Fsharp}"/>
 				<line data="{Language::Python}"/>
-				<line data="{cmd::SDK::vs17 (x86)}"/>
 				<line data="{Tests::Show ANSI colors}"/>
-				<line data="{cmd::SDK::vs17 (x64)}"/>
-				<line data="{Bash::msys::Admin}"/>
 				<line data="{Bash::cygwin}"/>
 				<line data="{cmd::SDK::vs14 (x86)}"/>
-				<line data="{PowerShell::User}"/>
 				<line data="{cmd::Admin}"/>
 				<line data="{Bash::msys}"/>
 				<line data="{cmd::SDK::vs14 (x64)}"/>
-				<line data="{cmd::User}"/>
 				<line data="{cmd::SDK::vs12 (x86)}"/>
 				<line data="{cmd::SDK::vs12 (x64)}"/>
 				<line data="ConEmu ConEmu.exe ConEmu.map ConEmu.xml ConEmu64.exe ConEmu64.map ConEmuPack.180528.7z console.url plugins"/>
@@ -171,7 +171,7 @@
 			<value name="ConWnd Width" type="dword" data="00000073"/>
 			<value name="ConWnd Height" type="dword" data="00000023"/>
 			<value name="Cascaded" type="hex" data="01"/>
-			<value name="ConWnd X" type="long" data="42"/>
+			<value name="ConWnd X" type="long" data="457"/>
 			<value name="ConWnd Y" type="long" data="0"/>
 			<value name="16bit Height" type="ulong" data="0"/>
 			<value name="AutoSaveSizePos" type="hex" data="01"/>
@@ -241,7 +241,7 @@
 			<value name="SendAltPrintScrn" type="hex" data="00"/>
 			<value name="SendPrintScrn" type="hex" data="00"/>
 			<value name="SendCtrlEsc" type="hex" data="00"/>
-			<value name="Min2Tray" type="hex" data="01"/>
+			<value name="Min2Tray" type="hex" data="00"/>
 			<value name="AlwaysShowTrayIcon" type="hex" data="00"/>
 			<value name="SafeFarClose" type="hex" data="01"/>
 			<value name="SafeFarCloseMacro" type="string" data=""/>
@@ -694,57 +694,57 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task10" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task10" modified="2022-08-05 20:00:25" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs17 (x86)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x86" -new_console:t:"Visual Studio 17.2.5  (x86)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x86" -new_console:t:"VS2022 [17.2.5] (x86)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task11" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task11" modified="2022-08-05 20:00:25" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs17 (x64)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64" -new_console:t:"Visual Studio 17.2.5 (x64)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64" -new_console:t:"VS2022 [17.2.5] (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task12" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task12" modified="2022-08-05 20:02:43" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs14 (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86" -new_console:t:"Visual Studio 14.0 (x86)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86" -new_console:t:"VS2015 [14.0] (x86)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task13" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task13" modified="2022-08-05 20:02:43" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs14 (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64" -new_console:t:"Visual Studio 14.0 (x64)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64" -new_console:t:"VS2015 [14.0] (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task14" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task14" modified="2022-08-05 20:02:43" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86" -new_console:t:"Visual Studio 12.0 (x86)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86" -new_console:t:"VS2013 [12.0] (x86)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task15" modified="2022-07-06 18:54:47" build="210912">
+				<key name="Task15" modified="2022-08-05 20:02:43" build="210912">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64" -new_console:t:"Visual Studio 12.0 (x64)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64" -new_console:t:"VS2013 [12.0] (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
@@ -837,7 +837,7 @@
 				<value name="Count" type="long" data="0"/>
 			</key>
 			<value name="Notification.StopBuzzingDate" type="string" data="2015-8-24"/>
-			<value name="LastMonitor" type="string" data="0,0,1024,728"/>
+			<value name="LastMonitor" type="string" data="0,0,1854,936"/>
 			<value name="StartCreateDelay" type="ulong" data="100"/>
 			<value name="ProcessCtrlZ" type="hex" data="00"/>
 			<value name="SuppressBells" type="hex" data="01"/>
