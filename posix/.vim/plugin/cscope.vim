@@ -50,7 +50,7 @@ if has("cscope")
 
     function! cscope#map()
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
-        if has("gui_running")
+        if has("gui_running") && !has("win32")
             nnoremap <buffer> <C-S-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
             nnoremap <buffer> <C-S-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
             nnoremap <buffer> <C-S-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
@@ -73,7 +73,7 @@ if has("cscope")
 
     function! cscope#unmap()
         "echomsg "Disabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
-        if has("gui_running")
+        if has("gui_running") && !has("win32")
             silent! nunmap <buffer> <C-S-_>c
             silent! nunmap <buffer> <C-S-_>d
             silent! nunmap <buffer> <C-S-_>e
@@ -130,8 +130,8 @@ if has("cscope")
         " if one exists
         augroup cscope
             let l:base=fnamemodify(l:directory, printf(":p:gs?%s?/?", s:pathsep))
-            exec printf("autocmd BufEnter,BufRead,BufNewFile %s* call cscope#map() | if filereadable(\"%s%s\") | source %s%s | endif", l:base, l:base, s:rcfilename, l:base, s:rcfilename)
-            exec printf("autocmd BufDelete %s* call cscope#unmap()", l:base)
+            exec printf("autocmd BufEnter,BufRead,BufNewFile %s** call cscope#map() | if filereadable(\"%s%s\") | source %s%s | endif", l:base, l:base, s:rcfilename, l:base, s:rcfilename)
+            exec printf("autocmd BufDelete %s** call cscope#unmap()", l:base)
         augroup end
     endfunction
 
