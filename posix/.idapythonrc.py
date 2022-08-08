@@ -1,11 +1,17 @@
 import functools, itertools, types, builtins, operator, six
-import sys, logging, importlib, fnmatch, re, networkx as nx
+import sys, logging, importlib, fnmatch, re, pprint, networkx as nx
+
+p, pp, pf = _, pprint, pformat = six.print_, pprint.pprint, pprint.pformat
+
 #logging.root = logging.RootLogger(logging.WARNING)
+
 #for item in [logging.DEBUG, logging.INFO, logging.WARNING, logging.CRITICAL]:
 #    logging.root._cache[item] = True
 #logging.root = logging.RootLogger(logging.DEBUG)
 
 import internal, function as fn, ui
+from internal.utils import *
+
 if sys.version_info.major < 3:
     pass
 
@@ -170,6 +176,18 @@ def complexity(G):
     nodes = len(G.nodes())
     parts = nx.components.number_strongly_connected_components(G)
     return edges - nodes + parts
+
+def loops(G):
+    g = G.to_undirected()
+    for blocks in sorted(nx.cycle_basis(g)):
+        yield sorted(blocks)
+    return
+
+def path(G, start, stop):
+    f = func.by(G.name)
+    b1, b2 = func.block(start), func.block(stop)
+    items = nx.shortest_path(G, func.block.address(b1), func.block.address(b2))
+    return [func.block(item) for item in items]
 
 def makeptr(info):
     pi = idaapi.ptr_type_data_t()
@@ -955,3 +973,15 @@ def hxinstall():
     hx = internal.interface.priorityhxevent()
     Q = hxqueue(hx)
     hx.add(idaapi.hxe_curpos, hxhint)
+
+import bz2, pickle
+def load(file):
+    with open(file if file.startswith('/') else db.config.path(file), 'rb') as infile:
+        data = infile.read()
+    return pickle.loads(bz2.decompress(data))
+
+def save(file, data):
+    compressed = bz2.compress(pickle.dumps(data))
+    with open(file if file.startswith('/') else db.config.path(file), 'xb') as outfile:
+        outfile.write(compressed)
+    return
