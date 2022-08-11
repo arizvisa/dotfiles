@@ -3,8 +3,8 @@ arg0=`basename "$0"`
 usage()
 {
     printf "usage: %s [-h] [-?] [[-f filter1]...] directory1...\n" "$1"
-    printf "builds a cscope database in each directory specified at the commandline.\n"
-    printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
+    printf "builds a cscope database in each directory specified at the commandline.\n\n"
+    printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
 }
 
