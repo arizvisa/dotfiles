@@ -4,23 +4,15 @@ sleeper=5
 foo=22
 bar=132 # for snowman
 
-exec < <(cat <<EOF
-angr
-Hex-Rays
-Snowman
-BinaryNinja
-Boomerang
-Ghidra
-RecStudio
-Reko
-RetDec
-EOF
-)
+filter_html_contents()
+{
+    xmlstarlet format --html --recover 2>/dev/null | xmlstarlet sel -t -v "//*[@id=\"$1\"]"
+}
 
-read -d'\0' available
-exec <&-
+baseurl=`cut -d/ -f1-3 <<<"$url"`
+read -d'\0' available < <( <<<"$url" cut -d/ -f1-3 | xargs curl | filter_html_contents decompilers_json | jq -r 'keys | reverse[]')
 read formatted < <(xargs printf ' [%s]' <<<"$available")
-[ "$#" -le 1 ] && printf 'Usage: %s filename %s\n' "$0" "$formatted" 1>&2 && exit 1
+[ "$#" -lt 1 ] && printf 'Usage: %s filename %s\n' "$0" "$formatted" 1>&2 && exit 1
 
 Ffilter()
 {
@@ -72,11 +64,15 @@ barrier()
     awk -v "horz=$horizontal" -v "corn=$corner" -v "prefix=$prefix" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { prefixlen = prefix - length(corn) } { print corn rep(prefixlen, horz) $0 rep(width - length($0) - prefixlen, horz) corn }'
 }
 
+
 printf '%s\n' "$@" | nl | sed 1d | while read index item; do grep -qe "^$item$" <<<"$available" && continue || printf 'Error: parameter %d: unknown decompiler %s\n' "$index" "$item" && exit 1; done || exit 1
 dd 2>/dev/null ibs=1 if="$1" | grep -qU $'\x7FELF' || (printf 'Error: %s needs an ELF as its first parameter\n' "$0" && exit 1) || exit 1
 
 read -d '\n' id download decompilation < <(curl -F "file=@$1" "$url" | jq -r '.id, .download_url, .decompilations_url')
 shift
+
+[ "$#" -eq 0 ] && set -- $available
+
 check "$decompilation" "$@" | (
     IFS=$'\n' read count
     paste -d '\t' - - - - | head -n "$count"
