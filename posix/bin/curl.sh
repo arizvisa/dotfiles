@@ -1,5 +1,5 @@
 #!/bin/sh
-CURL_PARAMS=(--silent --globoff --location --no-buffer --path-as-is)
+CURL_PARAMS=(--silent --globoff --location --no-buffer --path-as-is --anyauth)
 
 HTTP_USER_AGENT=${HTTP_USER_AGENT:-'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.4 (KHTML, like Gecko) Chrome/22.0.1229.96 Safari/537.4'}
 CURL_PARAMS=("${CURL_PARAMS[@]}" --user-agent "$HTTP_USER_AGENT")
