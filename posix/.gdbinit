@@ -719,7 +719,9 @@ alias -- h64 = here64
 ## catchpoints
 catch exec
 catch fork
+disable breakpoint $bpnum
 catch vfork
+disable breakpoint $bpnum
 tbreak main
 
 ## options
