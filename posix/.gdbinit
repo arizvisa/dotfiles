@@ -1,4 +1,4 @@
-python import operator,itertools,functools
+python import operator,itertools,functools,subprocess
 
 ### python helpers
 python
@@ -17,6 +17,49 @@ class emit(command):
     def invoke(self, string, from_tty):
         gdb.write(gdb.parse_and_eval(string).string())
         gdb.flush()
+class clip(command):
+    COMMAND = gdb.COMMAND_DATA
+    def invoke(self, string, from_tty):
+        res = gdb.parse_and_eval(string)
+        try:
+            out = "{!s}".format(res.string())
+        except gdb.error as E:
+            if res.address is not None:
+                out = "{:#x}".format(int(res.address))
+            elif res.type.code in {gdb.TYPE_CODE_FLT}:
+                out = "{!s}".format(float(res))
+            elif res.type.is_scalar:
+                out = "{:#x}".format(int(res))
+            else:
+                raise E
+        self.xclip(out)
+
+    XA_CLIPBOARD = 'clipboard'
+    XA_PRIMARY = 'primary'
+    XA_SECONDARY = 'secondary'
+    def xclip(self, string):
+        clipboards = [self.XA_CLIPBOARD, self.XA_PRIMARY, self.XA_SECONDARY]
+        for selection in clipboards:
+            gdb.write("sending result to {:s}: {!r}\n".format(selection, string))
+            with subprocess.Popen(['xclip', '-selection', selection], close_fds=True, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT) as P:
+                stdout, stderr = P.communicate(string.encode('utf-8'))
+            continue
+        gdb.flush()
+
+    def xsel(self, string):
+        clipboards = [self.XA_CLIPBOARD, self.XA_PRIMARY, self.XA_SECONDARY]
+        with subprocess.Popen(['xsel', '-i'] + ["--{:s}".format(selection) for selection in clipboards], close_fds=True, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT) as P:
+            gdb.write("sending result to {:s}: {!r}\n".format(', '.join(clipboards if len(clipboards) == 1 else clipboards[:-1] + ["and {:s}".format(clipboards[-1])]), string))
+            stdout, stderr = P.communicate(string.encode('utf-8'))
+        gdb.flush()
+
+    def gtkclip(self, string):
+        raise NotImplementedError
+    def qtclip(self, string):
+        raise NotImplementedError
+    def winclip(self, string):
+        raise NotImplementedError
+
 class typeof(function):
     def invoke(self, symbol):
         return str(symbol.type).replace(' ','')
@@ -51,7 +94,7 @@ class sprintf(function):
                 raise gdb.error("Unknown format specifier: {:s}".format(typestr))
             continue
         return res
-execute(),emit(),typeof(),sprintf()
+execute(),emit(),typeof(),clip(),sprintf()
 
 def intcast(val):
     if val.type.sizeof == 8:
