@@ -776,6 +776,7 @@ set output-radix 0x10
 #set width unlimited
 #set height unlimited
 set max-value-size unlimited
+set debuginfod enabled off
 
 ## registers ($ps)
 set variable $cf = 1 << 0
