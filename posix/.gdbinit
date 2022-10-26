@@ -131,7 +131,7 @@ class Memory(object):
 
     @classmethod
     def read(cls, inferior, address, count):
-        res = inferior.read_memory(address, count=1)
+        res = inferior.read_memory(address, count)
         return res.tobytes() if isinstance(res, memoryview) else res[:]
     @classmethod
     def write(cls, inferior, address, buffer):
