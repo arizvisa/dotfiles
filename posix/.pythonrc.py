@@ -88,9 +88,10 @@ ilist, liter = fcompose(builtins.iter, builtins.list), fcompose(builtins.list, b
 # converts a tuple to an iterator, or an iterator to a tuple
 ituple, titer = fcompose(builtins.iter, builtins.tuple), fcompose(builtins.tuple, builtins.iter)
 # take `count` number of elements from an iterator
-itake = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple)
-# get the `nth` element from an iterator
-iget = lambda count: fcompose(builtins.iter, fmap(*[builtins.next] * count), builtins.tuple, operator.itemgetter(-1))
+itake = lambda count: fcompose(builtins.iter, frpartial(itertools.islice, count), builtins.tuple)
+# get the `nth` element from a thing.
+iget = lambda count: fcompose(builtins.iter, frpartial(itertools.islice, count), builtins.tuple, operator.itemgetter(-1))
+nth = lambda count: fcompose(builtins.iter, frpartial(itertools.islice, 1 + count), builtins.tuple, operator.itemgetter(-1))
 # copy from itertools
 islice, imap, ifilter, ichain, izip = itertools.islice, fcompose(builtins.map, builtins.iter), fcompose(builtins.filter, builtins.iter), itertools.chain, fcompose(builtins.zip, builtins.iter)
 # restoration of the Py2-compatible list types
@@ -125,6 +126,22 @@ def entropy(bytes):
     for item in frequency:
         res = res + item * math.log(item, 2)
     return -res / 8
+
+def alphanumerickey(item):
+    '''split a string into its alpha and numeric parts'''
+    if item.isalpha():
+        return item
+    runs, iterable = [ch.isdigit() for ch in item], iter(item)
+    consumeguide = [(isnumeric, len([item for item in items])) for isnumeric, items in itertools.groupby(runs, bool)]
+    parts = []
+    for numeric, length in consumeguide:
+        part = ''.join(item for _, item in zip(range(length), iterable))
+        if numeric:
+            parts.append(int(part))
+        else:
+            parts.append(part)
+        continue
+    return parts
 
 ### define some generalized ptypes to use
 try:
