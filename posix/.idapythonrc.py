@@ -1,7 +1,7 @@
 import functools, itertools, types, builtins, operator, six
-import sys, logging, importlib, fnmatch, re, pprint, networkx as nx
+import sys, logging, importlib, fnmatch, re, pprint
 
-p, pp, pf = _, pprint, pformat = six.print_, pprint.pprint, pprint.pformat
+p, pp, pf = p, pprint, pformat = six.print_, pprint.pprint, pprint.pformat
 
 #logging.root = logging.RootLogger(logging.WARNING)
 
@@ -24,7 +24,8 @@ try:
 
     ptypes.setsource(ptypes.prov.Ida)
 except ImportError:
-    logging.warning('idapythonrc : ignoring external type system due to import error', exc_info=True)
+    logging.warning("{:s} : failure while trying to import external type system ({:s})".format('idapythonrc', 'ptypes'))
+    logging.info("{:s} : the exception raised by the {:s} python module was".format('idapythonrc', 'ptypes'), exc_info=True)
 
 def dump(items):
     result  = []
@@ -46,10 +47,9 @@ def dump(items):
 ### windbg stuff
 try:
     import _PyDbgEng
-    localhost = 'tcp:port=57005,server=127.0.0.1'
 
     source = None
-    def connect(host=localhost):
+    def connect(host='tcp:port=57005,server=127.0.0.1'):
         global source
         debugger = ptypes.provider.PyDbgEng
         source = pydbgeng.connect(host)
@@ -59,7 +59,25 @@ try:
         return pint.uint32_t(offset=address).l.int()
 
 except ImportError:
-    logging.warning('idapythonrc : ignoring external debugger due to import error', exc_info=True)
+    logging.warning("{:s} : failure while trying to import external debugger ({:s})".format('idapythonrc', 'pydbgeng'))
+    logging.info("{:s} : the exception raised by the {:s} python module was".format('idapythonrc', 'pydbgeng'), exc_info=True)
+
+try:
+    import pykd
+
+    source = None
+    def connect(host='tcp:port=57005,server=127.0.0.1'):
+        global source
+        pykd.remoteConnect(host)            # because the author of pykd
+        source = ptypes.provider.Pykd()     # doesn't know what oop means
+        return ptypes.setsource(source)
+
+    def poi(address):
+        return pint.uint32_t(offset=address).l.int()
+
+except ImportError:
+    logging.warning("{:s} : failure while trying to import external debugger ({:s})".format('idapythonrc', 'pykd'))
+    logging.info("{:s} : the exception raised by the {:s} python module was".format('idapythonrc', 'pykd'), exc_info=True)
 
 # shortcuts
 def whereami(ea=None):
@@ -72,8 +90,6 @@ def h():
 
 def top(ea=None):
     return fn.top(whereami(ea))
-
-hex = '{:x}'.format
 
 def memberFromOp(st, ea, opnum, name=None):
     prefixes = {1: 'b', 2: 'w', 16: 'q'}
@@ -157,7 +173,7 @@ def nameswitch(sw, translate=lambda item: item):
   db.name(ea, 'case({:s})'.format(','.join(map("{:x}".format,translated))), db.offset(ea))
  return
 
-### ripped and formatted from some py2 found in an old copy of the custom.ali module.
+### ripped and formatted from some py2 found in an old copy of the application.ali module.
 import itertools,operator,functools
 
 import idaapi
@@ -178,6 +194,11 @@ def complexity(G):
     return edges - nodes + parts
 
 def loops(G):
+    for blocks in sorted(nx.simple_cycles(G), key=len):
+        yield sorted(blocks)
+    return
+
+def paths(G):
     g = G.to_undirected()
     for blocks in sorted(nx.cycle_basis(g)):
         yield sorted(blocks)
@@ -197,7 +218,6 @@ def makeptr(info):
         raise ValueError
     return ti
 
-import custom
 def get_breakpoint(ea, index=None):
     inputs32 = map("{:#x}".format, itertools.accumulate(itertools.repeat(4), operator.add, initial=4))
     inputs64 = itertools.chain(['@rcx', '@rdx', '@r8', '@r9'], map("{:#x}".format, itertools.accumulate(itertools.repeat(8), operator.add, initial=0x20)))
@@ -206,8 +226,8 @@ def get_breakpoint(ea, index=None):
     inputs = {32: inputs32, 64:inputs64}[db.config.bits()]
     params = map("{:s}=%p".format, names)
     formatted = "{name:s}({params:s})".format(name=fname, params=', '.join(params))
-    message = ".printf \"%p: {:s}\\n\", {:s}{:s};g".format(custom.windbg.escape(formatted, 1), '@eip', ", {:s}".format(', '.join(map("poi(@esp+{:s})".format, itertools.islice(inputs, len(names))))) if names else '')
-    return "bu{:s} {:s}{:+#x} \"{:s}\"".format('' if index is None else "{:d}".format(index), db.config.module()[:-1], db.offset(ea), custom.windbg.escape(message, 1))
+    message = ".printf \"%p: {:s}\\n\", {:s}{:s};g".format(application.windbg.escape(formatted, 1), '@eip', ", {:s}".format(', '.join(map("poi(@esp+{:s})".format, itertools.islice(inputs, len(names))))) if names else '')
+    return "bu{:s} {:s}{:+#x} \"{:s}\"".format('' if index is None else "{:d}".format(index), db.config.module()[:-1], db.offset(ea), application.windbg.escape(message, 1))
 
 # op_t.dtype
 class dtype(ptype.definition): cache = {}
@@ -449,8 +469,8 @@ class tree(object):
         everything.__name__ = attr
         return everything
 
-#stores = [(ea,(i,(t1,st))) for ea,(i,[(t1,st),_]) in a.refs() if isinstance(t1,custom.ali.ninsn.op_ref)]
-#loads = [(ea,(i,(t2,ld))) for ea,(i,[(t1,st),(t2,ld)]) in a.refs() if isinstance(t2,custom.ali.ninsn.op_ref)]
+#stores = [(ea,(i,(t1,st))) for ea,(i,[(t1,st),_]) in a.refs() if isinstance(t1,application.ali.ninsn.op_ref)]
+#loads = [(ea,(i,(t2,ld))) for ea,(i,[(t1,st),(t2,ld)]) in a.refs() if isinstance(t2,application.ali.ninsn.op_ref)]
 
 def __collect_ops(ea, recurse=True):
     for ea, (_, ops) in tree(ea, recurse=recurse).walk():
@@ -616,59 +636,64 @@ def find_stack(target, spdelta):
         res = func.block.before(db.a.prev(start))
     raise ValueError("{:x} : No matching instruction found. : {:x}".format(target, ea))
 
-def collect_functions(ea, state=set()):
-    children = set(filter(func.within, func.down(ea)))
+def collect_functions(ea, *state):
+    state, = state if state else [set()]
+    children = set(filter(func.within, (ref.ea for ea, ref in func.down(ea) if 'x' in ref.access)))
     for ea in children - state:
         res = collect_functions(ea, state | children)
         state |= res
     return state
 
-import miasm
-import miasm.analysis
-import miasm.analysis.machine
-import miasm.core.bin_stream
-import miasm.core.locationdb
-import miasm.core.utils
-import miasm.expression.expression
-import miasm.ir.symbexec #.SymbolicExecutionEngine
+try:
+    import miasm
+    import miasm.analysis
+    import miasm.analysis.machine
+    import miasm.core.bin_stream
+    import miasm.core.locationdb
+    import miasm.core.utils
+    import miasm.expression.expression
+    import miasm.ir.symbexec #.SymbolicExecutionEngine
 
-class bsida(miasm.core.bin_stream.bin_stream_vm):
-    def __init__(self, base=None):
-        self.base_address, self.offset = base, 0
-        self.endianness = miasm.core.utils.LITTLE_ENDIAN
-        self.bin = bytearray()  # wtf
-    def _getbytes(self, start, l=1):
-        base = 0 if self.base_address is None else db.baseaddress()
-        return db.read(base + start, l)
-    def readbs(self, l=1):
-        base = 0 if self.base_address is None else db.baseaddress()
-        res = db.read(base + self.offset, l)
-        self.offset += len(res)
-        return res
-    def __bytes__(self):
-        raise NotImplementedError('what the fuck are you doing?')
+    class bsida(miasm.core.bin_stream.bin_stream_vm):
+        def __init__(self, base=None):
+            self.base_address, self.offset = base, 0
+            self.endianness = miasm.core.utils.LITTLE_ENDIAN
+            self.bin = bytearray()  # wtf
+        def _getbytes(self, start, l=1):
+            base = 0 if self.base_address is None else db.baseaddress()
+            return db.read(base + start, l)
+        def readbs(self, l=1):
+            base = 0 if self.base_address is None else db.baseaddress()
+            res = db.read(base + self.offset, l)
+            self.offset += len(res)
+            return res
+        def __bytes__(self):
+            raise NotImplementedError('what the fuck are you doing?')
 
-M32, M64 = (miasm.analysis.machine.Machine('x86_%d'% bits) for bits in [32, 64])
-LDB = miasm.core.locationdb.LocationDB()
-D32, D32 = (M.dis_engine(bsida(), loc_db=LDB) for M in [M32, M64])
-L32, L64 = (M.ir(LDB) for M in [M32, M64])
-S32, S64 = (miasm.ir.symbexec.SymbolicExecutionEngine(L) for L in [L32, L64])
+    M32, M64 = (miasm.analysis.machine.Machine('x86_%d'% bits) for bits in [32, 64])
+    LDB = miasm.core.locationdb.LocationDB()
+    D32, D32 = (M.dis_engine(bsida(), loc_db=LDB) for M in [M32, M64])
+    L32, L64 = (M.ir(LDB) for M in [M32, M64])
+    S32, S64 = (miasm.ir.symbexec.SymbolicExecutionEngine(L) for L in [L32, L64])
 
-def expr2method(expr):
-    'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
-    'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
+    def expr2method(expr):
+        'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
+        'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
 
-    'ExprAff', 'ExprAssign',
-    'eval_updt_expr',
-#exprmap = {
-#    'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
-#    'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
-# 'eval_updt_expr',
-# 'eval_updt_assignblk',
-#    'eval_assignblk',
-#'ExprInt1', 'ExprInt16', 'ExprInt32', 'ExprInt64', 'ExprInt8',
-#'ExprInt_from',
-#}
+        'ExprAff', 'ExprAssign',
+        'eval_updt_expr',
+    #exprmap = {
+    #    'eval_expr', 'eval_exprcompose', 'eval_exprcond', 'eval_exprid', 'eval_exprint', 'eval_exprloc', 'eval_exprmem', 'eval_exprop', 'eval_exprslice',
+    #    'Expr', 'ExprCompose', 'ExprCond', 'ExprId', 'ExprInt', 'ExprLoc', 'ExprMem', 'ExprOp', 'ExprSlice'
+    # 'eval_updt_expr',
+    # 'eval_updt_assignblk',
+    #    'eval_assignblk',
+    #'ExprInt1', 'ExprInt16', 'ExprInt32', 'ExprInt64', 'ExprInt8',
+    #'ExprInt_from',
+    #}
+except ImportError:
+    logging.warning("{:s} : failure while trying to import the {:s} python module".format('idapythonrc', 'miasm'))
+    logging.info("{:s} : the exception raised by the {:s} python module was".format('idapythonrc', 'miasm'), exc_info=True)
 
 def exec32(ea):
     insn = D32.dis_instr(ea)
@@ -985,3 +1010,332 @@ def save(file, data):
     with open(file if file.startswith('/') else db.config.path(file), 'xb') as outfile:
         outfile.write(compressed)
     return
+
+import internal, tools, application as app
+interface = internal.interface
+def on():
+ logging.root._cache[logging.INFO] = True
+def off():
+ logging.root._cache[logging.INFO] = False
+
+import pycosat
+class structures:
+    @staticmethod
+    def collect(st):
+        for m in st.members:
+            s = m.type
+            if isinstance(s, list):
+                s, _ = s
+            if isinstance(s, tuple):
+                s, _ = s
+            if isinstance(s, struc.structure_t):
+                for item in deps(s):
+                    yield item
+                yield st, s
+            elif struc.has(m.typeinfo):
+                s = struc.by(m.typeinfo)
+                for item in deps(s):
+                    yield item
+                yield st, s
+            else:
+                print('unknown type', m)
+            continue
+        return
+
+    @staticmethod
+    def dependencies(iterable):
+        res = {}
+        for st, dep in iterable:
+            res.setdefault(dep, set())
+            res.setdefault(st, set()).add(dep)
+        return res
+
+    @staticmethod
+    def results(start, dependencies):
+        rules = {}
+        for dep, items in dependencies.items():
+            [ rules.setdefault(item, set()) for item in items ]
+        rules.update(dependencies)
+        assert(start in rules)
+
+        to, of, variables = {}, {}, [item for item in rules]
+        for i, item in enumerate(variables):
+            to[item], of[1 + i] = 1 + i, item
+
+        clauses = []
+        for item, dependencies in rules.items():
+            for dependency in dependencies:
+                clauses.append([-to[item], +to[dependency]])
+            continue
+        clauses.append([+to[start]])
+
+        for solution in pycosat.itersolve(clauses):
+            result = [ item for item in solution ]
+            yield [ of[item] for item in result ]
+        return
+
+    @staticmethod
+    def makeptype(st):
+        name = st.name.replace('::', '__')
+        print('class {:s}(pstruct.type):'.format(name))
+        print('    _fields_ = [')
+        for offset, size, data in struc.members(st):
+            if not data:
+                name = 'field_{:x}'.format(offset)
+                t = 'dynamic.block({:d})'.format(size)
+                print('        ({:s}, {!r}),'.format(t, name))
+                continue
+            try:
+                m = st.by_realoffset(offset)
+            except exceptions.OutOfBoundsError:
+                m = st.members[-1]
+            mname, mtype, ti, count = m.name, m.type, m.typeinfo, 1
+            if isinstance(mtype, list):
+                assert(m.typeinfo.is_array())
+                mtype, count = mtype
+                ai = idaapi.array_type_data_t()
+                assert(m.typeinfo.get_array_details(ai))
+                ti, count = ai.elem_type, ai.nelems
+
+            elif isinstance(mtype, tuple):
+                t, sz = mtype
+                if t != type:
+                    assert(t == int)
+                    tname = "{:s}{:d}".format('s' if sz < 0 else 'u', 8 * abs(sz))
+                    print('        ({:s}, {!r}),'.format(tname, mname))
+                    continue
+
+                pi = idaapi.ptr_type_data_t()
+                assert(m.typeinfo.get_ptr_details(pi))
+                ti, ptr = pi.obj_type, True
+                mtype = t
+
+            else:
+                print('        ({!s}, {!r}),'.format(struc.by(ti).name.replace('::','__'), mname))
+                continue
+
+            if isinstance(mtype, tuple):
+                #print('        ({!s}, {!r}),'.format(ti, mname))
+                #raise Exception(m, mname, mtype)
+                t, sz = mtype
+                if t == str:
+                    assert(sz in {1, 2})
+                    szname = 'pstr.string' if sz == 1 else 'pstr.wstring'
+                    fmt = "dyn.clone({:s}, length={count:d})"
+                    tname = fmt.format(szname, count=count)
+                    print('        ({:s}, {!r}),'.format(tname, mname))
+                    continue
+
+                assert(t in {int, type})
+                tname = "{:s}{:d}".format('s' if sz < 0 else 'u', 8 * abs(sz))
+                fmt = "dyn.array({:s}, {count:d})" if count > 1 else "{:s}"
+                tname = fmt.format(tname, count=count)
+                print('        ({:s}, {!r}),'.format(tname, mname))
+                continue
+
+            if mtype == type and not struc.has(ti):
+                assert(count == 1)
+                print('        (pointer({!s}), {!r}),'.format(ti, mname))
+                continue
+
+            fmt = "dyn.array({:s}, {count:d})" if count > 1 else "{:s}"
+            fptr = "pointer({:s})" if mtype == type else "{:s}"
+            assert(struc.has(ti))
+
+            sname = struc.by(ti).name.replace('::','__')
+            tname = fptr.format(fmt.format(sname, count=count))
+            print('        ({:s}, {!r}),'.format(tname, mname))
+        print('    ]')
+
+def tibase(ti):
+    pi, ai = idaapi.ptr_type_data_t(), idaapi.array_type_data_t()
+    while ti.is_ptr() or ti.is_array():
+        if ti.is_ptr() and ti.get_ptr_details(pi):
+            ti = pi.obj_type
+        elif ti.is_array() and ti.get_array_details(ai):
+            ti = ai.elem_type
+        yield ti
+    return
+
+def tiequal(a, b):
+    tinfo_equals_to = idaapi.equal_types if idaapi.__version__ < 6.8 else lambda til, t1, t2: t1.equals_to(t2)
+    return tinfo_equals_to(idaapi.get_idati(), a, b)
+
+# I was doing something here, but forgot the whole point.
+if False:
+    import networkx as nx
+    G = nx.DiGraph()
+    start = db.a.byoffset(0x698a1)
+    for ea in collect_functions(start, set()):
+        G.add_node(ea)
+
+    def get_calls(f):
+        for ea, ref in func.down(f):
+            if 'x' in ref.access and func.has(ref.ea):
+                yield f, ea, ref.ea
+            continue
+        return
+
+    def recurse_calls(src, f, G):
+        if f in G.nodes.keys():
+            return G.add_edge(src, f)
+        G.add_node(f)
+        G.add_edge(src, f)
+
+        fn, ea, iterable = f, f, get_calls(f)
+        while fn == f:
+            fn, x, call = next(iterable, (None, None, None))
+            G.add_edge(ea, x)
+            ea = x
+            G.add_edge(ea, call)
+            recurse_calls(call, G)
+
+    def get_locations(f):
+        locs = {ea : ref.ea for ea, ref in func.down(f) if 'x' in ref.access}
+        refs = {func.block(ea) : ref for ea, ref in locs.items()}
+        assert(len(locs) == len(refs))
+        return refs
+
+    def get_graph_recurse(blk, G, height=0):
+        assert(blk in G.nodes)
+        items = [func.block(ea, calls=True) for ea in func.block.after(blk)]
+        filtered = [item for item in items if item not in G.nodes.keys()]
+        [G.add_node(item, height=1+height) for item in items]
+        [G.add_edge(blk, item) for item in items if item != blk]
+        [get_graph_recurse(item, G, height=1+height) for item in filtered]
+
+    def get_graph(f):
+        G, blk = nx.DiGraph(), func.block(f, calls=True)
+        G.add_node(blk, height=0)
+        get_graph_recurse(blk, G, height=1)
+        G.nodes[blk]['entry'] = 1
+        for blk, tgt in get_locations(f).items():
+            if blk not in G.nodes: continue
+            G.nodes[blk]['target'] = tgt
+        for ea in func.bottom(f):
+            blk = func.block(ea)
+            if blk not in G.nodes: continue
+            G.nodes[blk]['exit'] = 1
+        return G
+
+    f = func.addr()
+    G = get_graph(f)
+
+    blocks = {blk : [ea for ea in func.block.iterate(blk)] for blk in func.blocks(f)}
+    def unblock(G):
+        g = nx.DiGraph()
+        for node in G.nodes:
+            assert(node.left != node.right)
+            g.add_node(node.left), g.add_node(node.right)
+            g.add_edge(node.left, node.right)
+
+        for lblk, rblk in G.edges:
+            g.add_edge(lblk.right, rblk.left)
+        return g
+
+    def attach(g, target, gfunc):
+        G = nx.compose(g, gfunc)
+        entries = [node for node in gfunc.nodes if gfunc.nodes[node].get('entry', 0)]
+        exits = [node for node in gfunc.nodes if gfunc.nodes[node].get('exit', 0)]
+        items = [node for node in g.nodes if g.nodes[node].get('target', None) == target]
+        for node in items:
+            ea = node.right
+            targets = [item for item in g.successors(node)]
+            [G.remove_edge(node, item) for item in targets]
+            [G.add_edge(node, item) for item in entries]
+            [[G.add_edge(item, target) for item in exits] for target in targets]
+        return G
+
+    ea, processed = func.addr(f), set()
+    a = [ea] + [ea for ea in collect_functions(f, set()) if func.has(ea)]
+    b = {ea : get_graph(ea) for ea in a}
+    c = {ea : (g.copy(), [g.nodes[x]['target'] for x in g.nodes if 'target' in g.nodes[x]]) for ea, g in b.items()}
+    def attach_recurse(ea, G, processed=None):
+        print(hex(ea))
+        processed = set() if processed is None else processed
+        G, children = c[ea]
+        for item in children:
+            if not func.has(item): continue
+            g, children = c[item]
+            G = attach(G, item, g)
+            attach_recurse(item, G, processed | {ea})
+        return G
+    G, _ = c[ea]
+    G = attach_recurse(f, G, processed)
+
+    def renderable(g):
+        G, items = nx.DiGraph(), {}
+        for blk in g.nodes:
+            items[blk] = "n{:X}_to_{:X}".format(*blk)
+            f = func.addr(func.by(blk.left))
+            col = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'violet'][hash(f) %7]
+            G.add_node(items[blk], color=col)
+        for start, stop in g.edges:
+            G.add_edge(items[start], items[stop])
+        return G
+
+    nx.nx_pydot.write_dot(renderable(G), '/home/user/t.dot')
+    if 'target' not in G.nodes[node]: raise
+
+    def build_calls(G, f, fname=lambda fu: 'node_{:s}'.format(fu).replace('.', '_')):
+        g = get_graph(f)
+        refs = get_locations(f)
+        G = nx.DiGraph() if G is None else G
+        for item in g.nodes:
+            G.add_node(fname(item))
+
+        G.add_node("func_{:x}".format(func.top(f)))
+
+        for edge in g.edges:
+            [G.add_node(ea) for ea in map(fname, itertools.chain(edge))]
+
+        [G.add_edge("func_{:x}".format(func.top(f)), fname(item)) for item in map(func.block, [func.addr()])]
+        [G.add_node("func_{:x}".format(ea)) for ea in refs.values()]
+
+        for item in g.nodes:
+            if item in refs:
+                tgt, exits = refs[item], [ea for ea in func.bottom(refs[item])]
+                if func.has(tgt):
+                    G.add_edge(fname(item), fname(func.block(tgt)))
+                else:
+                    G.add_edge(fname(item), "func_{:x}".format(tgt))
+            continue
+
+        for edge in g.edges:
+            l, r = edge
+            G.add_edge(*map(fname, edge))
+
+        for blk, tgt in refs.items():
+            G.add_edge(fname(blk), "func_{:x}".format(tgt))
+
+        bottoms = [(item, func.block(item)) for item in func.bottom(f)]
+        [G.add_edge(fname(item), "exit_{:x}".format(ea)) for ea, item in bottoms]
+        return G
+
+    def fuckeverything(entry):
+        G, items = nx.DiGraph(), []
+        for ea in collect_functions(entry, set()):
+            G.add_node("func_{:x}".format(ea))
+            [G.add_node("exit_{:x}".format(item) for item in func.bottom(ea))]
+            items.append(ea)
+
+        #for ea in items:
+        #    if function.has(ea):
+        #        G = build_calls(G, ea)
+        #    else:
+        #       G.add_edge(
+
+        return G
+
+'''
+remove parameter names and types from the following funcs so that they don't propagate.
+    malloc
+    free
+    memset
+    memcpy
+    memdup
+    strdup
+    strcpy
+    wcscpy
+'''
+
