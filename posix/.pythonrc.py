@@ -167,3 +167,11 @@ else:
     class s24(pint.sint_t): length=3
     class s64(pint.sint_t): length=8
     class s128(pint.sint_t): length=16
+
+def compress(data):
+    obj = zlib.compressobj(level=9, wbits=-9)
+    obj.compress(data)
+    return obj.flush()
+
+def decompress(data):
+    return zlib.decompress(data, wbits=-9)

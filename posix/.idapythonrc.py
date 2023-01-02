@@ -1011,6 +1011,15 @@ def save(file, data):
         outfile.write(compressed)
     return
 
+import zlib, dill
+def compress(data):
+    obj = zlib.compressobj(level=9, wbits=-9)
+    obj.compress(data)
+    return obj.flush()
+
+def decompress(data):
+    return zlib.decompress(data, wbits=-9)
+
 import internal, tools, application as app
 interface = internal.interface
 def on():
@@ -1338,4 +1347,3 @@ remove parameter names and types from the following funcs so that they don't pro
     strcpy
     wcscpy
 '''
-
