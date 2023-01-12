@@ -21,7 +21,7 @@ curl_support()
 
 curl_get()
 {
-    printf '%s\n' "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "$@"
+    "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "$@"
 }
 
 curl_resume()
