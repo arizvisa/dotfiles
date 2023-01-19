@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+# https://gitlab.com/ole.tange/tangetools/-/blob/master/swapout/swapout
+
+use strict;
+
+my $timeout = shift || 10;
+
+my $giga = 2**30;
+my $forks = 1;
+
+my $free;
+
+my $memtotal = int(
+	qx{ awk '/^(MemTotal):/ { sum += \$2} END { print sum }' /proc/meminfo }
+    / 1024);
+
+my $total = 1;
+
+# 1 MB random data so it is not compressed
+my $onemb = pack("L*", map { rand(2**32) } 1..(2**18));
+my ($missing, $sofar,$timediff, %buf, $pid,$shift);
+do {
+    my $start = time;
+    $free = int (
+	qx{ awk '/^((Swap)?Cached|MemFree|Buffers):/ { sum += \$2} END { print sum }' /proc/meminfo }
+	/ 1024);
+    print "Free $free ";
+    if($free <= 1) {
+	print "\nFree < 1\n";
+	exit(1);
+    }
+    $total += int($free/100);
+    $missing = $total - $sofar;
+    for(1..$missing) {
+	# Shift every block 1 byte, so no blocks have the same content
+	$buf{$forks}{$total}{$_} = "x"x(++$shift) . $onemb;
+    }
+    $sofar = $total;
+    $timediff = time - $start;
+
+    print "Chunk size: $missing Time for swapping: $timediff seconds. Total memory used: $total\n";
+    if($total * 1048576 > $forks * $giga) {
+	if($pid = fork()) {
+	    print "child spawn ",$forks,"\n";
+	    wait;
+	    print "child exit ",$forks,"\n";
+	} else {
+	    $buf{$forks} = 1;
+	    $forks++;
+	}
+    }
+} until ($pid or $timediff > $timeout or $total > $memtotal);
+print "exit ",$forks,"\n";
+
+

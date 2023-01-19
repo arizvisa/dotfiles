@@ -1,0 +1,3 @@
+#!/bin/sh
+u='ipinfo.io'
+printf 'https://%s/widget/demo/%s\0' "$u" "$1" | xargs -0 curl -H "Referer: https://$u/" | jq
