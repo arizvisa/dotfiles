@@ -1,0 +1,15 @@
+# Machine-generated file - use setup menu in minicom to change parameters.
+pu port
+pu kermit           /bin/kermit
+pu mdialpre
+pu mdialsuf
+pu mdialpre2
+pu mdialsuf2
+pu mdialpre3
+pu mdialsuf3
+pu updir            $HOME/tmp
+pu downdir          $HOME/Downloads
+pu scriptdir        $HOME/tmp
+pu escape-key       ^X
+pu rtscts           yes
+pu answerback       hai2u
