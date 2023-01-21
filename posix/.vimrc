@@ -111,10 +111,6 @@ if has("eval")
     let g:MultipleSearchMaxColors=16
     let w:PHStatusLine = ''
 
-    " for vim-incpy [ http://github.com/arizvisa/vim-incpy ]
-    let g:incpy#Name = "interpreter"
-    let g:incpy#WindowRatio = 1.0/8
-
 """ useful key mappings
 
     "" copy current locations into the default register

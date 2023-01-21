@@ -758,6 +758,7 @@ end
 alias -- g = go
 alias -- h32 = here32
 alias -- h64 = here64
+alias -- ps = info inferiors
 
 ## catchpoints
 catch exec
