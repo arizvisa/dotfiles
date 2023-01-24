@@ -104,12 +104,11 @@ dbname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcond
 fnname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name, listed=True))
 selectall = fcompose(db.selectcontents, fpartial(imap, funpack(func.select)), funpack(itertools.chain))
 
-has_immediate_ops = fcompose(fmap(fpartial(fpartial, ins.op_type), ins.opsi_read), funpack(map), set, fmap(fcompose(len,fpartial(operator.eq, 1)), freverse(operator.contains, 'immediate')), all)
-has_register_ops = fcompose(fmap(fpartial(fpartial, ins.op_type), ins.opsi_read), funpack(map), set, fmap(fcompose(len,fpartial(operator.eq, 1)), freverse(operator.contains, 'register')), all)
-previous_written = fcompose(fmap(fidentity, fcompose(fmap(fpartial(fpartial, ins.op), ins.opsi_read), funpack(map), set)), tuple, fmap(fcompose(first,fpack(fidentity)), fcompose(second,list)), funpack(zip), iget(1), funpack(db.a.prevreg, write=1))
-
-freg_written = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.opsi_write(ea) if ins.opt(ea, i) == 'register')
-freg = lambda reg: lambda ea: any(reg.relatedQ(ins.op(ea, i)) for i in ins.opsi_read(ea) if isinstance(ins.op(ea, i), symbol_t)) or any(reg.relatedQ(ins.op(ea, i)) for i in ins.opsi_write(ea) if isinstance(ins.op(ea, i), symbol_t) and ins.opt(ea, i) == 'register') or any(any(r.relatedQ(reg) for r in ins.op(ea, i).symbols) for i in range(ins.ops_count(ea)) if ins.opt(ea, i) == 'phrase')
+has_immediate_ops = fcompose(ins.ops_constant, fpartial(map, ins.op), set, fmap(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(int)), any)), all)
+has_register_ops = fcompose(ins.ops_register, fpartial(map, ins.op), set, fmap(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(register_t)), any)), all)
+previous_written = fcompose(ins.ops_read, fmap(fcompose(first,fgetattr('address'), fpack(list)), fcompose(fpartial(map, ins.op), tuple)), funpack(ichain), list, funpack(db.a.prevreg, write=1))
+freg_written = lambda reg: lambda ea: any(reg.related(ins.op(ref)) for ref in ins.ops_write(ea) if isinstance(ins.op(ref), register_t))
+freg = lambda reg: lambda ea: any(reg.related(ins.op(ref)) for ref in ins.ops_read(ea) if isinstance(ins.op(ref), symbol_t)) or any(reg.related(ins.op(ref)) for ref in ins.ops_write(ea) if isinstance(ins.op(ref), register_t)) or any(any(reg.related(r) for r in op.symbols) for op in map(fpartial(ins.op, ea), range(ins.ops_count(ea))) if isinstance(op, symbol_t))
 
 def advise(name):
  state = [0]
