@@ -1010,7 +1010,10 @@ def save(file, data):
         outfile.write(compressed)
     return
 
-import zlib, dill
+import zlib
+try: import dill
+except ImportError: logging.warning("{:s} : unable to import third-party module for serialization ({:s})".format('idapythonrc', 'dill'))
+
 def compress(data):
     obj = zlib.compressobj(level=9, wbits=-9)
     obj.compress(data)
@@ -1026,134 +1029,138 @@ def on():
 def off():
  logging.root._cache[logging.INFO] = False
 
-import pycosat
-class structures:
-    @staticmethod
-    def collect(st):
-        for m in st.members:
-            s = m.type
-            if isinstance(s, list):
-                s, _ = s
-            if isinstance(s, tuple):
-                s, _ = s
-            if isinstance(s, struc.structure_t):
-                for item in deps(s):
-                    yield item
-                yield st, s
-            elif struc.has(m.typeinfo):
-                s = struc.by(m.typeinfo)
-                for item in deps(s):
-                    yield item
-                yield st, s
-            else:
-                print('unknown type', m)
-            continue
-        return
-
-    @staticmethod
-    def dependencies(iterable):
-        res = {}
-        for st, dep in iterable:
-            res.setdefault(dep, set())
-            res.setdefault(st, set()).add(dep)
-        return res
-
-    @staticmethod
-    def results(start, dependencies):
-        rules = {}
-        for dep, items in dependencies.items():
-            [ rules.setdefault(item, set()) for item in items ]
-        rules.update(dependencies)
-        assert(start in rules)
-
-        to, of, variables = {}, {}, [item for item in rules]
-        for i, item in enumerate(variables):
-            to[item], of[1 + i] = 1 + i, item
-
-        clauses = []
-        for item, dependencies in rules.items():
-            for dependency in dependencies:
-                clauses.append([-to[item], +to[dependency]])
-            continue
-        clauses.append([+to[start]])
-
-        for solution in pycosat.itersolve(clauses):
-            result = [ item for item in solution ]
-            yield [ of[item] for item in result ]
-        return
-
-    @staticmethod
-    def makeptype(st):
-        name = st.name.replace('::', '__')
-        print('class {:s}(pstruct.type):'.format(name))
-        print('    _fields_ = [')
-        for offset, size, data in struc.members(st):
-            if not data:
-                name = 'field_{:x}'.format(offset)
-                t = 'dynamic.block({:d})'.format(size)
-                print('        ({:s}, {!r}),'.format(t, name))
+try:
+    import pycosat
+except ImportError:
+    logging.warning("{:s} : unable to import solver module ({:s})".format('idapythonrc', 'pycosat'))
+else:
+    class structures:
+        @staticmethod
+        def collect(st):
+            for m in st.members:
+                s = m.type
+                if isinstance(s, list):
+                    s, _ = s
+                if isinstance(s, tuple):
+                    s, _ = s
+                if isinstance(s, struc.structure_t):
+                    for item in deps(s):
+                        yield item
+                    yield st, s
+                elif struc.has(m.typeinfo):
+                    s = struc.by(m.typeinfo)
+                    for item in deps(s):
+                        yield item
+                    yield st, s
+                else:
+                    print('unknown type', m)
                 continue
-            try:
-                m = st.by_realoffset(offset)
-            except exceptions.OutOfBoundsError:
-                m = st.members[-1]
-            mname, mtype, ti, count = m.name, m.type, m.typeinfo, 1
-            if isinstance(mtype, list):
-                assert(m.typeinfo.is_array())
-                mtype, count = mtype
-                ai = idaapi.array_type_data_t()
-                assert(m.typeinfo.get_array_details(ai))
-                ti, count = ai.elem_type, ai.nelems
+            return
 
-            elif isinstance(mtype, tuple):
-                t, sz = mtype
-                if t != type:
-                    assert(t == int)
+        @staticmethod
+        def dependencies(iterable):
+            res = {}
+            for st, dep in iterable:
+                res.setdefault(dep, set())
+                res.setdefault(st, set()).add(dep)
+            return res
+
+        @staticmethod
+        def results(start, dependencies):
+            rules = {}
+            for dep, items in dependencies.items():
+                [ rules.setdefault(item, set()) for item in items ]
+            rules.update(dependencies)
+            assert(start in rules)
+
+            to, of, variables = {}, {}, [item for item in rules]
+            for i, item in enumerate(variables):
+                to[item], of[1 + i] = 1 + i, item
+
+            clauses = []
+            for item, dependencies in rules.items():
+                for dependency in dependencies:
+                    clauses.append([-to[item], +to[dependency]])
+                continue
+            clauses.append([+to[start]])
+
+            for solution in pycosat.itersolve(clauses):
+                result = [ item for item in solution ]
+                yield [ of[item] for item in result ]
+            return
+
+        @staticmethod
+        def makeptype(st):
+            name = st.name.replace('::', '__')
+            print('class {:s}(pstruct.type):'.format(name))
+            print('    _fields_ = [')
+            for offset, size, data in struc.members(st):
+                if not data:
+                    name = 'field_{:x}'.format(offset)
+                    t = 'dynamic.block({:d})'.format(size)
+                    print('        ({:s}, {!r}),'.format(t, name))
+                    continue
+                try:
+                    m = st.by_realoffset(offset)
+                except exceptions.OutOfBoundsError:
+                    m = st.members[-1]
+                mname, mtype, ti, count = m.name, m.type, m.typeinfo, 1
+                if isinstance(mtype, list):
+                    assert(m.typeinfo.is_array())
+                    mtype, count = mtype
+                    ai = idaapi.array_type_data_t()
+                    assert(m.typeinfo.get_array_details(ai))
+                    ti, count = ai.elem_type, ai.nelems
+
+                elif isinstance(mtype, tuple):
+                    t, sz = mtype
+                    if t != type:
+                        assert(t == int)
+                        tname = "{:s}{:d}".format('s' if sz < 0 else 'u', 8 * abs(sz))
+                        print('        ({:s}, {!r}),'.format(tname, mname))
+                        continue
+
+                    pi = idaapi.ptr_type_data_t()
+                    assert(m.typeinfo.get_ptr_details(pi))
+                    ti, ptr = pi.obj_type, True
+                    mtype = t
+
+                else:
+                    print('        ({!s}, {!r}),'.format(struc.by(ti).name.replace('::','__'), mname))
+                    continue
+
+                if isinstance(mtype, tuple):
+                    #print('        ({!s}, {!r}),'.format(ti, mname))
+                    #raise Exception(m, mname, mtype)
+                    t, sz = mtype
+                    if t == str:
+                        assert(sz in {1, 2})
+                        szname = 'pstr.string' if sz == 1 else 'pstr.wstring'
+                        fmt = "dyn.clone({:s}, length={count:d})"
+                        tname = fmt.format(szname, count=count)
+                        print('        ({:s}, {!r}),'.format(tname, mname))
+                        continue
+
+                    assert(t in {int, type})
                     tname = "{:s}{:d}".format('s' if sz < 0 else 'u', 8 * abs(sz))
+                    fmt = "dyn.array({:s}, {count:d})" if count > 1 else "{:s}"
+                    tname = fmt.format(tname, count=count)
                     print('        ({:s}, {!r}),'.format(tname, mname))
                     continue
 
-                pi = idaapi.ptr_type_data_t()
-                assert(m.typeinfo.get_ptr_details(pi))
-                ti, ptr = pi.obj_type, True
-                mtype = t
-
-            else:
-                print('        ({!s}, {!r}),'.format(struc.by(ti).name.replace('::','__'), mname))
-                continue
-
-            if isinstance(mtype, tuple):
-                #print('        ({!s}, {!r}),'.format(ti, mname))
-                #raise Exception(m, mname, mtype)
-                t, sz = mtype
-                if t == str:
-                    assert(sz in {1, 2})
-                    szname = 'pstr.string' if sz == 1 else 'pstr.wstring'
-                    fmt = "dyn.clone({:s}, length={count:d})"
-                    tname = fmt.format(szname, count=count)
-                    print('        ({:s}, {!r}),'.format(tname, mname))
+                if mtype == type and not struc.has(ti):
+                    assert(count == 1)
+                    print('        (pointer({!s}), {!r}),'.format(ti, mname))
                     continue
 
-                assert(t in {int, type})
-                tname = "{:s}{:d}".format('s' if sz < 0 else 'u', 8 * abs(sz))
                 fmt = "dyn.array({:s}, {count:d})" if count > 1 else "{:s}"
-                tname = fmt.format(tname, count=count)
+                fptr = "pointer({:s})" if mtype == type else "{:s}"
+                assert(struc.has(ti))
+
+                sname = struc.by(ti).name.replace('::','__')
+                tname = fptr.format(fmt.format(sname, count=count))
                 print('        ({:s}, {!r}),'.format(tname, mname))
-                continue
-
-            if mtype == type and not struc.has(ti):
-                assert(count == 1)
-                print('        (pointer({!s}), {!r}),'.format(ti, mname))
-                continue
-
-            fmt = "dyn.array({:s}, {count:d})" if count > 1 else "{:s}"
-            fptr = "pointer({:s})" if mtype == type else "{:s}"
-            assert(struc.has(ti))
-
-            sname = struc.by(ti).name.replace('::','__')
-            tname = fptr.format(fmt.format(sname, count=count))
-            print('        ({:s}, {!r}),'.format(tname, mname))
-        print('    ]')
+            print('    ]')
 
 def tibase(ti):
     pi, ai = idaapi.ptr_type_data_t(), idaapi.array_type_data_t()
