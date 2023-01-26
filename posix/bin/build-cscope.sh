@@ -23,8 +23,8 @@ while getopts hf: opt; do
 done
 shift `expr "$OPTIND" - 1`
 
-if [ "$filter" = "" ]; then
-    filter=(*.c *.h *.cc *.cpp *.hpp)
+if [ -z "$filter" ]; then
+    filter=(\*.c \*.h \*.cc \*.cpp \*.hpp)
     printf "%s: using filter : %s\n" "$arg0" "${filter[*]}"
 fi
 
