@@ -113,11 +113,19 @@ if has("eval")
 
 """ useful key mappings
 
-    "" copy current locations into the default register
-    nmap ,cc :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')<CR>:let @*=@"<CR>
-    nmap ,cf :let @"=substitute(expand('%'),'\\','/','g')<CR>:let @*=@"<CR>
-    nmap ,cp :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @*=@"<CR>
-    nmap ,.  :let @"=substitute(expand('%'),'\\','/','g').':'.line('.')."\n"<CR>
+    "" copy current path
+    nnoremap <silent> ,cp :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @*=@"<CR>
+    nnoremap <silent> ,cp+ :let @"=substitute(expand('%:p'),'\\','/','g')<CR>:let @+=@"<CR>
+
+    "" copy current filename
+    nnoremap <silent> ,cf :let @"=substitute(expand('%:~'),'\\','/','g')<CR>:let @*=@"<CR>
+    nnoremap <silent> ,cf+ :let @"=substitute(expand('%:~'),'\\','/','g')<CR>:let @+=@"<CR>
+
+    "" copy current location and any lines if a range is given
+    noremap <silent> ,. :<C-U>let @"=substitute(expand('%:.'), '\\','/','g') . ':' . (v:count > 1? printf("%d-%d", line("."), v:count-1 + line(".")) : line('.')) . (v:count? join([""] + getline(".", v:count-1 + line(".")) + [""], "\n") : "\n")<CR>:let @*=@"<CR>
+    noremap <silent> ,.+ :<C-U>let @"=substitute(expand('%:.'), '\\','/','g') . ':' . (v:count > 1? printf("%d-%d", line("."), v:count-1 + line(".")) : line('.')) . (v:count? join([""] + getline(".", v:count-1 + line(".")) + [""], "\n") : "\n"), "g")<CR>:let @+=@"<CR>
+    xnoremap <silent> ,. :<C-U>let @"=substitute(expand('%:.'), '\\','/','g') . ':' . (line("'<") == line("'>")? line("'<") : printf("%d-%d", line("'<"), line("'>"))) . (join([""] + map(getline("'<", "'>"), printf("v:val[%d:%d]", col("'<"), col("'>"))) + [""], "\n"))<CR>:let @*=@"<CR>
+    xnoremap <silent> ,.+ :<C-U>let @"=substitute(expand('%:.'), '\\','/','g') . ':' . (line("'<") == line("'>")? line("'<") : printf("%d-%d", line("'<"), line("'>"))) . (join([""] + map(getline("'<", "'>"), printf("v:val[%d:%d]", col("'<"), col("'>"))) + [""], "\n"))<CR>:let @+=@"<CR>
 
 """ utility functions
 
