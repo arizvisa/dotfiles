@@ -113,54 +113,61 @@ if has("eval")
 
 """ useful key mappings
 
-    "" normalize a file path for whatever platform we're on
-    function! <SID>normalpath(path)
-        return substitute(a:path, '\\', '/', 'g')
-    endfunction
+    "" these mappings are just for copying the current location and some lines
+    "" into the default register, current selection, or clipboard.
 
-    "" (functions) copy current location and any lines if a count is given
-    function! <SID>normallines(count)
-        let l:line = line(".")
-        return v:count > 1? printf("%d-%d", l:line, a:count - 1 + l:line) : l:line
-    endfunction
-    function! <SID>normaltext(count)
-        let l:items = getline(".", a:count - 1 + line("."))
-        return a:count? join([""] + l:items + [""], "\n") : "\n"
-    endfunction
+    let g:mapleader = ','
 
-    "" (functions) copy current location and any lines if a range is given
-    function! <SID>visuallines()
-        let [l:start, l:stop] = [line("'<"), line("'>")]
-        return l:start == l:stop? l:start : printf("%d-%d", l:start, l:stop)
-    endfunction
-    function! <SID>visualtext(mode)
-        let l:lines = getline("'<", "'>")
-        if a:mode == "V"
-            let l:items = l:lines
-        elseif a:mode == "v"
-            let [l:start, l:stop] = [charcol("'<") - 1, charcol("'>") - 1]
-            let [l:first, l:rest, l:last] = [l:lines[0], len(l:lines) > 2? l:lines[1:-2] : [], l:lines[-1]]
-            let l:items = len(l:lines) > 1? [l:first[l:start:]] + l:rest + [l:last[:l:stop]] : len(l:lines) > 0? [l:first[l:start : l:stop]] : l:lines
-        elseif a:mode == ""
-            let l:sliced = printf("v:val[%d:%d]", col("'<") - 1, col("'>") - 1)
-            let l:items = map(l:lines, l:sliced)
-        endif
-        return join([""] + l:items + [""], "\n")
-    endfunction
+        "" normalize a file path for whatever platform we're on
+        function! <SID>normalpath(path)
+            return substitute(a:path, '\\', '/', 'g')
+        endfunction
 
-    "" copy current path
-    nnoremap <silent> ,cp :let @"=<SID>normalpath(expand('%:p'))<CR>:let @*=@"<CR>
-    nnoremap <silent> ,cp+ :let @"=<SID>normalpath(expand('%:p'))<CR>:let @+=@"<CR>
+        "" (functions) copy current location and any lines if a count is given
+        function! <SID>normallines(count)
+            let l:line = line(".")
+            return v:count > 1? printf("%d-%d", l:line, a:count - 1 + l:line) : l:line
+        endfunction
+        function! <SID>normaltext(count)
+            let l:items = getline(".", a:count - 1 + line("."))
+            return a:count? join([""] + l:items + [""], "\n") : "\n"
+        endfunction
 
-    "" copy current filename
-    nnoremap <silent> ,cf :let @"=<SID>normalpath(expand('%:~'))<CR>:let @*=@"<CR>
-    nnoremap <silent> ,cf+ :let @"=<SID>normalpath(expand('%:~'))<CR>:let @+=@"<CR>
+        "" (functions) copy current location and any lines if a range is given
+        function! <SID>visuallines()
+            let [l:start, l:stop] = [line("'<"), line("'>")]
+            return l:start == l:stop? l:start : printf("%d-%d", l:start, l:stop)
+        endfunction
+        function! <SID>visualtext(mode)
+            let l:lines = getline("'<", "'>")
+            if a:mode == "V"
+                let l:items = l:lines
+            elseif a:mode == "v"
+                let [l:start, l:stop] = [charcol("'<") - 1, charcol("'>") - 1]
+                let [l:first, l:rest, l:last] = [l:lines[0], len(l:lines) > 2? l:lines[1:-2] : [], l:lines[-1]]
+                let l:items = len(l:lines) > 1? [l:first[l:start:]] + l:rest + [l:last[:l:stop]] : len(l:lines) > 0? [l:first[l:start : l:stop]] : l:lines
+            elseif a:mode == ""
+                let l:sliced = printf("v:val[%d:%d]", col("'<") - 1, col("'>") - 1)
+                let l:items = map(l:lines, l:sliced)
+            endif
+            return join([""] + l:items + [""], "\n")
+        endfunction
 
-    "" copy current location and any lines if a range or selection is given
-    noremap <silent> ,. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @*=@"<CR>
-    noremap <silent> ,.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @+=@"<CR>
-    xnoremap <silent> ,. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @*=@"<CR>
-    xnoremap <silent> ,.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @+=@"<CR>
+        "" copy current path
+        nnoremap <silent> <Leader>cp :let @"=<SID>normalpath(expand('%:p'))<CR>:let @*=@"<CR>
+        nnoremap <silent> <Leader>cp+ :let @"=<SID>normalpath(expand('%:p'))<CR>:let @+=@"<CR>
+
+        "" copy current filename
+        nnoremap <silent> <Leader>cf :let @"=<SID>normalpath(expand('%:~'))<CR>:let @*=@"<CR>
+        nnoremap <silent> <Leader>cf+ :let @"=<SID>normalpath(expand('%:~'))<CR>:let @+=@"<CR>
+
+        "" copy current location and any lines if a range or selection is given
+        noremap <silent> <Leader>. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @*=@"<CR>
+        noremap <silent> <Leader>.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @+=@"<CR>
+        xnoremap <silent> <Leader>. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @*=@"<CR>
+        xnoremap <silent> <Leader>.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @+=@"<CR>
+
+    unlet g:mapleader
 
 """ utility functions
 
