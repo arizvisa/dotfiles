@@ -14,3 +14,8 @@
 	ff = only
 [push]
 	default = matching
+[rebase]
+    stat = true
+[alias]
+    oneline = log --pretty=oneline
+    noauthor = rebase --committer-date-is-author-date
