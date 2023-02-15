@@ -762,6 +762,7 @@ alias -- ps = info inferiors
 
 ## catchpoints
 catch exec
+disable breakpoint $bpnum
 catch fork
 disable breakpoint $bpnum
 catch vfork
@@ -770,8 +771,8 @@ tbreak main
 
 ## options
 set stop-on-solib-events 0
-set follow-fork-mode child
-set detach-on-fork off
+set follow-fork-mode parent
+set detach-on-fork on
 set input-radix 0x10
 set output-radix 0x10
 #set width unlimited
