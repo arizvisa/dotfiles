@@ -175,3 +175,6 @@ def compress(data):
 
 def decompress(data):
     return zlib.decompress(data, wbits=-9)
+
+p = __import__('six').print_ if sys.version_info.major <3 else eval('print')
+pp, pf = __import__('pprint').pprint, __import__('pprint').pformat
