@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import six, sys, itertools, lxml.etree
+import chardet.universaldetector as universal
 
 def help():
     six.print_("{:s} tag [attribute value]...\n".format(sys.argv[0]))
@@ -16,6 +17,76 @@ def finditer(soup, **attributes):
         yield e
     return
 
+class unionedstream(object):
+    def __init__(self, infile):
+        self.file, self.offset = infile, 0
+        self.__encoding__, consumed = self.__detect__(infile)
+        self.__consumed__, self.__length__ = consumed, sum(length for length, _ in consumed)
+
+    @property
+    def consumed(self):
+        if len(self.__consumed__) > 0:
+            length, item = self.__consumed__[0]
+            cls = type(item)
+        else:
+            cls = bytes
+        return bytes().join(self.__consumed__)
+
+    @property
+    def encoding(self):
+        return self.__encoding__
+
+    @staticmethod
+    def __detect__(infile):
+        detector, consumed = universal.UniversalDetector(), []
+        try:
+            position = infile.tell()
+            while not detector.done:
+                data = next(infile)
+                detector.feed(data)
+                consumed.append((position, data))
+                position += len(data)
+            detector.close()
+        except StopIteration:
+            return sys.getdefaultencoding(), bytes()
+        return detector.result['encoding'], consumed
+
+    def __read(self, size):
+        if self.offset < self.__length__:
+            data = self.consumed[self.offset:]
+            result = data + self.file.read(max(0, size - len(data)))
+            self.offset += len(result)
+            return result
+        return self.file.read(size)
+
+    def __next__(self):
+        if self.offset < self.__length__:
+            index = next(index for index, (position, item) in enumerate(self.__consumed__) if position >= self.offset)
+            position, data = self.__consumed__[index]
+            return data[offset - position:]
+        return next(self.file)
+
+    def read(self, *size):
+        if size:
+            result = self.__read(*size)
+        else:
+            result = self.__consumed__[self.offset:] + self.file.read()
+        self.offset = self.file.tell()
+        return result
+
+    def seek(self, *args):
+        result = self.file.seek(*args)
+        self.offset = self.file.tell()
+        return result
+
+    def __getattribute__(self, attribute):
+        cls, namespace = (object.__getattribute__(self, attribute) for attribute in ['__class__', '__dict__'])
+        if attribute in namespace:
+            return namespace[attribute]
+        elif attribute in cls.__dict__ and attribute != '__getattribute__':
+            return object.__getattribute__(self, attribute)
+        return getattr(self.file, attribute)
+
 if __name__ == '__main__':
     import os, sys
     cook, seasoning = finditer, sys.argv[2:]
@@ -24,8 +95,8 @@ if __name__ == '__main__':
     else:
         help()
 
-    seasoning, ingredients = dict(seasoning), sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer
-    soup = lxml.etree.iterparse(ingredients, tag=sys.argv[1], events=('start',), dtd_validation=False, load_dtd=False, no_network=True, compact=False, resolve_entities=True, huge_tree=True, html=sys.argv[0].startswith('html-') if len(sys.argv[0]) else False, recover=True, encoding=sys.getdefaultencoding())
+    seasoning, ingredients = dict(seasoning), unionedstream(sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer)
+    soup = lxml.etree.iterparse(ingredients, tag=sys.argv[1], events=('start',), dtd_validation=False, load_dtd=False, no_network=True, compact=False, resolve_entities=True, huge_tree=True, recover=True, html=sys.argv[0].startswith('html-') if len(sys.argv[0]) else True, encoding=ingredients.encoding)
     for spoonful in cook(soup, **seasoning):
         six.print_(lxml.etree.tostring(spoonful, encoding='unicode'), file=sys.stdout)
     sys.exit(0)
