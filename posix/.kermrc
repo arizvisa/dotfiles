@@ -1,0 +1,75 @@
+set cd message on
+set locus local
+set match dotfile on
+set match fifo off
+
+set disconnect off
+set network type pipe
+set modem type none
+set parity none
+set telnet debug on
+set clear-channel auto
+
+set dial display on
+set carrier-watch off
+set flow-control none
+set handshake none
+
+set file collision rename
+set file display brief
+set file type binary
+set protocol kermit
+set transfer bell on
+robust
+
+set sexpression echo on
+set function error on
+set function diagnostics on
+
+def box return \fsexpression(quote (\&_[1]))
+def unbox return \fsexpression(\&_[1])
+def cons return \fsexpression(quote (\&_[1] \&_[2]))
+
+def strlen return \flen(\%1)
+def toupper return \fupper(\%1)
+def tolower return \flower(\%2)
+def vi {
+	local filename
+	if > \v(argc) 0 {
+		assign filename \%1
+		shift
+		run \v(editor) \%* -- \m(filename)
+		return 0
+	}
+	local required
+	evaluate required 1 + \v(argc)
+	echo ERROR: Command \%0 required at least \m(required) parameter\fsexpression(if((= \m(required) 1) nil '(s))).
+	echo Usage: \%0 file [parameters...]
+	return 1
+}
+def figure_editor {
+	if < \fdimension(&_) 2 {
+		return ""
+	}
+	assign argv0 \%1
+	assign path \%2
+	shift 2
+
+	declare \&l[] = \m(path) \m(argv0)
+	@type -fp \fjoin(&l,/) >/dev/null
+	if success return \fcommand(type -fp \fjoin(&l,/))
+	return \fexec(figure_editor \m(argv0) \%*)
+}
+
+set browser
+figure_editor sam /bin /usr/bin /usr/local/bin
+if not \flength(\v(return)) figure_editor vim /bin /usr/bin /usr/local/bin
+if not \flength(\v(return)) set editor vi
+else set editor \v(return)
+
+set exit warning on
+set exit hangup off
+set exit on-disconnect off
+
+set take error on
+set take echo on
