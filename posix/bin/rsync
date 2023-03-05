@@ -1,6 +1,7 @@
 #!/bin/sh
 args=""
-args="$args -rlHptogDX"
+#args="$args -rlHptogDX"
+args="$args -rlHptogD"
 args="$args -ihzs0PS"
 args="$args --stats"
 
