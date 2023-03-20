@@ -103,26 +103,28 @@ wipefile() {
     tamper "$path"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to tamper with file metadata.' "$path"
-        continue
+        return 1
     fi
     info '%s: Successfully tampered with creation, modification, and access times.' "$path"
 
     # rename the file to something random
     name=`randomname "$file"`
     debug 'Renaming file in path "%s": "%s" -> "%s"' "$directory" "$file" "$name"
-    mv -f "$directory/$file" "$directory/$name"
+    mv -vf "$directory/$file" "$directory/$name"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to rename file to random filename.' "$path"
-        continue
+        return 1
     fi
     info '%s: Renamed file to random name "%s".' "$path" "$name"
 
     # finally remove the requested file
     debug 'Removing file in path "%s": "%s"' "$directory" "$name"
-    rm -f "$directory/$name"
+    rm -vf "$directory/$name"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to remove file "%s".' "$path" "$name"
-        continue
+        mv -v "$directory/$name" "$path"
+        [ "$?" -gt "0" ] && error '%s: Unable to restore random name to "%s".' "$path" "$path" && return 2
+        return 1
     fi
     info '%s: Successfully removed file "%s".' "$path" "$name"
 
@@ -142,17 +144,17 @@ wipedirectory() {
     tamper "$path"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to tamper with directory metadata.' "$path"
-        continue
+        return 1
     fi
     info '%s: Successfully tampered with creation, modification, and access times.' "$path"
 
     # rename the file to something random
     name=`randomname "$file"`
     debug 'Renaming directory in path "%s": "%s" -> "%s"' "$directory" "$file" "$name"
-    mv -f "$directory/$file" "$directory/$name"
+    mv -vf "$directory/$file" "$directory/$name"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to rename directory to random name.' "$path"
-        continue
+        return 1
     fi
     info '%s: Renamed directory to random name "%s".' "$path" "$name"
 
@@ -161,13 +163,14 @@ wipedirectory() {
     rmdir "$directory/$name"
     if [ "$?" -gt "0" ]; then
         error '%s: Unable to remove directory "%s".' "$path" "$name"
-        continue
+        mv -v "$directory/$name" "$path"
+        [ "$?" -gt "0" ] && error '%s: Unable to restore directory to "%s".' "$path" "$path" && return 2
+        return 1
     fi
     info '%s: Successfully removed directory "%s".' "$path" "$name"
 
     printf "%s%c%s\n" "$directory/$file" "$ifs" "$directory/$name"
 }
-
 
 ## message i/o
 info() {
