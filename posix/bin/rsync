@@ -2,7 +2,7 @@
 args=""
 #args="$args -rlHptogDX"
 args="$args -rlHptogD"
-args="$args -ihzs0PS"
+args="$args -ihs0PS"
 args="$args --stats"
 
 ## paths to our binaries based on the platform
