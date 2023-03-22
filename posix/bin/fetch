@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 url=$1
+destination=$2
 
 ## options
 CURL=`type -P curl.sh || type -P curl`
@@ -136,7 +137,7 @@ download()
     target=$2
 
     size=`httpsize "$url"`
-    touch "$target"
+    touch "$target" || return $?
 
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
     curl_resume -o "$target" -- "$url" 1>&2 &
@@ -169,16 +170,30 @@ abort()
 }
 
 ## actual logic for the script
-filename=`basename "$url"`
+guessed=`basename "$url"`
+if [ -z "$destination" ]; then
+    filename="$guessed"
+elif [ -d "$destination" ]; then
+    IFS= read -d $'\0' filename < <( printf '%s/%s' "$destination" "$guessed" )
+else
+    filename="$destination"
+fi
 
-# if the filename exists, then let the user know that we're resuming
-if [ -e "$filename" ]; then
+# if the filename exists and we can write to it, then let the user know that we're resuming
+if [ -f "$filename" ] && [ -w "$filename" ]; then
     resume=`filesize "$filename"`
-    printf "Resuming transfer at offset %d of file from url \"%s\" in \"%s\"...\n" "$resume" "$url" "$filename" 1>&2
+    printf "Resuming transfer at offset %d of file \"%s\" with url \"%s\"\n" "$resume" "$filename" "$url" 2>&2
+
+# if the filename exists, then its either not a file or writable
+elif [ -e "$filename" ]; then
+    IFS= read -d $'\0' message < <( [ -w "$filename" ] && printf 'a file' || printf 'writable' )
+    printf "Destination at \"%s\" currently exists and is not %s.\n" "$filename" "$message" 1>&2
+    printf "Aborting download from url \"%s\".\n" "$url" 1>&2
+    exit 17 # EEXIST
 
 # otherwise, we just let the user know we're downloading the file
 else
-    printf "Downloading file from url \"%s\" to \"%s\"...\n" "$url" "$filename" 1>&2
+    printf "Downloading file from url \"%s\" to \"%s\"\n" "$url" "$filename" 1>&2
 fi
 
 # allow the user to abort. after aborting, calculate all of the digests
@@ -186,7 +201,12 @@ fi
 trap "abort \"\$url\" \"\$filename\"" INT
 download "$url" "$filename"
 ec=$?
-printf "Complete!\n" 1>&2
+if [ $ec -gt 0 ]; then
+    printf "Aborting download from url \"%s\" due to error %d.\n" "$url" "$ec" 1>&2
+    exit $ec
+else
+    printf "Completed download from url \"%s\".\n" "$url" 1>&2
+fi
 
 # we downloaded the file and only need to calculate all the available
 # digests before we properly exit
