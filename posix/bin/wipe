@@ -50,7 +50,7 @@ randomname() {
 ## general utilities
 wipe() {
     local count=`du "$1" | cut -f 1`
-    dd "if=$DEVICE" "of=$1" "count=$count" 2>/dev/null
+    dd "if=$DEVICE" "of=$1" "count=$count" 'conv=fsync' 'status=progress'
 }
 
 tamper() {
