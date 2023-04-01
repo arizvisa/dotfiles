@@ -4,7 +4,7 @@ set match dotfile on
 set match fifo off
 
 set disconnect off
-set network type pipe
+set network type tcp/ip
 set modem type none
 set parity none
 set telnet debug on
@@ -70,6 +70,9 @@ else set editor \v(return)
 set exit warning on
 set exit hangup off
 set exit on-disconnect off
+
+# map ^? to ^H since that's how most terminals work.
+set key \127 \8
 
 set take error on
 set take echo on
