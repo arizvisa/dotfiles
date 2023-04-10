@@ -88,6 +88,8 @@ filesize()
     msys|cygwin|linux*)
         stat -c '%s' "$filename"
         ;;
+    *)
+        exit 1
     esac
 }
 
@@ -179,10 +181,17 @@ else
     filename="$destination"
 fi
 
+# sanity check that we support the platform
+size=`filesize /dev/null`
+if [ -z "$size" ] || [ "$size" -ne 0 ]; then
+    printf "Current platform (%s) is unsupported platform.\n" "$platform" 1>&2
+    exit 1
+fi
+
 # if the filename exists and we can write to it, then let the user know that we're resuming
 if [ -f "$filename" ] && [ -w "$filename" ]; then
     resume=`filesize "$filename"`
-    printf "Resuming transfer at offset %d of file \"%s\" with url \"%s\"\n" "$resume" "$filename" "$url" 2>&2
+    printf "Resuming transfer at offset %d of file \"%s\" with url \"%s\".\n" "$resume" "$filename" "$url" 2>&2
 
 # if the filename exists, then its either not a file or writable
 elif [ -e "$filename" ]; then
@@ -193,7 +202,7 @@ elif [ -e "$filename" ]; then
 
 # otherwise, we just let the user know we're downloading the file
 else
-    printf "Downloading file from url \"%s\" to \"%s\"\n" "$url" "$filename" 1>&2
+    printf "Downloading file from url \"%s\" to \"%s\".\n" "$url" "$filename" 1>&2
 fi
 
 # allow the user to abort. after aborting, calculate all of the digests
