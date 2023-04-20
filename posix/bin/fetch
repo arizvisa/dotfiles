@@ -5,7 +5,7 @@ destination=$2
 ## options
 CURL=`type -P curl.sh || type -P curl`
 CURL_PARAMS=(-L -s -S)
-CURL_OPTIONS=(-k --compressed '--retry 65535' '--retry-delay 0' '--retry-max-time 0' --anyauth)
+CURL_OPTIONS=(-k '--keepalive-time 10' '--retry 65535' '--retry-delay 1' '--retry-max-time 0' --anyauth)
 
 OPENSSL=`type -P openssl.sh || type -P openssl`
 
@@ -138,25 +138,38 @@ download()
     url=$1
     target=$2
 
-    size=`httpsize "$url"`
+    expected=`httpsize "$url"`
     touch "$target" || return $?
 
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
     curl_resume -o "$target" -- "$url" 1>&2 &
     pid=$!
-    if [ -z "$size" ]; then
+    if [ -z "$expected" ]; then
         filestatus "$target" &
         killthis=$!
 
     # if there was a size, then we can monitor
     else
-        transferstatus "$target" "$size" &
-        pid=$!
-        killthis=
+        transferstatus "$target" "$expected" &
+        killthis=$!
     fi
 
-    wait $pid
-    [ -z "$killthis" ] || kill "$killthis"
+    wait -p pid $pid
+    ec=$?
+
+    size=`filesize "$filename"`
+    while [ ! -z "$expected" ] && [ "$size" -lt "$expected" ] && [ "$ec" -eq 18 -o "$ec" -eq 26 -o "$ec" -eq 28 -o "$ec" -eq 52 -o "$ec" -eq 55 -o "$ec" -eq 56 ]; do
+        printf "%s: Ignoring error code %d, retrying transfer at offset %d of file \"%s\".\n" "$0" "$ec" "$size" "$target" 1>&2
+        curl_resume -o "$target" -- "$url" 1>&2 &
+        wait -p pid $!
+        ec=$?
+        size=`filesize "$filename"`
+    done
+
+    [ -z "$killthis" ] || kill "$killthis" 2>/dev/null
+
+    [ "$ec" -gt 0 ] && printf '%s: Error code %d was returned by downloader.\n' "$0" "$ec" 1>&2
+    return $ec
 }
 
 abort()
@@ -164,9 +177,9 @@ abort()
     url=$1
     target=$2
     trap - INT
-    printf "Abort!\n" 1>&2
+    printf "%s: Abort!\n" "$0" 1>&2
 
-    printf "Aborted download of \"%s\" to \"%s\"\n" "$url" "$target" 1>&2
+    printf "%s: Aborted download of \"%s\" to \"%s\"\n" "$0" "$url" "$target" 1>&2
     openssl_digest_sorted "$target"
     exit 4
 }
@@ -184,25 +197,25 @@ fi
 # sanity check that we support the platform
 size=`filesize /dev/null`
 if [ -z "$size" ] || [ "$size" -ne 0 ]; then
-    printf "Current platform (%s) is unsupported platform.\n" "$platform" 1>&2
+    printf "%s: Current platform (%s) is unsupported platform.\n" "$0" "$platform" 1>&2
     exit 1
 fi
 
 # if the filename exists and we can write to it, then let the user know that we're resuming
 if [ -f "$filename" ] && [ -w "$filename" ]; then
     resume=`filesize "$filename"`
-    printf "Resuming transfer at offset %d of file \"%s\" with url \"%s\".\n" "$resume" "$filename" "$url" 2>&2
+    printf "%s: Resuming transfer at offset %d of file \"%s\" with url \"%s\".\n" "$0" "$resume" "$filename" "$url" 2>&2
 
 # if the filename exists, then its either not a file or writable
 elif [ -e "$filename" ]; then
     IFS= read -d $'\0' message < <( [ -w "$filename" ] && printf 'a file' || printf 'writable' )
-    printf "Destination at \"%s\" currently exists and is not %s.\n" "$filename" "$message" 1>&2
-    printf "Aborting download from url \"%s\".\n" "$url" 1>&2
+    printf "%s: Destination at \"%s\" currently exists and is not %s.\n" "$0" "$filename" "$message" 1>&2
+    printf "%s: Aborting download from url \"%s\".\n" "$0" "$url" 1>&2
     exit 17 # EEXIST
 
 # otherwise, we just let the user know we're downloading the file
 else
-    printf "Downloading file from url \"%s\" to \"%s\".\n" "$url" "$filename" 1>&2
+    printf "%s: Downloading file from url \"%s\" to \"%s\".\n" "$0" "$url" "$filename" 1>&2
 fi
 
 # allow the user to abort. after aborting, calculate all of the digests
@@ -211,10 +224,10 @@ trap "abort \"\$url\" \"\$filename\"" INT
 download "$url" "$filename"
 ec=$?
 if [ $ec -gt 0 ]; then
-    printf "Aborting download from url \"%s\" due to error %d.\n" "$url" "$ec" 1>&2
+    printf "%s: Aborting download from url \"%s\" due to error %d.\n" "$0" "$url" "$ec" 1>&2
     exit $ec
 else
-    printf "Completed download from url \"%s\".\n" "$url" 1>&2
+    printf "%s: Completed download from url \"%s\".\n" "$0" "$url" 1>&2
 fi
 
 # we downloaded the file and only need to calculate all the available
