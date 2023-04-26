@@ -97,7 +97,7 @@ echo "Decided on $builder to build the database." 1>&2
 
     if test "$infile" != "$outfile"; then
         echo "Making a link from \"$outfile\" to the original name \"$infile\"." 1>&2
-        ln -sf `cygpath "$outdir/$outsubdir/$outfile"` "$outdir/$outsubdir/$infile" 2>/dev/null
+        ln -sf "$outfile" "$outdir/$outsubdir/$infile" 2>/dev/null
     fi
 
     echo "Now building the database for \"$outfile\"." 1>&2
