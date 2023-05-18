@@ -23,29 +23,84 @@ if test ! -d "$outdir"; then
     exit 1
 fi
 
-# figure out path to store pe into
-echo "Attempting to determine versioning info for \"$inpath\"." 1>&2
-outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
-if test "$?" -gt 0; then
-    echo "Unable to format versioning info for \"$infile\" using default format." 1>&2
-    formats="/{FileVersion}/{OriginalFilename} /{FileVersion}/{InternalName} /{FileVersion}/{__name__} /{ProductVersion}/{OriginalFilename} /{ProductVersion}/{InternalName} /{ProductVersion}/{__name__}"
-    for fmt in $formats; do
-        echo "Re-attempting with another format : $fmt" 1>&2
-        outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "{__name__}$fmt" "$@" "$inpath" 2>/dev/null`
-        test "$?" -eq "0" && break
-        outpath=
-    done
+## figure out path to store pe into
+echo "Attempting to calculate the output path for \"$inpath\"." 1>&2
 
-    if test -z "$outpath"; then
-        echo "Unable to determine the path from the VERSION_INFO record : $inpath" 1>&2
+# output all of the versions from $inpath that are sorted by their
+# number of components and do not contain any whitespace.
+get_version_format()
+{
+    available=('FileVersion' 'ProductVersion' 'VS_FIXEDFILEINFO.dwFileVersion' 'VS_FIXEDFILEINFO.dwProductVersion')
+    #formats=`paste <( printf '{%s}\n' "${available[@]}") <( printf '%s\n' "${available[@]}")`
+    #| awk -F. 'BEGIN {OFS = "\t"} /[^ ]/ {print NF,length($1),$2}' \
+    formats=`printf '{%s}\n' "${available[@]}"`
+    "$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$formats" "$1" 2>/dev/null \
+    | awk -F. 'BEGIN {OFS = "\t"} {print NF,counter++,$0}' \
+    | sort -rn \
+    | grep -e $'^[0-9]\+\t[0-9]\+\t[0-9A-Za-z._]\+$' \
+    | cut -d $'\t' -f2 | while read index; do
+        printf '{%s}\n' "${available[$index]}"
+    done
+}
+
+# if we were given some parameters, then use those to determine the output path
+outpath=
+if [ "$#" -gt 0 ]; then
+    printf 'Trying to determine format for "%s" using parameters "%s".\n' "$inpath" "$*" 1>&2
+    outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
+fi
+
+# if the user chose an explicit path, then let them know that we're using it.
+if [ "$?" -gt 0 ] || printf '%s' "$outpath" | grep -qo '\n'; then
+    printf 'Unable to format the path for "%s" using the parameters "%s".\n' "$inpath" "$*" 1>&2
+    [ -z "$outpath" ] || printf 'Output from the parameters "%s" was:\n%s\n' "$*" "$outpath" 1>&2
+    exit 1
+
+# if we don't have an output path, then figure one out.
+elif [ -z "$outpath" ]; then
+    printf 'Attempting to determine best version information for "%s".\n' "$inpath" 1>&2
+
+    # first we need to figure out the best candidate for the version. we
+    # fall back to the timestamp if we couldn't find a candidate.
+    read version_format < <( get_version_format "$inpath" )
+    if test "$?" -gt 0; then
+        printf 'Unable to determine the best version from the VERSION_INFO record : %s\n' "$inpath" 1>&2
         seconds=`stat -c %W "$inpath"`
         ts=`date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S`
-        outpath="$infile/$ts/$infile"
-        echo "Falling back to creation timestamp ($ts) for $inpath" 1>&2
+        printf 'Falling back to creation timestamp (%s) for %s.\n' "$ts" "$inpath" 1>&2
+        version_format="$ts"
     fi
-fi
-echo "Output path determined from version was \"$outpath\"." 1>&2
 
+    # then we need a filename which requires us to try multiple possibilities.
+    printf 'Attempting to determine filename for "%s".\n' "$inpath" 1>&2
+    formats_filename=('OriginalFilename' 'InternalName' '__name__')
+
+    filename_format=
+    for fmt in "${formats_filename[@]}"; do
+        printf 'Attempting with format : %s\n' "$fmt" 1>&2
+        filename_format="{$fmt}"
+        "$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "{$fmt}" "$inpath" 2>/dev/null 1>/dev/null
+        [ $? -eq 0 ] && break
+        filename_format=
+    done
+
+    # if we couldn't get the filename, then use the original one.
+    if test -z "$filename_format"; then
+        printf "Unable to determine the path from the VERSION_INFO record : %s\n" "$inpath" 1>&2
+        filename_format="$infile"
+        printf "Falling back to input filename "%s" for %s\n." "$infile" "$inpath" 1>&2
+    fi
+
+    # now we can put our format back together and get the output path.
+    format="{__name__}/$version_format/$filename_format"
+    outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$format" "$inpath" 2>/dev/null`
+    printf 'Output path determined from version was "%s".\n' "$outpath" 1>&2
+
+else
+    printf 'Output path determined from parameters was "%s".\n' "$outpath" 1>&2
+fi
+
+# next step is to check to see if the file already exists and bail if it does.
 outsubdir=`dirname "$outpath"`
 outfile=`basename "$outpath"`
 
@@ -55,6 +110,7 @@ if [ -d "$outdir/$outsubdir" -a -f "$outdir/$outsubdir/$outfile" ]; then
     exit 0
 fi
 
+# figure out the machine type so that we can choose the correct disassembler to build with.
 echo "Attempting to determine the machine type for \"$inpath\"" 1>&2
 machine=`"$PYTHON" "$SYRINGE/tools/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
@@ -86,8 +142,9 @@ case "$machine" in
         exit 1
         ;;
 esac
-echo "Decided on $builder to build the database." 1>&2
 
+# once we have the builder, dispatch to it in order to build the database.
+echo "Decided on $builder to build the database." 1>&2
 (
     echo "Carving a path to \"$outdir/$outsubdir/$outfile\"." 1>&2
     mkdir -p "$outdir/$outsubdir"
@@ -105,6 +162,7 @@ echo "Decided on $builder to build the database." 1>&2
     "$builder" "$outfile" 1>&2
 )
 
+# if building failed, then output an error message and clean up anything partially written.
 if [ $? -gt 0 ]; then
     echo "Unable to build database for file: \"$outdir/$outsubdir/$outfile\"." 1>&2
 
