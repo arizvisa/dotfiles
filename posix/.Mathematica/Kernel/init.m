@@ -157,6 +157,7 @@ EndPackage[];
 (** Default global options **)
 Begin["Global`"]
  If[$FrontEnd =!= Null,
-  SetOptions[$FrontEnd, CellContext->Notebook]
+  SetOptions[$FrontEnd, CellContext->Notebook];
+  Setoptions[$FrontEnd, NumberMarks->True]
  ];
 End[]
