@@ -157,7 +157,10 @@ EndPackage[];
 (** Default global options **)
 Begin["Global`"]
  If[$FrontEnd =!= Null,
+  SetOptions[$FrontEnd, ShowAtStartup->NewDocument];
   SetOptions[$FrontEnd, CellContext->Notebook];
-  Setoptions[$FrontEnd, NumberMarks->True]
+  SetOptions[$FrontEnd, NumberMarks->True];
+  SetOptions[$FrontEnd, RenderingOptions->{"HardwareAntialiasingQuality" -> 0.}];
+  SetOptions[$FrontEnd, StyleNameDialogSettings->{"Style" -> "CodeText"}];
  ];
 End[]
