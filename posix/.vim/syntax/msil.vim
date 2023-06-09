@@ -280,5 +280,4 @@ if !exists("did_ilasm_syntax_inits")
 	highlight link ilasmKeyword Keyword 
 
 endif
-"let b:current_syntax="ilasm"
-let b:current_syntax="msil"
+let b:current_syntax="ilasm"
