@@ -236,7 +236,7 @@ builtins._ = builtins.clock()
 print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv))
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
-try: exec(open(r"$scriptpath").read(), globals())
+try: exec(compile(open(r"$scriptpath").read(), r"$scriptpath", 'exec'), globals())
 except SystemExit:
     builtins.__EXITCODE__, = sys.exc_info()[1].args
     builtins.__ABORT__ = True
