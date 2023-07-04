@@ -92,6 +92,8 @@ if has("eval")
             set guifont=Courier_New:h10:cANSI
         elseif has("gui_gtk")
             set guifont=Courier\ New\ 12
+        elseif has("gui") && has("osx")
+            set guifont=CourierNewPSMT:h13
         else
             echoerr "Unknown gui. Unable to set guifont to Courier 10."
         endif
