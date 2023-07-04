@@ -129,7 +129,7 @@ case "$platform" in
         ;;
 
     darwin*)
-        # Just in case this platform has something stupid...
+        export BASH_SILENCE_DEPRECATION_WARNING=1   # FIRST BLOOD!
         ;;
 
     freebsd*)
