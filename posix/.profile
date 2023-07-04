@@ -125,9 +125,13 @@ case "$platform" in
             fi
             unset name perlversion q
         fi
-
         # FIXME: add support for python's user-local site-packages
         ;;
+
+    darwin*)
+        # Just in case this platform has something stupid...
+        ;;
+
     freebsd*)
         # Nothing necessary to do here because this platform is PERFECT.
         ;;
