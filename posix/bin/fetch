@@ -82,7 +82,7 @@ filesize()
 {
     filename=$1
     case "$platform" in
-    *bsd*)
+    *bsd*|darwin*)
         stat -f '%z' "$filename"
         ;;
     msys|cygwin|linux*)
