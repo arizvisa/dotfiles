@@ -19,6 +19,8 @@
 [alias]
     oneline = log --pretty=oneline
     noauthor = rebase --committer-date-is-author-date
+    unstage = restore --staged
+    untouch = restore --staged --worktree
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
