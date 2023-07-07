@@ -152,6 +152,30 @@ BeginPackage["System`"];
           ][[2]]
        ]
     ];
+
+    FromBaseForm::usage = "FromBaseForm will return an Integer for a number in BaseForm or if it is subscripted.";
+    FromBaseForm[Subscript[number_, base_Integer]] := FromBaseForm[number // ToString, base];
+    FromBaseForm[number_, base_Integer] := FromBaseForm[number // ToString, base];
+    FromBaseForm[number_String, base_Integer] :=
+      Block[{
+        Table = MapIndexed[
+          #1 -> #2[[1]] - 1 &,
+          "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" //
+             Characters //
+             #[[;; base]] &
+        ] // Association
+      },
+      With[{
+        digits = number //
+          ToUpperCase //
+          Characters //
+          Map[Table[[#]] & ]
+      },
+        FromDigits[digits, base]
+      ]
+    ];
+    FromBaseForm[BaseForm[number_, base_]] := {number,base};
+
 EndPackage[];
 
 (** Default global options **)
