@@ -16,7 +16,7 @@
 " if the variable isn't specified, the current directory is checked
 
 if has("cscope")
-    let s:rcfilename = ".vimrc"
+    let s:rcfilename = fnamemodify($MYVIMRC, ":t")
     let s:pathsep = (has("unix") || &shellslash)? '/' : '\'
     let s:listsep = has("unix")? ":" : ";"
 
@@ -26,6 +26,22 @@ if has("cscope")
 
     let &cscopeverbose=1
 
+    """ logging utilities
+    function! s:information(...)
+        echomsg printf("%s: [%s] %s", expand("<script>:t"), 'INFO', call("printf", a:000))
+    endfunction
+    function! s:warning(...)
+        echohl WarningMsg
+        echomsg printf("%s: [%s] %s", expand("<script>:t"), 'WARN', call("printf", a:000))
+        echohl None
+    endfunction
+    function! s:fatal(...)
+        echohl ErrorMsg
+        echomsg printf("%s: [%s] %s", expand("<script>:t"), 'FATAL', call("printf", a:000))
+        echohl None
+    endfunction
+
+    """ file path utilities
     function! s:which(program)
         let l:sep = has("unix")? ':' : ';'
         let l:pathsep = (has("unix") || &shellslash)? '/' : '\'
@@ -48,6 +64,7 @@ if has("cscope")
         return s:basedirectory(fnamemodify(a:path, ":h"))
     endfunction
 
+    """ key mappings
     function! cscope#map()
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         if has("gui_running") && !has("win32")
@@ -94,6 +111,7 @@ if has("cscope")
         endif
     endfunction
 
+    """ cscope-related utilities
     function! s:add_cscope(path)
         " check if we were given a directory or just a straight-up path
         if isdirectory(a:path)
@@ -142,7 +160,7 @@ if has("cscope")
 
     " try and find a valid executable for cscope
     if !exists("&cscopeprg") || !filereadable(&cscopeprg)
-        echoerr printf("The tool specified as &cscopeprg (%s) is either undefined or not found.", &cscopeprg)
+        call s:warning("The tool specified as &cscopeprg (%s) is either undefined or not found.", &cscopeprg)
 
         if !exists("&cscopeprg") || empty(&cscopeprg)
             let s:csprog_types = keys(s:cstype_database)
@@ -155,7 +173,7 @@ if has("cscope")
             endif
         endif
 
-        echomsg printf("Searching for a replacement for &cscopeprg: %s", s:csprog_types)
+        call s:information("Searching for a replacement for &cscopeprg: %s", s:csprog_types)
         for s:csfilename in s:csprog_types
             let s:cscopeprg = v:none
             try
@@ -173,7 +191,7 @@ if has("cscope")
     endif
 
     " now we have a valid program, lets use it to determine what database type we should be using
-    if !empty(s:cscopeprg)
+    try | if !empty(s:cscopeprg)
         let s:cstype = fnamemodify(s:cscopeprg, ":t:r")
         if !has_key(s:cstype_database, s:cstype)
             throw printf("Unable to determine the cscope database type for \"%s\".", s:csprog_key)
@@ -184,12 +202,17 @@ if has("cscope")
 
         " let the user know if we had to figure out the right program
         if s:cscopeprg != &cscopeprg
-            echomsg printf("Decided upon a %s (%s) database for navigation: %s", s:csdescription, s:cstype, s:cscopeprg)
+            call s:information("Decided upon %s (%s) for navigation: %s", s:csdescription, s:cstype, s:cscopeprg)
             let &cscopeprg = s:cscopeprg
         endif
     else
         throw printf("Unable to identify a valid program for %s.", "&cscopeprg")
-    endif
+
+    " If we caught any kind of exception, we need to bail because nothing works.
+    endif | catch
+        call s:fatal(v:exception)
+        finish
+    endtry
 
     " check if tmpdir was defined. if not set it to something
     " because cscope requires it.
@@ -203,25 +226,24 @@ if has("cscope")
     " if db wasn't specified check current dir for cscope.out
     if empty(s:cscope_db) && filereadable(s:csdatabase)
         let s:cscope_db=join([getcwd(), s:csdatabase], s:pathsep)
-        echomsg printf("Found %s database in current working directory: %s", s:csdescription, s:cscope_db)
+        call s:information("Found %s database in current working directory: %s", s:csdescription, s:cscope_db)
     else
         for s:db in split(s:cscope_db, s:listsep)
-            echomsg printf("Found %s database specified in environment CSCOPE_DB: %s", s:csdescription, s:db)
+            call s:information("Found %s database specified in environment CSCOPE_DB: %s", s:csdescription, s:db)
         endfor
     endif
 
     " iterate through each cscope_db
     for s:db in split(s:cscope_db, s:listsep)
-        echomsg printf("Loading %s database: %s", s:csdescription, s:db)
+        call s:information("Loading %s database: %s", s:csdescription, s:db)
 
         let s:verbosity = &cscopeverbose
         let &cscopeverbose = 0
         try
             call s:add_cscope(s:db)
         catch
-            echoerr printf("Error loading %s database at %s -> %s", s:csdescription, s:db, v:exception)
+            call s:warning("Error loading %s database at %s -> %s", s:csdescription, s:db, v:exception)
         endtry
         let &cscopeverbose = s:verbosity
     endfor
 endif
-
