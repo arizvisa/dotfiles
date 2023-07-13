@@ -100,13 +100,13 @@ def memberFromOp(st, ea, opnum, name=None):
     return st.members.add(packed, (int, size), offset)
 mop = memberFromOp
 
-dbname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(db.offset, fdiscard(db.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(db.name))
-fnname = fcompose(fmap(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name, listed=True))
+dbname = fcompose(fthrough(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(db.offset, fdiscard(db.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(db.name))
+fnname = fcompose(fthrough(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name, listed=True))
 selectall = fcompose(db.selectcontents, fpartial(imap, funpack(func.select)), funpack(itertools.chain))
 
-has_immediate_ops = fcompose(ins.ops_constant, fpartial(map, ins.op), set, fmap(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(int)), any)), all)
-has_register_ops = fcompose(ins.ops_register, fpartial(map, ins.op), set, fmap(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(register_t)), any)), all)
-previous_written = fcompose(ins.ops_read, fmap(fcompose(first,fgetattr('address'), fpack(list)), fcompose(fpartial(map, ins.op), tuple)), funpack(ichain), list, funpack(db.a.prevreg, write=1))
+has_immediate_ops = fcompose(ins.ops_constant, fpartial(map, ins.op), set, fthrough(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(int)), any)), all)
+has_register_ops = fcompose(ins.ops_register, fpartial(map, ins.op), set, fthrough(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(register_t)), any)), all)
+previous_written = fcompose(ins.ops_read, fthrough(fcompose(first,fgetattr('address'), fpack(list)), fcompose(fpartial(map, ins.op), tuple)), funpack(ichain), list, funpack(db.a.prevreg, write=1))
 freg_written = lambda reg: lambda ea: any(reg.related(ins.op(ref)) for ref in ins.ops_write(ea) if isinstance(ins.op(ref), register_t))
 freg = lambda reg: lambda ea: any(reg.related(ins.op(ref)) for ref in ins.ops_read(ea) if isinstance(ins.op(ref), symbol_t)) or any(reg.related(ins.op(ref)) for ref in ins.ops_write(ea) if isinstance(ins.op(ref), register_t)) or any(any(reg.related(r) for r in op.symbols) for op in map(fpartial(ins.op, ea), range(ins.ops_count(ea))) if isinstance(op, symbol_t))
 
@@ -589,7 +589,7 @@ def get_top(ea):
     it's top or entry-point by searching for either another function or an
     address that is not code.
     """
-    ea = db.a.walk(ea, db.a.prev, utils.fcompose(fmap(db.t.is_code, utils.fcompose(fn.within, operator.not_)), all))
+    ea = db.a.walk(ea, db.a.prev, utils.fcompose(fthrough(db.t.is_code, utils.fcompose(fn.within, operator.not_)), all))
     return ea if db.t.is_code(ea) and not fn.within(ea) else db.a.next(ea)
 
 # Returns True if a function is only a single-block.
