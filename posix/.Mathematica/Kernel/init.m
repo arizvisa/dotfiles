@@ -2,7 +2,33 @@
 
 Begin["UserInitializationFile`"]
 
- (** Utilities for menu item handlers *)
+ (* Remove default directory created in user documents *)
+ With[{directory=$UserDocumentsDirectory <> "/Wolfram Mathematica"},
+  If[DirectoryQ[directory], DeleteDirectory[directory]]
+ ]
+
+ (** General navigational utilities **)
+ NavigationItems = {
+  MenuItem["Move up a cell",
+   FrontEndExecute@FrontEnd`SelectionMove[FrontEnd`InputNotebook[], Previous, CellContents],
+   MenuKey["Up", Modifiers->{"Control"}]
+  ],
+  (*MenuItem["Move down a cell", "MoveNextCell", MenuKey["Down", Modifiers->{"Control"}]]*)
+  MenuItem["Move down a cell",
+   FrontEndExecute@FrontEnd`SelectionMove[FrontEnd`InputNotebook[], Next, CellContents],
+   MenuKey["Down", Modifiers->{"Control"}]
+  ]
+ }
+
+ If[$Notebooks,
+  FrontEndExecute@
+   AddMenuCommands[
+    "CellMerge",
+    Join[{Delimiter}, NavigationItems, {Delimiter}]
+   ]
+ ]
+
+ (** Utilities for cuddling menu item handlers *)
  CuddleMenuItem[description_String, key_MenuKey, left_String, right_String] :=
   MenuItem[
    description,
@@ -13,7 +39,8 @@ Begin["UserInitializationFile`"]
    key
   ]
 
- (** List of items to append to menu **)
+
+ (** List of cuddle-related items to append to menu **)
  AvailableCuddleMenuItems = {
 
  (* Parentheses *)
@@ -33,7 +60,7 @@ Begin["UserInitializationFile`"]
   CuddleMenuItem["Wrap in <||> and continue at end", MenuKey[">", Modifiers->{"Control"}], "\[LeftAssociation]", "\[RightAssociation]"]
  }
 
- (** Add menu items for wrapping expressions **)
+ (** Add menu items for wrapping expressions (cuddling) **)
  If[$Notebooks,
   FrontEndExecute@
    AddMenuCommands[
@@ -41,6 +68,7 @@ Begin["UserInitializationFile`"]
     Join[{Delimiter}, AvailableCuddleMenuItems, {Delimiter}]
    ]
  ]
+
 End[]
 
 BeginPackage["System`"];
