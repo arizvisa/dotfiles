@@ -81,7 +81,7 @@ if has("eval")
 
     "" get rid of all the stupid/lame (emacs-like) autoindenting
     filetype indent off
-    filetype plugin off
+    filetype plugin on
 
     "" gvim-specific settings
     if has("gui_running")
