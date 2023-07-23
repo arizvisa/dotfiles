@@ -234,4 +234,8 @@ Begin["Global`"]
   SetOptions[$FrontEnd, RenderingOptions->{"HardwareAntialiasingQuality" -> 0.}];
   SetOptions[$FrontEnd, StyleNameDialogSettings->{"Style" -> "CodeText"}];
  ];
+
+ (** Packages that are useful to have **)
+ Quiet[Needs["PacletManager`"]]
+ Quiet[Needs["IGraphM`"]]
 End[]
