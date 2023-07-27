@@ -347,6 +347,46 @@ class access(function):
         return all(callable(inf, ea, length) for callable in items)
 hexdump(),itemdump(),bindump(),access()
 
+class wat(command):
+    COMMAND = gdb.COMPLETE_SYMBOL | gdb.COMMAND_USER
+    DOMAINS = {value : key for key, value in gdb.__dict__.items() if all([key.startswith('SYMBOL_'), key.endswith('_DOMAIN')])}
+    CLASS = {value : key for key, value in gdb.__dict__.items() if key.startswith('SYMBOL_LOC_')}
+    TYPE = {operator.attrgetter(attribute) : attribute for attribute in ['needs_frame', 'is_argument', 'is_constant', 'is_function', 'is_variable', 'is_valid']}
+
+    def blocks(self, block):
+        left, right = block.end, block.start
+        while block is not None:
+            if (left, right) != (block.start, block.end):
+                yield block.start, block.end
+            left, right, block = block.start, block.end, block.superblock
+        return
+
+    def invoke(self, string, from_tty, count=None):
+        args = gdb.string_to_argv(string)
+        if len(args) not in {1,2}:
+            raise gdb.GdbError("usage: wat symbol [$pc]")
+        symbol, pc = args if len(args) == 2 else args + [None]
+        block = gdb.selected_frame().block() if pc is None else gdb.block_for_pc(gdb.parse_and_eval(pc).__int__() if isinstance(pc, str) else pc)
+        if block is None:
+            raise gdb.error("Unable to find basic block for {:s}.".format("program counter ({:#x})".format(gdb.parse_and_eval(pc).__int__() if isinstance(pc, str) else pc) if pc else 'current program counter'))
+
+        result = {domain : gdb.lookup_symbol(symbol, block, domain) for domain in self.DOMAINS}
+        locations = {domain : variable for domain, (variable, _) in result.items() if variable is not None}
+        if not locations:
+            raise gdb.error("Unable to locate symbol {:s}.".format(symbol))
+
+        types = {description for F, description in self.TYPE.items() if any(map(F, locations.values()))}
+        domains = {self.DOMAINS[domain] for domain in locations}
+        classes = {self.CLASS[variable.addr_class] for _, variable in locations.items()}
+
+        gdb.write("Symbol: {:s}\n".format(symbol))
+        gdb.write("Type{:s}: {:s}\n".format('' if len(types) == 1 else 's', ', '.join(types)))
+        gdb.write("Block: {:s}\n".format(' -> '.join("{:#x}..{:#x}".format(left, right) for left, right in self.blocks(block))))
+        gdb.write("Domain{:s}: {:s}\n".format('' if len(domains) == 1 else 's', ', '.join(domains)))
+        gdb.write("Class{:s}: {:s}\n".format('' if len(classes) == 1 else 's', ', '.join(classes)))
+        gdb.flush()
+wat()
+
 end
 
 ### 32-bit / 64-bit functions
