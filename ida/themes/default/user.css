@@ -1,5 +1,7 @@
 CustomIDAMemo
 {
+    qproperty-caret: white;
+
     /** line background **/
     qproperty-line-bg-default: #000040;
     qproperty-line-bg-selected: #608080;
