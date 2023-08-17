@@ -686,7 +686,7 @@
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x86" -new_console:t:"VS2022 [17.2.5] (x86)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x86" -new_console:t:"VS2022 [17.2.5] (x86)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
@@ -695,7 +695,7 @@
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64" -new_console:t:"VS2022 [17.2.5] (x64)"'/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64" -new_console:t:"VS2022 [17.2.5] (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
