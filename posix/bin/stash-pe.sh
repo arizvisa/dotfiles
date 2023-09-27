@@ -13,7 +13,7 @@ if test -z "$inpath" -o "$#" -lt 2; then
 fi
 shift 2
 
-if test ! -e "$SYRINGE/tools/pe.py" -o ! -e "$SYRINGE/tools/peversionpath.py"; then
+if test ! -e "$SYRINGE/bin/pe.py" -o ! -e "$SYRINGE/bin/peversionpath.py"; then
     echo "Unable to locate tools (pe.py, peversionpath.py) for parsing the portable executable format : $SYRINGE" 1>&2
     exit 1
 fi
@@ -34,7 +34,7 @@ get_version_format()
     #formats=`paste <( printf '{%s}\n' "${available[@]}") <( printf '%s\n' "${available[@]}")`
     #| awk -F. 'BEGIN {OFS = "\t"} /[^ ]/ {print NF,length($1),$2}' \
     formats=`printf '{%s}\n' "${available[@]}"`
-    "$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$formats" "$1" 2>/dev/null \
+    "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$formats" "$1" 2>/dev/null \
     | awk -F. 'BEGIN {OFS = "\t"} {print NF,counter++,$0}' \
     | sort -rn \
     | grep -e $'^[0-9]\+\t[0-9]\+\t[0-9A-Za-z._]\+$' \
@@ -47,7 +47,7 @@ get_version_format()
 outpath=
 if [ "$#" -gt 0 ]; then
     printf 'Trying to determine format for "%s" using parameters "%s".\n' "$inpath" "$*" 1>&2
-    outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" "$@" "$inpath" 2>/dev/null`
+    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" "$@" "$inpath" 2>/dev/null`
 fi
 
 # if the user chose an explicit path, then let them know that we're using it.
@@ -79,7 +79,7 @@ elif [ -z "$outpath" ]; then
     for fmt in "${formats_filename[@]}"; do
         printf 'Attempting with format : %s\n' "$fmt" 1>&2
         filename_format="{$fmt}"
-        "$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "{$fmt}" "$inpath" 2>/dev/null 1>/dev/null
+        "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "{$fmt}" "$inpath" 2>/dev/null 1>/dev/null
         [ $? -eq 0 ] && break
         filename_format=
     done
@@ -93,7 +93,7 @@ elif [ -z "$outpath" ]; then
 
     # now we can put our format back together and get the output path.
     format="{__name__}/$version_format/$filename_format"
-    outpath=`"$PYTHON" "$SYRINGE/tools/peversionpath.py" -f "$format" "$inpath" 2>/dev/null`
+    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" "$inpath" 2>/dev/null`
     printf 'Output path determined from version was "%s".\n' "$outpath" 1>&2
 
 else
@@ -112,7 +112,7 @@ fi
 
 # figure out the machine type so that we can choose the correct disassembler to build with.
 echo "Attempting to determine the machine type for \"$inpath\"" 1>&2
-machine=`"$PYTHON" "$SYRINGE/tools/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
+machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
     echo "Error trying to parse PE file : $inpath" 1>&2
     exit 1
