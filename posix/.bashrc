@@ -74,7 +74,10 @@ alias cat &>/dev/null && unalias cat
 # aliases for common utilities that add default parameters
 alias readelf="readelf -W"
 alias pstree="pstree -cagplt"
-alias ps="ps -ww -lj"
+case "$platform" in
+    msys|cygwin)    alias ps='ps -af'       ;;
+    *)              alias ps="ps -ww -lj"   ;;
+esac
 
 ## platform-specific fixes
 # darwin
