@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 posix=`type -P gvim || type -P vim`
-pf_x86=`env | egrep "^ProgramFiles\(x86\)=" | cut -d= -f2- | xargs cygpath -u`
-pf=`env | egrep "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
+pf_x86=`env | grep -E "^ProgramFiles\(x86\)=" | cut -d= -f2- | xargs cygpath -u`
+pf=`env | grep -E "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
 windows=`ls -1 "$pf_x86"/Vim/vim*/gvim.exe "$pf_x86"/Vim/gvim.exe "$pf"/Vim/vim*/gvim.exe "$pf"/Vim/gvim.exe 2>/dev/null`
 
 ## determine which program to run

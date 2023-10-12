@@ -121,8 +121,8 @@ cd "$directory_base.$original_name" && find ./ -type f | while read p; do
     test "$isDifferent" -eq "0" && continue
 
     # diffing ascii file contents
-    isOrgText=`echo "$fp_org" | egrep -oi "text|script" 1>/dev/null && echo 1 || echo 0`
-    isModText=`echo "$fp_mod" | egrep -oi "text|script" 1>/dev/null && echo 1 || echo 0`
+    isOrgText=`echo "$fp_org" | grep -E -oi "text|script" 1>/dev/null && echo 1 || echo 0`
+    isModText=`echo "$fp_mod" | grep -E -oi "text|script" 1>/dev/null && echo 1 || echo 0`
     if test "$isOrgText" -gt "0" -o "$isModText" -gt "0"; then
         # converting encoding of both files to ascii
         result=0

@@ -56,7 +56,7 @@ authenticate()
 
     ctnNotice=`curl_post "$url" "$data" "$referer" | xml-select div class ctnNotice | xml-strip`
     if test "$ctnNotice" = ""; then
-        curl_post "$url" "$data" "$referer" -D - | egrep '^Set-Cookie: ' | cut -d ':' -f 2- | tr ';' '\n' | grep '_subscriber_session' | cut -d '=' -f 2
+        curl_post "$url" "$data" "$referer" -D - | grep -E '^Set-Cookie: ' | cut -d ':' -f 2- | tr ';' '\n' | grep '_subscriber_session' | cut -d '=' -f 2
         return 0
     fi
     echo "$ctnNotice"

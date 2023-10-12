@@ -133,7 +133,7 @@ function httpClient()
     then
         echo "Usage: `basename $0` url"
         exit 1
-    elif echo $URL | egrep -q '^http://'                                # url must start with http
+    elif echo $URL | grep -E -q '^http://'                                # url must start with http
     then
         oldIFS=$IFS
         IFS=/
@@ -147,7 +147,7 @@ function httpClient()
             shift
         done
         IFS=$oldIFS
-        if [ -z $RESOURCE ] || echo $URL | egrep -q '/$'                    # If empty or url ends in /, add /
+        if [ -z $RESOURCE ] || echo $URL | grep -E -q '/$'                    # If empty or url ends in /, add /
         then
             RESOURCE="$RESOURCE/"
         fi
@@ -182,7 +182,7 @@ function httpClient()
 #        if [ $BODY -eq 0 ]
 #        then
 #            echo "$LINE"            # If after headers, print
-#        elif echo $LINE | egrep -q '^$'
+#        elif echo $LINE | grep -E -q '^$'
 #        then
 #            BODY=0              # End of headers
 #            TIMEOUT=1           # Read takes a long to die after the connection is done, make

@@ -77,7 +77,7 @@ fetch_summary()
     referer="http://telussecuritylabs.com/threats/show/"
 
     html=$( curl_get $url $referer $@ )
-    echo "$html" | egrep 'TSL[0-9]{8}' | xml-select div | xml-select h3 | head -n 1 | xml-strip | sed 's/^ *//;s/ *$//;s/ /:/'
+    echo "$html" | grep -E 'TSL[0-9]{8}' | xml-select div | xml-select h3 | head -n 1 | xml-strip | sed 's/^ *//;s/ *$//;s/ /:/'
 }
 
 generate_assets()
@@ -154,14 +154,14 @@ if test "$SESSION" = ""; then
     exit 1
 fi
 
-if echo "$SESSION" | egrep -v '^[0-9a-f]{32}' >/dev/null; then
+if echo "$SESSION" | grep -E -v '^[0-9a-f]{32}' >/dev/null; then
     logerror "SESSION variable is not of the correct format. Should be a 256-bit hex number."
     halp "$argv0"
     exit 1
 fi
 
 telus_id=$1
-if echo "$telus_id" | egrep '^[0-9]+$' >/dev/null; then
+if echo "$telus_id" | grep -E '^[0-9]+$' >/dev/null; then
     summary="https://portal.telussecuritylabs.com/archive/confirm_download_threat/$telus_id"
     id="$telus_id"
     filename="$id"  # XXX
