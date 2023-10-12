@@ -840,3 +840,4 @@ set variable $of = 1 << 11
 #set variable $vm = 1 << 17
 
 #source /usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py
+source /usr/share/doc/python3-devel/gdbinit
