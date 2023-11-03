@@ -1,30 +1,56 @@
 #!/bin/sh
-inpath="$1"
-outdir="$2"
-infile=`basename "$inpath"`
-
 PYTHON=`which python`
 test -z "$SYRINGE" && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
 
-if test -z "$inpath" -o "$#" -lt 2; then
-    echo "Usage: $0 file path [peversionpath-options..]" 1>&2
-    echo "Stashes a PE file to specified directory keyed by it's version and then pre-build's an .idb" 1>&2
+if test ! -e "$SYRINGE/bin/pe.py" -o ! -e "$SYRINGE/bin/peversionpath.py"; then
+    printf 'Unable to locate required tools (pe.py, peversionpath.py) for parsing the portable executable format : %s\n' "$SYRINGE" 1>&2
     exit 1
 fi
+
+usage()
+{
+    printf 'Usage: %s [-n] file path [peversionpath-options..]\n' "$1"
+    printf 'Stashes a PE file to specified directory keyed by its version and then initializes an .idb\n'
+}
+
+# getopt -T? really?? util-linux's getopt(1) is garbage. y'all
+# should've really went the bell labs route. trust in bourne...
+DRYRUN=0
+while getopts hn? opt; do
+    case "$opt" in
+        h)
+            HELP=1
+            ec=0
+            ;;
+        n)
+            DRYRUN=1
+            ;;
+        \?)
+            HELP=2
+            ec=1
+            ;;
+    esac
+done
+shift $(( $OPTIND - 1 ))
+
+# halp.
+if [ ! -z "$HELP" ]; then
+    usage "$0" 1>& $HELP
+    exit $ec
+fi
+
+inpath="$1"
+outdir="$2"
+infile=`basename "$inpath"`
 shift 2
 
-if test ! -e "$SYRINGE/bin/pe.py" -o ! -e "$SYRINGE/bin/peversionpath.py"; then
-    echo "Unable to locate tools (pe.py, peversionpath.py) for parsing the portable executable format : $SYRINGE" 1>&2
-    exit 1
-fi
-
 if test ! -d "$outdir"; then
-    echo "Specified path '$outdir' not found or is not a directory" 1>&2
+    printf 'Specified path '\''%s'\'' not found or is not a directory\n' "$outdir" 1>&2
     exit 1
 fi
 
 ## figure out path to store pe into
-echo "Attempting to calculate the output path for \"$inpath\"." 1>&2
+printf 'Attempting to calculate the output path for "%s".\n' "$inpath" 1>&2
 
 # output all of the versions from $inpath that are sorted by their
 # number of components and do not contain any whitespace.
@@ -100,24 +126,30 @@ else
     printf 'Output path determined from parameters was "%s".\n' "$outpath" 1>&2
 fi
 
+# if we weren't supposed to build anything, then output our result and exit.
+if [ "$DRYRUN" -gt 0 ]; then
+    printf '%s\n' "$outpath"
+    exit 0
+fi
+
 # next step is to check to see if the file already exists and bail if it does.
 outsubdir=`dirname "$outpath"`
 outfile=`basename "$outpath"`
 
 if [ -d "$outdir/$outsubdir" -a -f "$outdir/$outsubdir/$outfile" ]; then
-    echo "Output path \"$outdir/$outsubdir\" and it's file \"$outdir/$outsubdir/$outfile\" already exists." 1>&2
-    echo "$outdir/$outsubdir/$outfile"
+    printf 'Output path "%s" and its file "%s" already exists.\n' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile" 1>&2
+    printf '%s\n' "$outdir/$outsubdir/$outfile"
     exit 0
 fi
 
 # figure out the machine type so that we can choose the correct disassembler to build with.
-echo "Attempting to determine the machine type for \"$inpath\"" 1>&2
+printf 'Attempting to determine the machine type for "%s"\n' "$inpath" 1>&2
 machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
 if test "$?" -gt 0; then
-    echo "Error trying to parse PE file : $inpath" 1>&2
+    printf 'Error trying to parse PE file : %s\n' "$inpath" 1>&2
     exit 1
 fi
-echo "The PE machine type was determined as #$machine." 1>&2
+printf 'The PE machine type was determined as #%s.\n' "$machine" 1>&2
 
 case "$machine" in
 
@@ -138,44 +170,44 @@ case "$machine" in
         builder="build-idb64.sh" ;;
 
     *)
-        echo "Unsupported machine type : $inpath" 1>&2
+        printf 'Unsupported machine type : %s\n' "$inpath" 1>&2
         exit 1
         ;;
 esac
 
 # once we have the builder, dispatch to it in order to build the database.
-echo "Decided on $builder to build the database." 1>&2
+printf 'Decided on %s to build the database.\n' "$builder" 1>&2
 (
-    echo "Carving a path to \"$outdir/$outsubdir/$outfile\"." 1>&2
+    printf 'Carving a path to "%s".\n' "$outdir/$outsubdir/$outfile" 1>&2
     mkdir -p "$outdir/$outsubdir"
 
-    echo "Dropping \"$inpath\" into \"$outdir/$outsubdir/$outfile\"." 1>&2
+    printf 'Dropping "%s" into "%s".\n' "$inpath" "$outdir/$outsubdir/$outfile" 1>&2
     cp "$inpath" "$outdir/$outsubdir/$outfile"
 
     if test "$infile" != "$outfile"; then
-        echo "Making a link from \"$outfile\" to the original name \"$infile\"." 1>&2
+        printf 'Making a link from "%s" to the original name "%s".\n' "$outfile" "$infile" 1>&2
         ln -sf "$outfile" "$outdir/$outsubdir/$infile" 2>/dev/null
     fi
 
-    echo "Now building the database for \"$outfile\"." 1>&2
+    printf 'Now building the database for "%s".\n' "$outfile" 1>&2
     cd "$outdir/$outsubdir"
     "$builder" "$outfile" 1>&2
 )
 
 # if building failed, then output an error message and clean up anything partially written.
 if [ $? -gt 0 ]; then
-    echo "Unable to build database for file: \"$outdir/$outsubdir/$outfile\"." 1>&2
+    printf 'Unable to build database for file: "%s".\n' "$outdir/$outsubdir/$outfile" 1>&2
 
     for file in "$outdir/$outsubdir/$outfile" "$outdir/$outsubdir/$infile"; do
-        echo "Cleaning file \"$file\" due to build failure." 1>&2
+        printf 'Cleaning file "%s" due to build failure.\n' "$file" 1>&2
         rm -f "$file" 2>&2
     done
 
-    echo "Cleaning path \"$outdir/$outsubdir\" due to build failure." 1>&2
+    printf 'Cleaning path "%s" due to build failure.\n' "$outdir/$outsubdir" 1>&2
     cd "$outdir" && rmdir -p "$outsubdir" 1>&2
     exit 1
 fi
 
-echo "Done!" 1>&2
+printf 'Done!\n' 1>&2
 
-echo "$outdir/$outsubdir/$outfile"
+printf '%s\n' "$outdir/$outsubdir/$outfile"
