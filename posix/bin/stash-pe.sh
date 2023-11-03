@@ -2,42 +2,75 @@
 PYTHON=`which python`
 [ -z "$SYRINGE" ] && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
 
-if [ ! -e "$SYRINGE/bin/pe.py" ] || [ ! -e "$SYRINGE/bin/peversionpath.py" ]; then
-    printf 'Unable to locate required tools (pe.py, peversionpath.py) for parsing the portable executable format : %s\n' "$SYRINGE" 1>&2
-    exit 1
-fi
-
+# some general functions...
 usage()
 {
-    printf 'Usage: %s [-n] file path [peversionpath-options..]\n' "$1"
+    printf 'Usage: %s [-q] [-n] file path [peversionpath-options..]\n' "$1"
     printf 'Stashes a PE file to specified directory keyed by its version and then initializes an .idb\n'
 }
 
 logf()
 {
     format="$1"; shift
-    [ "$DRYRUN" -gt 0 ] || printf -- "$format\n" "$@" 1>&2
+    [ "$QUIET" -gt 0 ] || printf -- "$format\n" "$@" 1>&2
 }
+
+fatalf()
+{
+    format="$1"; shift
+    printf -- "$format\n" "$@" 1>&2
+}
+
+CWD=`pwd`
+realize_path()
+{
+    case "$1" in
+        /*) realpath -m -- "$1" ;;
+        *) realpath --relative-to="$CWD" -m -- "$1" ;;
+    esac
+}
+
+# verify that all of our requirements actually exist.
+if [ ! -e "$SYRINGE/bin/pe.py" ] || [ ! -e "$SYRINGE/bin/peversionpath.py" ]; then
+    fatalf 'Unable to locate required tools (pe.py, peversionpath.py) for parsing the portable executable format : %s' "$SYRINGE"
+    exit 1
+elif ! type -P realpath >/dev/null; then
+    fatalf 'Unable to find required tool (%s) within the current path.' 'realpath'
+    exit 1
+fi
+
+# set some defaults for the globals.
+QUIET=0
+DRYRUN=0
 
 # getopt -T? really?? util-linux's getopt(1) is garbage. y'all
 # should've really went the bell labs route. trust in bourne...
-DRYRUN=0
-while getopts hn? opt; do
+while getopts hqn? opt; do
     case "$opt" in
         h)
             HELP=1
             ec=0
             ;;
+        q)
+            QUIET=1
+            ;;
         n)
             DRYRUN=1
             ;;
-        \?)
+        *)
             HELP=2
             ec=1
             ;;
     esac
 done
 shift $(( $OPTIND - 1 ))
+
+# verify we have the correct number of arguments.
+if [ -z "$HELP" ] && [ $# -lt 2 ]; then
+    fatalf '%s: not enough parameters -- got %d, but %d required' "$0" "$#" 2
+    HELP=2
+    ec=1
+fi
 
 # halp.
 if [ ! -z "$HELP" ]; then
@@ -50,8 +83,11 @@ outdir="$2"
 infile=`basename -- "$inpath"`
 shift 2
 
-if [ ! -d "$outdir" ]; then
-    logf 'Specified path '\''%s'\'' not found or is not a directory' "$outdir"
+if [ ! -d "$outdir" ] && [ "$DRYRUN" -ne 1 ]; then
+    fatalf 'Specified path '\''%s'\'' not found or is not a directory.' "$outdir"
+    exit 1
+elif [ ! -r "$inpath" ]; then
+    fatalf 'Specified path '\''%s'\'' not found or is not readable.' "$inpath"
     exit 1
 fi
 
@@ -84,8 +120,8 @@ fi
 
 # if the user chose an explicit path, then let them know that we're using it.
 if [ "$?" -gt 0 ] || [ "`printf '%s' "$outpath" | wc -l`" -gt 0 ]; then
-    logf 'Unable to format the path for "%s" using the parameters "%s".' "$inpath" "$*"
-    [ -z "$outpath" ] || logf 'Output from the parameters "%s" was: %s' "$*" "$outpath"
+    fatalf 'Unable to format the path for "%s" using the parameters "%s".' "$inpath" "$*"
+    [ -z "$outpath" ] || fatalf 'Output from the parameters "%s" was: %s' "$*" "$outpath"
     exit 1
 
 # if we don't have an output path, then figure one out.
@@ -134,7 +170,7 @@ fi
 
 # if we weren't supposed to build anything, then output our result and exit.
 if [ "$DRYRUN" -gt 0 ]; then
-    printf '%s\n' "$outpath"
+    realize_path "$outdir/$outpath"
     exit 0
 fi
 
@@ -144,7 +180,7 @@ outfile=`basename -- "$outpath"`
 
 if [ -d "$outdir/$outsubdir" ] ; then
     if [ ! -f "$outdir/$outsubdir/$outfile" ]; then
-        logf 'Output path "%s" already exists, but the filename (%s) does not.' "$outdir/$outsubdir" "$outfile"
+        fatalf 'Output path "%s" already exists, but the filename (%s) does not.' "$outdir/$outsubdir" "$outfile"
         exit 1
     fi
     logf 'Output path "%s" and its file "%s" already exists.' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile"
@@ -156,7 +192,7 @@ fi
 logf 'Attempting to determine the machine type for "%s"' "$inpath"
 machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' -- "$inpath" 2>/dev/null`
 if [ "$?" -gt 0 ]; then
-    logf 'Error trying to parse PE file : %s' "$inpath"
+    fatalf 'Error trying to parse PE file : %s' "$inpath"
     exit 1
 fi
 logf 'The PE machine type was determined as #%s.' "$machine"
@@ -180,7 +216,7 @@ case "$machine" in
         builder="build-idb64.sh" ;;
 
     *)
-        logf 'Unsupported machine type : %s' "$inpath"
+        fatalf 'Unsupported machine type (%s) when reading executable file : %s' "$machine" "$inpath"
         exit 1
         ;;
 esac
@@ -206,7 +242,7 @@ logf 'Decided on %s to build the database.' "$builder"
 
 # if building failed, then output an error message and clean up anything partially written.
 if [ $? -gt 0 ]; then
-    logf 'Unable to build database for file: "%s".' "$outdir/$outsubdir/$outfile"
+    fatalf 'Unable to build database for file: %s' "$outdir/$outsubdir/$outfile"
 
     for file in "$outdir/$outsubdir/$outfile" "$outdir/$outsubdir/$infile"; do
         logf 'Cleaning file "%s" due to build failure.' "$file"
@@ -220,4 +256,4 @@ fi
 
 logf 'Done!'
 
-printf '%s\n' "$outdir/$outsubdir/$outfile"
+realize_path "$outdir/$outsubdir/$outfile"
