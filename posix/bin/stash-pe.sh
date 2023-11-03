@@ -1,8 +1,8 @@
 #!/bin/sh
 PYTHON=`which python`
-test -z "$SYRINGE" && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
+[ -z "$SYRINGE" ] && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
 
-if test ! -e "$SYRINGE/bin/pe.py" -o ! -e "$SYRINGE/bin/peversionpath.py"; then
+if [ ! -e "$SYRINGE/bin/pe.py" ] || [ ! -e "$SYRINGE/bin/peversionpath.py" ]; then
     printf 'Unable to locate required tools (pe.py, peversionpath.py) for parsing the portable executable format : %s\n' "$SYRINGE" 1>&2
     exit 1
 fi
@@ -47,10 +47,10 @@ fi
 
 inpath="$1"
 outdir="$2"
-infile=`basename "$inpath"`
+infile=`basename -- "$inpath"`
 shift 2
 
-if test ! -d "$outdir"; then
+if [ ! -d "$outdir" ]; then
     logf 'Specified path '\''%s'\'' not found or is not a directory' "$outdir"
     exit 1
 fi
@@ -66,7 +66,7 @@ get_version_format()
     #formats=`paste <( printf '{%s}\n' "${available[@]}") <( printf '%s\n' "${available[@]}")`
     #| awk -F. 'BEGIN {OFS = "\t"} /[^ ]/ {print NF,length($1),$2}' \
     formats=`printf '{%s}\n' "${available[@]}"`
-    "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$formats" "$1" 2>/dev/null \
+    "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$formats" -- "$1" 2>/dev/null \
     | awk -F. 'BEGIN {OFS = "\t"} {print NF,counter++,$0}' \
     | sort -rn \
     | grep -e $'^[0-9]\+\t[0-9]\+\t[0-9A-Za-z._]\+$' \
@@ -79,11 +79,11 @@ get_version_format()
 outpath=
 if [ "$#" -gt 0 ]; then
     logf 'Trying to determine format for "%s" using parameters "%s".' "$inpath" "$*"
-    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" "$@" "$inpath" 2>/dev/null`
+    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -- "$@" "$inpath" 2>/dev/null`
 fi
 
 # if the user chose an explicit path, then let them know that we're using it.
-if [ "$?" -gt 0 ] || printf '%s' "$outpath" | grep -qo '\n'; then
+if [ "$?" -gt 0 ] || [ "`printf '%s' "$outpath" | wc -l`" -gt 0 ]; then
     logf 'Unable to format the path for "%s" using the parameters "%s".' "$inpath" "$*"
     [ -z "$outpath" ] || logf 'Output from the parameters "%s" was: %s' "$*" "$outpath"
     exit 1
@@ -95,9 +95,9 @@ elif [ -z "$outpath" ]; then
     # first we need to figure out the best candidate for the version. we
     # fall back to the timestamp if we couldn't find a candidate.
     read version_format < <( get_version_format "$inpath" )
-    if test "$?" -gt 0; then
+    if [ "$?" -gt 0 ]; then
         logf 'Unable to determine the best version from the VERSION_INFO record : %s' "$inpath"
-        seconds=`stat -c %W "$inpath"`
+        seconds=`stat -c %W -- "$inpath"`
         ts=`date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S`
         logf 'Falling back to creation timestamp (%s) for %s.' "$ts" "$inpath"
         version_format="$ts"
@@ -111,7 +111,7 @@ elif [ -z "$outpath" ]; then
     for fmt in "${formats_filename[@]}"; do
         logf 'Attempting with format : %s' "$fmt"
         filename_format="{$fmt}"
-        "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "{$fmt}" "$inpath" 2>/dev/null 1>/dev/null
+        "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "{$fmt}" -- "$inpath" 2>/dev/null 1>/dev/null
         [ $? -eq 0 ] && break
         filename_format=
     done
@@ -125,7 +125,7 @@ elif [ -z "$outpath" ]; then
 
     # now we can put our format back together and get the output path.
     format="{__name__}/$version_format/$filename_format"
-    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" "$inpath" 2>/dev/null`
+    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" -- "$inpath" 2>/dev/null`
     logf 'Output path determined from version was "%s".' "$outpath"
 
 else
@@ -139,10 +139,10 @@ if [ "$DRYRUN" -gt 0 ]; then
 fi
 
 # next step is to check to see if the file already exists and bail if it does.
-outsubdir=`dirname "$outpath"`
-outfile=`basename "$outpath"`
+outsubdir=`dirname -- "$outpath"`
+outfile=`basename -- "$outpath"`
 
-if [ -d "$outdir/$outsubdir" -a -f "$outdir/$outsubdir/$outfile" ]; then
+if [ -d "$outdir/$outsubdir" ] && [ -f "$outdir/$outsubdir/$outfile" ]; then
     logf 'Output path "%s" and its file "%s" already exists.' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile"
     printf '%s\n' "$outdir/$outsubdir/$outfile"
     exit 0
@@ -150,8 +150,8 @@ fi
 
 # figure out the machine type so that we can choose the correct disassembler to build with.
 logf 'Attempting to determine the machine type for "%s"' "$inpath"
-machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' "$inpath" 2>/dev/null`
-if test "$?" -gt 0; then
+machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' -- "$inpath" 2>/dev/null`
+if [ "$?" -gt 0 ]; then
     logf 'Error trying to parse PE file : %s' "$inpath"
     exit 1
 fi
@@ -185,18 +185,18 @@ esac
 logf 'Decided on %s to build the database.' "$builder"
 (
     logf 'Carving a path to "%s".' "$outdir/$outsubdir/$outfile"
-    mkdir -p "$outdir/$outsubdir"
+    mkdir -p -- "$outdir/$outsubdir"
 
     logf 'Dropping "%s" into "%s".' "$inpath" "$outdir/$outsubdir/$outfile"
-    cp "$inpath" "$outdir/$outsubdir/$outfile"
+    cp -- "$inpath" "$outdir/$outsubdir/$outfile"
 
-    if test "$infile" != "$outfile"; then
+    if [ "$infile" != "$outfile" ]; then
         logf 'Making a link from "%s" to the original name "%s".' "$outfile" "$infile"
-        ln -sf "$outfile" "$outdir/$outsubdir/$infile" 2>/dev/null
+        ln -sf -- "$outfile" "$outdir/$outsubdir/$infile" 2>/dev/null
     fi
 
     logf 'Now building the database for "%s".' "$outfile"
-    cd "$outdir/$outsubdir"
+    cd -- "$outdir/$outsubdir"
     "$builder" "$outfile" 1>&2
 )
 
@@ -206,11 +206,11 @@ if [ $? -gt 0 ]; then
 
     for file in "$outdir/$outsubdir/$outfile" "$outdir/$outsubdir/$infile"; do
         logf 'Cleaning file "%s" due to build failure.' "$file"
-        rm -f "$file" 2>&2
+        rm -f -- "$file" 2>&2
     done
 
     logf 'Cleaning path "%s" due to build failure.' "$outdir/$outsubdir"
-    cd "$outdir" && rmdir -p "$outsubdir" 1>&2
+    cd "$outdir" && rmdir -p -- "$outsubdir" 1>&2
     exit 1
 fi
 
