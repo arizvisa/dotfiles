@@ -124,7 +124,7 @@ elif [ -z "$outpath" ]; then
     fi
 
     # now we can put our format back together and get the output path.
-    format="{__name__}/$version_format/$filename_format"
+    format="{__name__~upper}/$version_format/$filename_format"
     outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" -- "$inpath" 2>/dev/null`
     logf 'Output path determined from version was "%s".' "$outpath"
 
@@ -142,7 +142,11 @@ fi
 outsubdir=`dirname -- "$outpath"`
 outfile=`basename -- "$outpath"`
 
-if [ -d "$outdir/$outsubdir" ] && [ -f "$outdir/$outsubdir/$outfile" ]; then
+if [ -d "$outdir/$outsubdir" ] ; then
+    if [ ! -f "$outdir/$outsubdir/$outfile" ]; then
+        logf 'Output path "%s" already exists, but the filename (%s) does not.' "$outdir/$outsubdir" "$outfile"
+        exit 1
+    fi
     logf 'Output path "%s" and its file "%s" already exists.' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile"
     printf '%s\n' "$outdir/$outsubdir/$outfile"
     exit 0
