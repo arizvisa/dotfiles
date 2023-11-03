@@ -1,11 +1,14 @@
 // ==UserScript==
-// @name        Developer Console Extensions
-// @description This adds a number of utilities to the developer console object
-// @version     2
-// @noframes
-// @run-at      document_end
-// @grant       GM.info
-// @inject-at   page
+// @name             Developer Console Extensions
+// @description      This adds a number of utilities to the developer console object
+// @version          1
+// @allframes        false
+// @match            *://*/*
+// @run-at           document_end
+// @inject-into      page
+// @matchAboutBlank  true
+// @grant            GM.info
+//
 // ==/UserScript==
 
 /*
@@ -18,20 +21,21 @@
 
 const $DEBUG = false;
 
-/** because the author of FM is a fucking idiot...oh, and erosman/support#429. **/
+// because the author of FM is a fucking idiot...oh, and erosman/support#429.
 const GLOBAL = {};
 if (typeof GM === "undefined") {
   GLOBAL.info = {
     scriptHandler: "FireMonkeyIsWrittenByAFuckingIdiot",
-    script: {
-      uuid: `GUID\$${crypto.randomUUID().replaceAll("-", "$")}`,
-    },
+    script: {},
   };
 } else {
   GLOBAL.info = GM.info;
 }
 
-/** configuration **/
+if (typeof GLOBAL.info.script.uuid === "undefined") {
+  GLOBAL.info.script.uuid = `GUID\$${window.crypto.randomUUID().replaceAll("-", "$")}`;
+}
+
 const private = ((info) => {
   const owner = info.scriptHandler;
   const uuid = info.script.uuid;
@@ -49,18 +53,7 @@ const private = ((info) => {
 })(GLOBAL.info);
 
 /** main code **/
-function main() {
-  let items = [];
-
-  // load a number of attributes that we want attached to the console
-  items.push({name: "save", closure: DownloadJSONBlob});
-  items.push({name: "export", closure: DownloadJSONBlob});
-  items.push({name: "download", closure: DownloadJSONBlob});
-  items.push({name: "toSource", closure: toSource});
-
-  if ($DEBUG) {
-    items.push({name: "test", closure: TestAttributeAssignment});
-  }
+function main(items) {
 
   // aggregate an array of the necessary chunks for our closures
   let res = [];
@@ -220,5 +213,21 @@ const toSource = (object) => {
   }
 };
 
+const desired_attributes = () => {
+  let items = [];
+
+  // load a number of attributes that we want attached to the console
+  items.push({name: "save", closure: DownloadJSONBlob});
+  items.push({name: "export", closure: DownloadJSONBlob});
+  items.push({name: "download", closure: DownloadJSONBlob});
+  items.push({name: "toSource", closure: toSource});
+
+  if ($DEBUG) {
+    items.push({name: "test", closure: TestAttributeAssignment});
+  }
+
+  return items;
+};
+
 /** actually perform our injection **/
-main();
+main(desired_attributes());

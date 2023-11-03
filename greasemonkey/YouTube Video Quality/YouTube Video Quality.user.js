@@ -8,7 +8,7 @@
 // @grant       none
 // ==/UserScript==
 
-const Quality = "144p"
+const Quality = "480p";
 
 // Click on the video settings button
 let button = document.querySelector('.ytp-settings-button');
@@ -24,7 +24,7 @@ let qmenu = document.querySelector('.ytp-quality-menu');
 let qualities = qmenu.querySelectorAll('.ytp-menuitem');
 
 // List the qualities so that the user knows what's available for the current video
-console.info('Discovered video qualities:')
+console.info('Discovered video qualities:');
 qualities.forEach(item => console.log(item.querySelector('span').innerText));
 
 // Find the matching quality and click it
