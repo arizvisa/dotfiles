@@ -16,7 +16,7 @@ usage()
 logf()
 {
     format="$1"; shift
-    printf "$format\n" "$@" 1>&2
+    [ "$DRYRUN" -gt 0 ] || printf "$format\n" "$@" 1>&2
 }
 
 # getopt -T? really?? util-linux's getopt(1) is garbage. y'all
