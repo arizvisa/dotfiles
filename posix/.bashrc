@@ -73,6 +73,9 @@ alias z="`type -P zstd`"
 alias ls &>/dev/null && unalias ls
 alias cat &>/dev/null && unalias cat
 
+# journalctl(1) is 100% written by fucking idiots.
+alias jdate='date +"%Y-%m-%d %H:%M:%S"'
+
 # aliases for common utilities that add default parameters
 alias readelf="readelf -W"
 alias pstree="pstree -cagplt"
