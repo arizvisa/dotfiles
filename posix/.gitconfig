@@ -12,9 +12,6 @@
 [format]
     pretty = fuller
 
-[http]
-	sslVerify = false
-
 [pull]
 	ff = only
 
