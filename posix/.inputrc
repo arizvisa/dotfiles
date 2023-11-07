@@ -1,2 +1,10 @@
 set editing-mode vi
 set bell-style none
+set visible-stats on
+set skip-completed-text on
+set page-completions off
+
+# utf8
+set input-meta on
+set output-meta on
+set convert-meta off

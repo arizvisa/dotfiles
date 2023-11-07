@@ -2,3 +2,4 @@ hardstatus alwayslastline "%-Lw%{= KW}%50>%n%f* %t%{-}%+Lw%<"
 deflogin off
 startup_message off
 vbell off
+defutf8 on
