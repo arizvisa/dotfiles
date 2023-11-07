@@ -68,10 +68,12 @@ alias netstat="`type -P netstat` -W"
 alias nl="`type -P nl` -n ln -v 0"
 alias z="`type -P zstd`"
 
-# remove any distro-specific aliases that have been added
-# for some of our core posix utilities.
+# remove any distro-specific aliases that have been added for
+# some of our core posix utilities, while adding some sane ones.
 alias ls &>/dev/null && unalias ls
 alias cat &>/dev/null && unalias cat
+
+alias ls='ls -F'
 
 # journalctl(1) is 100% written by fucking idiots.
 alias jdate='date +"%Y-%m-%d %H:%M:%S"'
