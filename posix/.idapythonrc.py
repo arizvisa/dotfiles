@@ -1,5 +1,5 @@
 import functools, itertools, types, builtins, operator, six
-import sys, logging, importlib, fnmatch, re, pprint
+import sys, logging, importlib, fnmatch, re, pprint, ctypes
 
 p, pp, pf = p, pprint, pformat = six.print_, pprint.pprint, pprint.pformat
 
@@ -1353,3 +1353,210 @@ remove parameter names and types from the following funcs so that they don't pro
     strcpy
     wcscpy
 '''
+
+import hook, ida_hexrays #, hexrays
+def on_hint_function(vu, comment=__import__('internal').comment):
+    excluded = {'__typeinfo__', '__name__', '__color__'}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+    citem = vu.item
+    if citem.citype not in {ida_hexrays.VDI_EXPR, ida_hexrays.VDI_FUNC}:
+        return
+
+    if citem.citype == ida_hexrays.VDI_EXPR:
+        cexpr = citem.e
+        if cexpr.op != ida_hexrays.cot_obj:
+            return
+
+        elif not func.has(cexpr.obj_ea):
+            return
+
+        f = cexpr.obj_ea
+
+    elif citem.citype == ida_hexrays.VDI_FUNC:
+        cfunc = citem.f
+        f = cfunc.entry_ea
+
+    tags, used = func.tag(f), func.tags(f)
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    encoded = comment.encode(filtered).split('\n') if filtered else []
+    contents = "(contents) {!r}".format(used)
+    lines = [ item for item in itertools.chain(map("// {:s}".format, encoded), [contents] if used else []) ]
+    return (0, "{:s}\n".format('\n'.join(lines)), len(lines)) if lines else 0
+
+def on_hint_global(vu, comment=__import__('internal').comment):
+    excluded = {'__typeinfo__', '__name__', '__color__'}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+    citem = vu.item
+    if citem.citype != ida_hexrays.VDI_EXPR:
+        return
+
+    cexpr = citem.e
+    if cexpr.op != ida_hexrays.cot_obj:
+        return
+    if func.has(cexpr.obj_ea):
+        return
+
+    ea = cexpr.obj_ea
+    ti, tags = db.type(ea), db.tag(ea)
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    encoded = comment.encode(filtered).split('\n') if filtered else []
+    data_description = [ item for item in itertools.chain(map("// {:s}".format, encoded)) ]
+
+    if ti and struc.has(ti):
+        type = struc.by(ti).tag()
+        filtered = {name : value for name, value in type.items() if name not in excluded}
+        type_description = map(fpartial("({!s}) {:s}".format, ti), comment.encode(filtered).split('\n')) if filtered else []
+
+    else:
+        type_description = []
+
+    lines = [line for line in itertools.chain(data_description, type_description)]
+    return (0, "{:s}\n".format('\n'.join(lines)), len(lines)) if lines else 0
+
+def on_hint_lvar(vu, comment=__import__('internal').comment):
+    excluded = {'__name__', '__typeinfo__'}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+    citem = vu.item
+    if citem.citype != ida_hexrays.VDI_EXPR:
+        return
+
+    cexpr = citem.e
+    if cexpr.op != ida_hexrays.cot_var:
+        return
+
+    var_ref = cexpr.v
+    mba, lvar = var_ref.mba, var_ref.getv()
+    ti, storage = hexrays.variable.type(lvar), hexrays.variable.storage(lvar)
+    tags = hexrays.variable.tag(lvar)
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+
+    # if there weren't any tags, then look in the frame for some.
+    frame = func.frame(mba.entry_ea) if func.t.frame(mba.entry_ea) else None
+    try:
+        if not filtered and frame:
+            member = frame.by(storage)
+            tags = member.tag()
+            ti = ti if struc.has(ti) else member.typeinfo
+
+    except LookupError:
+        pass
+
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    member_description = comment.encode(filtered).split('\n') if filtered else []
+
+    if struc.has(ti):
+        type = struc.by(ti).tag()
+        filtered = {name : value for name, value in type.items() if name not in excluded}
+        type_description = map(fpartial("({!s}) {:s}".format, ti), comment.encode(filtered).split('\n')) if filtered else []
+
+    else:
+        type_description = []
+
+    lines = [line for line in itertools.chain(member_description, type_description)]
+    return (0, "{:s}\n".format('\n'.join(map("// {:s}".format, lines))), len(lines)) if lines else 0
+
+def on_hint_vardecl(vu, comment=__import__('internal').comment):
+    excluded = {'__name__', '__typeinfo__'}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+    citem = vu.item
+    if citem.citype != ida_hexrays.VDI_LVAR:
+        return
+    lvar = citem.l
+    ti, storage = hexrays.variable.type(lvar), hexrays.variable.storage(lvar)
+    tags = hexrays.variable.tag(lvar)
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+
+    # if there weren't any tags, then look in the frame for some.
+    frame = func.frame(lvar.defea) if func.type.frame(lvar.defea) else None
+    try:
+        if not filtered and frame:
+            member = frame.by(storage)
+            tags = member.tag()
+            ti = ti if struc.has(ti) else member.typeinfo
+
+    except LookupError:
+        pass
+
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    member_description = comment.encode(filtered).split('\n') if filtered else []
+
+    if struc.has(ti):
+        type = struc.by(ti).tag()
+        filtered = {name : value for name, value in type.items() if name not in excluded}
+        type_description = map(fpartial("({!s}) {:s}".format, ti), comment.encode(filtered).split('\n')) if filtered else []
+
+    else:
+        type_description = []
+
+    lines = [line for line in itertools.chain(member_description, type_description)]
+    return (0, "{:s}\n".format('\n'.join(map("// {:s}".format, lines))), len(lines)) if lines else 0
+
+def on_hint_memref(vu, comment=__import__('internal').comment):
+    excluded = {'__typeinfo__', '__name__', '__color__'}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+
+    citem = vu.item
+    if citem.citype != ida_hexrays.VDI_EXPR:
+        return
+
+    cexpr = citem.e
+    if cexpr.op == ida_hexrays.cot_memptr:
+        memptr = cexpr
+    elif cexpr.op == ida_hexrays.cot_memref:
+        memref = cexpr
+    else:
+        return
+
+    res, item = [], cexpr
+    while item.op in {ida_hexrays.cot_memptr, ida_hexrays.cot_memref}:
+        res.append((item.x, item.m))
+        item = item.x
+
+    assert(item.op in {ida_hexrays.cot_var, ida_hexrays.cot_call}), "unexpected op: {:s}".format(item.opname)
+
+    if item.op == ida_hexrays.cot_var:
+        var = item
+        var_ref = var.v
+        ti = hexrays.variable.type(var_ref)
+
+    elif item.op == ida_hexrays.cot_call:
+        assert(item.x.op in {ida_hexrays.cot_obj}), "unexpected cot_call.x op: {:s}".format(item.x.opname)
+        call = item
+        obj = call.x
+        ti = func.result(obj.obj_ea)
+
+    st = struc.by(ti)
+    for _, moffset in res[::-1]:
+        member = st.members.by_realoffset(moffset)
+        if not struc.has(member.typeinfo):
+            break
+        st = struc.by(member.typeinfo)
+
+    tags = member.tag()
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    member_description = comment.encode(filtered).split('\n') if filtered else []
+
+    owner = member.parent.tag()
+    filtered = {name : value for name, value in owner.items() if name not in excluded}
+    owner_description = map(fpartial("({!s}) {:s}".format, ti), comment.encode(filtered).split('\n')) if filtered else []
+
+    lines = [line for line in itertools.chain(member_description, owner_description)]
+    return (0, "{:s}\n".format('\n'.join(map("// {:s}".format, lines))), len(lines)) if lines else 0
+
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_function)
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_global)
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_lvar)
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_vardecl)
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_memref)
+
+def hexrays_by_default(plugin):
+    if plugin.name == 'Hex-Rays Decompiler':
+        import hexrays
+        sys.modules['__main__'].hexrays = hexrays
+    return
+hook.ui.add('plugin_loaded', hexrays_by_default)
