@@ -204,3 +204,18 @@ def decompress(data):
 
 p = __import__('six').print_ if sys.version_info.major <3 else eval('print')
 pp, pf = __import__('pprint').pprint, __import__('pprint').pformat
+
+# minor wolfram stuff
+#__import__('atexit').register(lambda: print('stopping'))
+
+try:
+    import wolframclient
+    import wolframclient.evaluation
+    W = wolframclient.evaluation.WolframLanguageSession ()
+    __import__('atexit').register(lambda session: session.stop(), W)
+
+    import wolframclient.language
+    wl, wlexpr = wolframclient.language.wl, wolframclient.language.wlexpr
+
+except ImportError:
+    pass
