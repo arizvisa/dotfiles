@@ -11,7 +11,8 @@ $Global:VerbosePreference = "SilentlyContinue"
 # core ($PSEdition -eq "Core") or powershell desktop ($PSEdition -eq "Desktop").
 # so we instead use the PSReadLineOption EditMode set to Emacs. this is
 # okay, since I grew up with emacs as my first editor anyways...
-Set-PSReadLineOption -EditMode Emacs
+#Set-PSReadLineOption -EditMode Emacs
+Set-PSReadLineOption -EditMode Vi
 
 # colors so that things are readable on a partially transparent background
 Set-PSReadLineOption -Colors @{
