@@ -1,4 +1,5 @@
 $env:POWERSHELL_TELEMETRY_OPTOUT = $true
+$env:DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = $false
 
 $Global:InformationPreference = "Continue"
 $Global:WarningPreference = "Continue"
@@ -11,6 +12,12 @@ $Global:VerbosePreference = "SilentlyContinue"
 # so we instead use the PSReadLineOption EditMode set to Emacs. this is
 # okay, since I grew up with emacs as my first editor anyways...
 Set-PSReadLineOption -EditMode Emacs
+
+# colors so that things are readable on a partially transparent background
+Set-PSReadLineOption -Colors @{
+    "Operator"  = [ConsoleColor]::Cyan
+    "Parameter" = [ConsoleColor]::Green
+}
 
 ## Posix aliases
 Set-Alias -Option AllScope -Name ls -Value Get-ChildItem
