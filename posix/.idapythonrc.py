@@ -1517,9 +1517,17 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         res.append((item.x, item.m))
         item = item.x
 
-    assert(item.op in {ida_hexrays.cot_var, ida_hexrays.cot_call}), "unexpected op: {:s}".format(item.opname)
+    # FIXME: item.opname == 'idx'
+    # FIXME: item.opname == 'ptr'
+    assert(item.op in {ida_hexrays.cot_var, ida_hexrays.cot_call, ida_hexrays.cot_idx}), "unexpected op: {:s}".format(item.opname)
 
-    if item.op == ida_hexrays.cot_var:
+    if item.op == ida_hexrays.cot_idx:
+        idx = item
+        var, num = idx.x, idx.y
+        var_ref = var.v
+        ti = hexrays.variable.type(var_ref)
+
+    elif item.op == ida_hexrays.cot_var:
         var = item
         var_ref = var.v
         ti = hexrays.variable.type(var_ref)
@@ -1548,11 +1556,36 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
     lines = [line for line in itertools.chain(member_description, owner_description)]
     return (0, "{:s}\n".format('\n'.join(map("// {:s}".format, lines))), len(lines)) if lines else 0
 
+def on_hint_address(vu, comment=__import__('internal').comment):
+    excluded = {}
+    if not vu.get_current_item(ida_hexrays.USE_MOUSE):
+        return
+
+    citem = vu.item
+    if citem.citype != ida_hexrays.VDI_EXPR:
+        return
+
+    ea = citem.e.ea
+    if ea == idaapi.BADADDR:
+        return
+
+    if function.has(ea):
+        b = function.block(ea)
+        print(b)
+        print(db.disasm(b, comments=True))
+
+    tags = db.tag(ea)
+    filtered = {name : value for name, value in tags.items() if name not in excluded}
+    item_description = comment.encode(filtered).split('\n') if filtered else []
+    lines = [line for line in itertools.chain(item_description)]
+    return (0, "{:s}\n".format('\n'.join(map("// {:s}".format, lines))), len(lines)) if lines else 0
+
 hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_function)
 hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_global)
 hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_lvar)
 hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_vardecl)
 hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_memref)
+hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_address)
 
 def hexrays_by_default(plugin):
     if plugin.name == 'Hex-Rays Decompiler':
