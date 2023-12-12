@@ -13,11 +13,22 @@ $Global:VerbosePreference = "SilentlyContinue"
 # okay, since I grew up with emacs as my first editor anyways...
 #Set-PSReadLineOption -EditMode Emacs
 Set-PSReadLineOption -EditMode Vi
+Set-PSReadLineOption -ViModeIndicator Cursor
 
 # colors so that things are readable on a partially transparent background
 Set-PSReadLineOption -Colors @{
-    "Operator"  = [ConsoleColor]::Cyan
-    "Parameter" = [ConsoleColor]::Green
+    "Command"               = "#C0C0C0"
+    "ContinuationPrompt"    = "#C0C0C0"
+    "Default"               = "#C0C0C0"
+    "Member"                = "#C0C0C0"
+    "Number"                = "#E0E0E0"
+    "Emphasis"              = "#FFFFFF"
+    "Operator"              = "#20FF20"
+    "Parameter"             = "#E0E0E0"
+    "Error"                 = "#FF2020"
+    "Comment"               = "#C0C0FF"
+    "String"                = "#E0E0E0"
+    "Keyword"               = "#40FF40"
 }
 
 ## Posix aliases
