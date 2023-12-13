@@ -6,7 +6,8 @@ if [ -z "$loginctl" ]; then
 fi
 
 ## figure out the display from $DISPLAY if not specified as an arg
-[ "$1" == "" ] && xdisplay="$DISPLAY" || xdisplay="$1"
+[ "$1" == "" ] && xdisplay_and_screen="$DISPLAY" || xdisplay_and_screen="$1"
+IFS=. read xdisplay xscreen <<<"$xdisplay_and_screen"
 
 ## use loginctl to match the display in $session
 check_display() {
@@ -22,7 +23,7 @@ by_display() {
         if check_display "$session" "$display"; then
             printf "%d\n" "$session"
         fi
-    done
+    done | grep -e '^[0-9]\+$'
 }
 
 ## find session according to the tty device passed as $1
@@ -32,7 +33,7 @@ by_tty() {
         if [ "$tty" == "$device" ]; then
             printf "%d\n" "$session"
         fi
-    done
+    done | grep -e '^[0-9]\+$'
 }
 
 ## find session according to the seat id passed as #1
@@ -42,14 +43,14 @@ by_seat() {
         if [ "$seat" == "$id" ]; then
             printf "%d\n" "$session"
         fi
-    done
+    done | grep -e '^[0-9]\+$'
 }
 
 ## find the session according to $xdisplay
-session=`by_display "$xdisplay"`
+session=`by_display "$xdisplay_and_screen" || by_display "$xdisplay"`
 
 if [ -z "$session" ]; then
-    printf "Unable to locate session for display: \"%s\"\n" "$xdisplay" 1>&2
+    printf "Unable to locate session for display: \"%s\"\n" "$xdisplay_and_screen" 1>&2
     exit 1
 fi
 
