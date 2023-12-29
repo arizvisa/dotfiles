@@ -83,6 +83,10 @@ if has("eval")
     filetype indent off
     filetype plugin on
 
+    " if you need your editor to automatically insert a comment leader
+    " while you're commenting, then you're seriously a real fucking idiot.
+    autocmd FileType * setlocal formatoptions-=r formatoptions-=o
+
     "" gvim-specific settings
     if has("gui_running")
         colorscheme darkblue
