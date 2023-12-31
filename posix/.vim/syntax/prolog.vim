@@ -5,6 +5,31 @@ endif
 let s:cpo_save = &cpo
 set cpo&vim
 
+let s:prologSymbols = {
+\   '.': '\.', '(': '(', ')': ')', ':': ':', '!': '!', '+': '+', '-': '-', '<': '\<', '=': '=', '>': '\>', '&': '&', '*': '*',
+\   '/': '/', ';': ';', '?': '?', '[': '\[', ']': '\]', '^': '\^', '{': '{', '|': '|', '}': '}', '~': '\~', '\': '\\'
+\ }
+
+function! s:make_symbol_pattern(key, symbol)
+    return '[[:alnum:][:space:]]\\@!\zs' .. a:symbol .. '\ze\_[[:alnum:][:space:]]'
+endfunction
+
+function! s:exclude_dict(dict, keys)
+    let result = {}
+    for k in keys(a:dict)
+        if index(a:keys, k) < 0 | let result[k] = a:dict[k] | endif
+    endfor
+    return result
+endfunction
+
+function! s:slice_dict(dict, keys)
+    let result = []
+    for k in keys(a:dict)
+        if index(a:keys, k) >= 0 | add(result, a:dict[k]) | endif
+    endfor
+    return result
+endfunction
+
 " prolog.vim uses "fail" as its keyword.
 syn keyword prologBuiltin true false repeat phrase call_dcg op catch throw catch_with_backtrace
 syn keyword prologBuiltin bagof findall findnsols setof forall dynamic compile_predicates
@@ -92,10 +117,12 @@ syn match prologSpecialCharacter  "?-"
 syn match prologSpecialCharacter  "-->"
 syn match prologSpecialCharacter  "^"
 syn match prologSpecialCharacter  "|"
+syn match prologSpecialCharacter '\<_\>'
 
-" FIXME
-syn match prologSpecialCharacter  "~"
-syn match prologSpecialCharacter  "_"
+let without_tilde = s:exclude_dict(s:prologSymbols, ['~', '.'])
+let tilde_pattern = printf('[[:space:][:alnum:]%s]\zs%s\ze\_[[:space:][:alnum:]%s]', join(values(without_tilde), ""), '\~', join(values(without_tilde), ""))
+execute printf("syn match prologSpecialCharacter '%s'", tilde_pattern)
+
 
 " add all the operators including some of the clp(fd) ones.
 let s:operators = [
@@ -117,11 +144,11 @@ let s:operators = [
 \    '\\+',
 \    '+', '-', '/\\', '\\/', 'xor',
 \    '?',
-\    '*', '/', '//', 'div', 'rdiv', '<<', '>>', 'mod', 'rem',
-\    '**',
+\    '\*', '/', '//', 'div', 'rdiv', '<<', '>>', 'mod', 'rem',
+\    '\*\*',
 \    '\\',
-\    '.',
-\    '$',
+\    '[[:digit:]]\@!\.[[:digit:]]\@!',
+\    '\$',
 \] + [
 \    '#/\\',
 \    '#<',
@@ -138,7 +165,10 @@ let s:operators = [
 \    '#\\=',
 \]
 
-execute printf('syntax match prologOperator "%s"', join(s:operators, '\|'))
+let operator_words = map(filter(copy(s:operators), 'v:val =~ "^\\a\\a*$"'), '"<" .. v:val .. ">"')
+let operator_symbols = map(filter(copy(s:operators), 'v:val !~ "^\\a\\a*$"'), funcref('s:make_symbol_pattern'))
+
+execute printf('syntax match prologOperator "%s"', join(operator_words + operator_symbols, '\|'))
 
 " Regions
 syn match    prologCharCode +0'\\\=.+
