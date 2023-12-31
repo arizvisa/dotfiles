@@ -141,8 +141,16 @@ highlight link prologIdentifier Statement
 "syn region prologAtom start='\w' end='\>'
 "syn region prologClause start='\w\+' end='\>'
 
-syn match prologNumber '\<\(\u\|_\)\(\w\)*\>'
-syn match prologNumber '\<\d\+\>'
+" prolog.vim author seemed to fuck this one up too.
+"syn match prologNumber '\<\(\u\|_\)\(\w\)*\>'
+
+" this next pattern is not greedy enough, so we split it into one that matches
+" more than 1 digit, and another for a single digit that excludes other formats.
+"syn match prologNumber '\<\d\+\>'
+syn match prologNumber '\<\d\d\+\>'
+syn match prologNumber '\<\d[^''xbox]\>'
+
+" hopefully the rest of these numbers work...
 syn match prologNumber '\<\d\+\.\d\+\>'
 syn match prologNumber '\<\d\+[eE][-+]\=\d\+\>'
 syn match prologNumber '\<\d\+\.\d\+[eE][-+]\=\d\+\>'
@@ -150,6 +158,23 @@ syn match prologNumber "\<0'[\\]\?.\>"
 syn match prologNumber '\<0b[0-1]\+\>'
 syn match prologNumber '\<0o\o\+\>'
 syn match prologNumber '\<0x\x\+\>'
+
+" ...and we might as well add these too, because prolog is awesome.
+syn match prologNumber "\<2'[0-1]\+\>"
+syn match prologNumber "\<3'[0-2]\+\>"
+syn match prologNumber "\<4'[0-3]\+\>"
+syn match prologNumber "\<5'[0-4]\+\>"
+syn match prologNumber "\<6'[0-5]\+\>"
+syn match prologNumber "\<7'[0-6]\+\>"
+syn match prologNumber "\<8'[0-7]\+\>"
+syn match prologNumber "\<9'[0-8]\+\>"
+syn match prologNumber "\<10'[0-9]\+\>"
+syn match prologNumber "\<11'[0-9a]\+\>"
+syn match prologNumber "\<12'[0-9ab]\+\>"
+syn match prologNumber "\<13'[0-9abc]\+\>"
+syn match prologNumber "\<14'[0-9abcd]\+\>"
+syn match prologNumber "\<15'[0-9abcde]\+\>"
+syn match prologNumber "\<16'[0-9abcdef]\+\>"
 highlight link prologNumber Number
 
 syn match prologVariable '\<\(\u\|_\)\(\w\)*\>'
