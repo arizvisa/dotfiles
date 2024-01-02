@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+progname=gio
+posix=`type -P "$progname"`
+ARG0="$0"
+
+# if we couldn't find it, then search the path for it.
+if [ -z "$prog" ]; then
+    argv0=`readlink -f "$0"`
+    IFS=:
+    for p in $PATH; do
+        rp=`readlink -f "$p/$progname"`
+        [ -x "$rp" ] && [ ! -d "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+    done
+    unset IFS
+fi
+
+# if we still couldn't find it, then forcefully execute it so we can bail.
+[ -z "$prog" ] && exec "$prog" "$@"
+
+if [ "$#" -lt 2 ] || [ "$1" != "trash" ]; then
+    exec "$prog" "$@"
+else
+    shift
+fi
+
+# grab all the parameters that we can until we get to a file of some sort
+options=()
+parsed_options=`getopt -n "$0" -l 'help,force,empty,list,restore' -- hf "$@"`
+eval set -- "$parsed_options"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift ; break ;;
+        *)  options=("${options[@]}" "$1"); shift ;;
+    esac
+done
+parameters=( "$@" )
+
+#printf 'parameter: "%s"\n' "${options[@]}"
+#printf 'extra: "%s"\n' "${parameters[@]}"
+
+# check our options to see if we're supposed to be restoring files
+option_not_restore=1
+for option in "${options[@]}"; do
+    case "$option" in
+    --restore) option_not_restore=0 ;;
+    esac
+done
+
+# if we're not restoring files, then we can just hand off our parameters
+# to the original gio and leave all the parameters untouched.
+if [ "$option_not_restore" -gt 0 ]; then
+    exec "$prog" trash "${options[@]}" "${parameters[@]}"
+fi
+
+warning()
+{
+    format="$1"
+    shift
+    printf "%s: $format\n" "$ARG0" "$@" 1>&2
+}
+
+# first thing we need to do is to create a lookup table
+# that we can use to map an absolute path to a trash url.
+declare -A trash_table=()
+while read url path; do
+    [ -z "$path" ] && warning "skipping an empty path (%s) in trash: %s" "$path" "$url" && continue
+    [ -z "$url" ] && warning "skipping an empty url (%s) in trash: %s" "$url" "$path" && continue
+    #[ ! -z "${trash_table[$path]}" ] && warning "skipping a duplicate path (%s) with url (%s) for url: %s" "$path" "${trash_table[$path]}" "$url" && continue
+    trash_table["$path"]="$url"
+done < <( "$prog" trash --list )
+
+# now we need to go through all of the filenames
+# that we were given and map them to their realpath.
+full_paths=()
+for path in "${parameters[@]}"; do
+    case "$path" in
+    trash:/*)   rp="$path" ;;
+    *)          rp=`realpath -m -- "$path"` ;;
+    esac
+    full_paths=( "${full_paths[@]}" "$rp" )
+done
+
+# next we need to process all of the full paths
+# to convert them into gio's stupid trash:// url.
+trash_paths=()
+for fullpath in "${full_paths[@]}"; do
+    case "$fullpath" in
+    trash:/*)
+        tp="$fullpath"
+        ;;
+    *)
+        tp="${trash_table[$fullpath]}"
+        [ -z "$tp" ] && warning "unable to determine trash url for requested file: %s" "$fullpath"
+    esac
+
+    # if the path wasn't found, then fall-back to the original parameter.
+    if [ -z "$tp" ]; then
+        trash_paths=( "${trash_paths[@]}" "$fullpath" )
+    else
+        trash_paths=( "${trash_paths[@]}" "$tp" )
+    fi
+done
+
+# finally we can call gio with our trash_paths and options as the parameters.
+exec "$prog" trash "${options[@]}" "${trash_paths[@]}"
