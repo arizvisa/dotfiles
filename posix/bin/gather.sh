@@ -1,12 +1,11 @@
 #!/bin/sh
-## functions
 halp()
 {
 	argv0=$1
 
 	cat 1>&2 <<EOF
 Usage: $argv0 [-d] [-v] [-q] [-i] [-o file] files..
-Description: concatenate all files into an output file
+Description: concatenate all stream-compressed files (such as logs) into a single output
 Options:
   -h,--help    Display this information
   -d           Delete files used after creating output file
@@ -38,7 +37,7 @@ append() {
 
 ## parsing options
 argv0=$0
-args=$(getopt hqvdio: $*)
+args=$(getopt -n "$argv0" hqvdio: "$@")
 if [ "$?" -ne 0 -o "$#" -eq 0 ]; then
 	logerror "Invalid command-line arguments"
 	halp "$argv0"
@@ -51,7 +50,8 @@ flag_verbose=0
 flag_oktodelete=0
 flag_insert=0
 
-set -- $args
+# XXX: using getopt is likely not bsd-compatible
+eval set -- "$args"
 while [ $# -gt 0 ]; do
 	case "$1" in
 		-h)
@@ -70,10 +70,10 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-if [ -f "$output" ]; then
+if [ -f "$output" ] || [ ! -e "$output" ]; then
     temporary=$(basename "$output.$$")
 else
-    temporary="$output"
+    temporary=$(basename "$output.$$")
 fi
 
 ## concatenating files
@@ -92,6 +92,14 @@ echo "$files" | while read x; do
 		zcat "$x" >> "$temporary"
 	elif [ "$type" = "application/x-bzip2" ]; then
 		bzcat "$x" >> "$temporary"
+	elif [ "$type" = "application/x-xz" ]; then
+        xzcat "$x" >> "$temporary"
+	elif [ "$type" = "application/x-lzma" ]; then
+        lzcat "$x" >> "$temporary"
+	elif [ "$type" = "application/x-lz4" ]; then
+        lz4cat "$x" >> "$temporary"
+	elif [ "$type" = "application/zstd" ]; then
+        zstdcat "$x" >> "$temporary"
 	elif [ "$type" = "text/plain" ]; then
 		cat "$x" >> "$temporary"
 	fi
