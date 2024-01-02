@@ -130,6 +130,8 @@ syn keyword prologLibrary_simplex constraint gen_state maximize minimize objecti
 highlight link prologLibrary_simplex prologLibrary
 syn keyword prologLibrary_yall is_lambda lambda_calls
 highlight link prologLibrary_yall prologLibrary
+syn keyword prologLibrary_intercept intercept intercept_all nb_intercept_all send_signal send_silent_signal
+highlight link prologLibrary_intercept prologLibrary
 
 " FIXME: this should probably be a different color...
 highlight link prologLibrary Statement
