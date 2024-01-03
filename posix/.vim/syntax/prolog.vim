@@ -190,7 +190,7 @@ syn match prologSpecialCharacter  "?-"
 syn match prologSpecialCharacter  "-->"
 syn match prologSpecialCharacter  "^"
 syn match prologSpecialCharacter  "|"
-syn match prologSpecialCharacter '\<_\>'
+syn match prologSpecialCharacter '\<_\w*\>'
 
 " add the '~' character used by package(func)
 let without_tilde = s:exclude_dict(s:prologSymbols, ['~', '.'])
