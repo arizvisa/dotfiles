@@ -56,7 +56,7 @@ let s:operators = [
 
 """ basic tools for acting on symbols
 function! s:make_symbol_pattern(key, symbol)
-    return '[[:alnum:][:space:]]\\@!\zs' .. a:symbol .. '\ze\_[[:alnum:][:space:]]'
+    return '[[:alnum:][:space:]]\@!\zs' .. a:symbol .. '\ze\_[[:alnum:][:space:]]'
 endfunction
 
 function! s:exclude_dict(dict, keys)
@@ -198,7 +198,7 @@ let tilde_pattern = printf('[[:space:][:alnum:]%s]\zs%s\ze\_[[:space:][:alnum:]%
 execute printf("syn match prologSpecialCharacter '%s'", tilde_pattern)
 
 " split up all the operators by symbols or words. this way we can escape them differently.
-let operator_words = map(filter(copy(s:operators), 'v:val =~ "^\\a\\a*$"'), '"<" .. v:val .. ">"')
+let operator_words = map(filter(copy(s:operators), 'v:val =~ "^\\a\\a*$"'), '"\\<" .. v:val .. "\\>"')
 let operator_symbols = map(filter(copy(s:operators), 'v:val !~ "^\\a\\a*$"'), funcref('s:make_symbol_pattern'))
 execute printf('syntax match prologOperator "%s"', join(operator_words + operator_symbols, '\|'))
 
