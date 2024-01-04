@@ -56,7 +56,8 @@ let s:operators = [
 
 """ basic tools for acting on symbols
 function! s:make_symbol_pattern(key, symbol)
-    return '[[:alnum:][:space:]]\@!\zs' .. a:symbol .. '\ze\_[[:alnum:][:space:]]'
+    let escaped_groupings = join(map(keys(s:prologSymbolPairs), 's:prologSymbols[v:val]'), "")
+    return '[[:alnum:][:space:]' .. escaped_groupings .. ']\@!\zs' .. a:symbol .. '\ze\_[[:alnum:][:space:]' .. escaped_groupings .. ']'
 endfunction
 
 function! s:exclude_dict(dict, keys)
@@ -190,6 +191,8 @@ syn match prologSpecialCharacter  "?-"
 syn match prologSpecialCharacter  "-->"
 syn match prologSpecialCharacter  "^"
 syn match prologSpecialCharacter  "|"
+syn match prologSpecialCharacter  "{|}"
+syn match prologSpecialCharacter  "\[|\]"
 syn match prologSpecialCharacter '\<_\w*\>'
 
 " add the '~' character used by package(func)
