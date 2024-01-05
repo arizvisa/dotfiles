@@ -119,14 +119,16 @@ if has("eval")
 
 """ useful key mappings
 
-    "" bring tab and shift-tab back to life.
-
-    nnoremap <Tab> >>
-    nnoremap <S-Tab> <<
-    inoremap <Tab> <Tab>
+    "" bring shift-tab back to life. we don't bother with <Tab> because it
+    "" seems to interfere with jumplist navigation (<C-i> and <C-o>)...
     inoremap <S-Tab> <C-d>
-    vnoremap <Tab> >
     vnoremap <S-Tab> <
+    nnoremap <S-Tab> <<
+
+    " <Tab> doesn't mean anything in visual-mode, so we can use it.
+    "inoremap <Tab> <Tab>
+    vnoremap <Tab> >
+    "nnoremap <Tab> >>
 
     "" these mappings are just for copying the current location and some lines
     "" into the default register, current selection, or clipboard.
