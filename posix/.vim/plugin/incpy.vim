@@ -181,13 +181,13 @@ function! s:python_strip_and_fix_indent(lines)
     endfor
 
     " if the last line is indented, then we append another newline (python)
-    let trimmed = stripped[l:start : -l:tail]
-    if len(trimmed) > 0
-        let result = trimmed[-1] =~ '^\s\+'? trimmed + [''] : trimmed
+    let trimmed = split(trim(join(stripped[l:start : -l:tail], "\n"), " \t\n", 2), "\n")
+    if len(trimmed) > 0 && trimmed[-1] =~ '^\s\+'
+        let result = add(trimmed, '')
     else
         let result = trimmed
     endif
-    return result
+    return join(result, "\n") .. "\n"
 endfunction
 
 function! s:striplist_by_option(option, lines)
@@ -201,13 +201,14 @@ function! s:striplist_by_option(option, lines)
     elseif type(a:option) == v:t_string
         let result = map(items, a:option)
 
-    "  Otherwise it's a function to use as a transformation
+    " Otherwise it's a function to use as a transformation
     elseif type(a:option) == v:t_func
         let F = a:option
         let result = F(items)
 
+    " Anything else is an unsupported filtering option.
     else
-        throw printf("Unknown filtering option (%s): %s", typename(a:option), a:option)
+        throw printf("Unable to strip lines using an unknown filtering option (%s): %s", typename(a:option), a:option)
     endif
 
     return result
@@ -216,15 +217,18 @@ endfunction
 function! s:stripstring_by_option(option, string)
     if type(a:option) == v:t_bool
         let result = a:option == v:true? trim(a:string) : a:string
+
     elseif type(a:option) == v:t_string
         let expression = a:option
         let results = map([a:string], expression)
         let result = results[0]
+
     elseif type(a:option) == v:t_func
         let F = a:option
         let result = F(a:string)
+
     else
-        throw printf("Unknown filtering option (%s): %s", typename(a:option), a:option)
+        throw printf("Unable to strip string due to an unknown filtering option (%s): %s", typename(a:option), a:option)
     endif
     return result
 endfunction
@@ -294,7 +298,55 @@ function! s:selected() range
     normal gvy
     let result = getreg("")
     call setreg("", oldvalue)
-    return result
+    return split(result, '\n')
+endfunction
+
+function! s:selected_range() range
+    let [l:left, l:right] = [getcharpos("'<"), getcharpos("'>")]
+    let [l:lline, l:rline] = [l:left[1], l:right[1]]
+    let [l:lchar, l:rchar] = [l:left[2], l:right[2]]
+
+    if l:lline < l:rline
+        let [l:minline, l:maxline] = [l:lline, l:rline]
+        let [l:minchar, l:maxchar] = [l:lchar, l:rchar]
+    elseif l:lline > l:rline
+        let [l:minline, l:maxline] = [l:rline, l:lline]
+        let [l:minchar, l:maxchar] = [l:rchar, l:lchar]
+    else
+        let [l:minline, l:maxline] = [l:lline, l:rline]
+        let [l:minchar, l:maxchar] = sort([l:lchar, l:rchar], 'N')
+    endif
+
+    let lines = getline(l:minline, l:maxline)
+    if len(lines) > 2
+        let selection = [strcharpart(lines[0], l:minchar - 1)] + slice(lines, 1, -1) + [strcharpart(lines[-1], 0, l:maxchar)]
+    elseif len(lines) > 1
+        let selection = [strcharpart(lines[0], l:minchar - 1)] + [strcharpart(lines[-1], 0, l:maxchar)]
+    else
+        let selection = [strcharpart(lines[0], l:minchar - 1, 1 + l:maxchar - l:minchar)]
+    endif
+    return selection
+endfunction
+
+function! s:selected_block() range
+    let [l:left, l:right] = [getcharpos("'<"), getcharpos("'>")]
+    let [l:lline, l:rline] = [l:left[1], l:right[1]]
+    let [l:lchar, l:rchar] = [l:left[2], l:right[2]]
+
+    if l:lline < l:rline
+        let [l:minline, l:maxline] = [l:lline, l:rline]
+        let [l:minchar, l:maxchar] = [l:lchar, l:rchar]
+    elseif l:lline > l:rline
+        let [l:minline, l:maxline] = [l:rline, l:lline]
+        let [l:minchar, l:maxchar] = [l:rchar, l:lchar]
+    else
+        let [l:minline, l:maxline] = [l:lline, l:rline]
+        let [l:minchar, l:maxchar] = sort([l:lchar, l:rchar], 'N')
+    endif
+
+    let lines = getline(l:minline, l:maxline)
+    let selection = map(lines, 'strcharpart(v:val, l:minchar - 1, 1 + l:maxchar - l:minchar)')
+    return selection
 endfunction
 
 function! s:singleline(string, escape)
@@ -400,9 +452,11 @@ function! incpy#SetupCommands()
     command -range PyRange call incpy#Range(<line1>, <line2>)
 
     command -nargs=1 PyEval call incpy#Evaluate(<q-args>)
-    command -range PyEvalRange <line1>,<line2>call incpy#Evaluate(s:selected())
+    command -range PyEvalRange <line1>,<line2>call incpy#EvaluateRange()
+    command -range PyEvalBlock <line1>,<line2>call incpy#EvaluateBlock()
+    command -range PyEvalSelection call incpy#Evaluate(s:selected())
     command -nargs=1 PyHelp call incpy#Halp(<q-args>)
-    command -range PyHelpRange <line1>,<line2>call incpy#Halp(s:selected())
+    command -range PyHelpSelection <line1>,<line2>call incpy#HalpSelected()
 endfunction
 
 function! s:keyword_under_cursor()
@@ -516,11 +570,11 @@ function! incpy#SetupKeys()
 
     " Normal and visual mode mappings for windows
     nnoremap <C-@> :call incpy#Halp(<SID>keyword_under_cursor())<C-M>
-    vnoremap <C-@> :PyHelpRange<C-M>
+    vnoremap <C-@> :PyHelpSelection<C-M>
 
     " Normal and visual mode mappings for everything else
     nnoremap <C-S-@> :call incpy#Halp(<SID>keyword_under_cursor())<C-M>
-    vnoremap <C-S-@> :PyHelpRange<C-M>
+    vnoremap <C-S-@> :PyHelpSelection<C-M>
 endfunction
 
 "" Define the whole python interface for the plugin
@@ -639,7 +693,8 @@ class interpreter_python_internal(__incpy__.interpreter):
         if __incpy__.vim.gvars['incpy#Echo'] and not silent:
             echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
             lines = data.split('\n')
-            trimmed = sum(1 for item in lines[::-1] if not item.strip())
+            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
+            trimmed = next(iterable, 0)
             echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
             self.write(echonewline.format(echo))
         __incpy__.six.exec_(data, __incpy__.builtins.globals())
@@ -691,7 +746,8 @@ class interpreter_external(__incpy__.interpreter):
         if __incpy__.vim.gvars['incpy#Echo'] and not silent:
             echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
             lines = data.split('\n')
-            trimmed = sum(1 for item in lines[::-1] if not item.strip())
+            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
+            trimmed = next(iterable, 0)
             echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
             self.write(echonewline.format(echo))
         self.instance.write(data)
@@ -772,7 +828,8 @@ class interpreter_terminal(__incpy__.interpreter_external):
         if __incpy__.vim.gvars['incpy#Echo'] and not silent:
             echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
             lines = data.split('\n')
-            trimmed = sum(1 for item in lines[::-1] if not item.strip())
+            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
+            trimmed = next(iterable, 0)
 
             # Terminals don't let you modify or edit the buffer in any way
             #echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
@@ -1206,11 +1263,35 @@ function! incpy#Range(begin, end)
     let lines = getline(a:begin, a:end)
     let stripped = s:strip_by_option(g:incpy#InputStrip, lines)
 
-    " Execute the lines in our target
-    let code = join(map(stripped, 'escape(v:val, "''\\")'), "\\n")
+    " Escape all single-quotes and backslashes within our string
+    if type(stripped) == v:t_string
+        let code = join(map(split(stripped, "\n"), 'escape(v:val, "''\\")'), '\n')
+
+    " If we received a list of commands to execute, then we can just trust it as-is.
+    elseif type(stripped) == v:t_list
+        let code = stripped
+    endif
+
+    " Strip our output prior to execution
     let code_stripped = s:strip_by_option(g:incpy#ExecStrip, code)
     call incpy#Show()
-    execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#ExecFormat, "\"\\"), escape(code_stripped, "\""))
+
+    " If we've got a string, then execute it as a single line.
+    if type(code_stripped) == v:t_string
+        let encoded = substitute(printf("(%s)", code_stripped), '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
+        execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#ExecFormat, "\"\\"), encoded)
+
+    " If it was a list, though, then execute our command multiple times.
+    elseif type(code_stripped) == v:t_list
+        for command_stripped in code_stripped
+            let encoded = substitute(printf("(%s)", command_stripped), '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
+            execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#ExecFormat, "\"\\"), encoded)
+        endfor
+
+    " If it's anything else, then we don't support it.
+    else
+        throw printf("Unable to execute due to an unknown input type (%s): %s", typename(code_stripped), code_stripped)
+    endif
 
     " If the user configured us to follow the output, then do as we were told.
     if g:incpy#OutputFollow
@@ -1231,6 +1312,14 @@ function! incpy#Evaluate(expr)
     endif
 endfunction
 
+function! incpy#EvaluateRange() range
+    return incpy#Evaluate(join(s:selected_range()))
+endfunction
+
+function! incpy#EvaluateBlock() range
+    return incpy#Evaluate(join(s:selected_block()))
+endfunction
+
 function! incpy#Halp(expr)
     " Remove all encompassing whitespace from expression
     let LetMeSeeYouStripped = substitute(a:expr, '^[ \t\n]\+\|[ \t\n]\+$', '', 'g')
@@ -1238,6 +1327,10 @@ function! incpy#Halp(expr)
     " Execute g:incpy#HelpFormat in the target using the plugin's cached communicator
     call incpy#Show()
     execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#HelpFormat, "\"\\"), escape(LetMeSeeYouStripped, "\"\\"))
+endfunction
+
+function! incpy#HalpSelected() range
+    return incpy#Halp(join(s:selected()))
 endfunction
 
 """ Actual execution and setup of the plugin
