@@ -129,6 +129,7 @@ if has("eval")
     "inoremap <Tab> <Tab>
     vnoremap <Tab> >
     "nnoremap <Tab> >>
+    nnoremap gs <Cmd>echomsg SyntaxIds('.')<C-M>
 
     "" these mappings are just for copying the current location and some lines
     "" into the default register, current selection, or clipboard.
@@ -211,6 +212,12 @@ if has("eval")
         let pos = getpos(a:expr)
         let id = synID(pos[1], pos[2], 1)
         return synIDattr(id, "name")
+    endfunction
+
+    function! SyntaxIds(expr)
+        let pos = getpos(a:expr)
+        let ids = synstack(pos[1], pos[2])
+        return mapnew(ids, 'synIDattr(v:val, "name")')
     endfunction
 
     let g:rcfilename_history = exists("g:rcfilename_history")? g:rcfilename_history : [expand('~/.vimrc')]
