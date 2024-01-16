@@ -32,7 +32,7 @@ let s:prologSymbolPairs = extendnew(s:prologSymbolPairs_open, s:prologSymbolPair
 
 " add all the operators including some of the clp(fd) ones.
 let s:operators = [
-\    '\*\?->', '|', '^',
+\    '\*\?->', '|',
 \    '<',
 \    '=',
 \    '=\.\.',
@@ -194,8 +194,10 @@ syn keyword prologTopLevel profile profile_data profile_procedure_data statistic
 syn keyword prologTopLevel garbage_collect garbage_collect_atoms garbage_collect_clauses malloc_property prolog_stack_property set_malloc set_prolog_gc_thread set_prolog_stack thread_idle trim_heap trim_stacks
 highlight link prologTopLevel prologSpecial
 
-syn keyword prologExtension atomics_to_string atom_string get_string_code number_string open_string read_string split_string string_bytes string_chars string_code string_codes string_concat string_length string_lower string_upper sub_string term_string text_to_string
-syn keyword prologExtension b_set_dict del_dict dict_create dict_pairs get get_dict is_dict nb_link_dict nb_set_dict put put_dict select_dict
+syn keyword prologExtension_string atomics_to_string atom_string get_string_code number_string open_string read_string split_string string_bytes string_chars string_code string_codes string_concat string_length string_lower string_upper sub_string term_string text_to_string
+highlight link prologExtension_string prologExtension
+syn keyword prologExtension_dicts b_set_dict del_dict dict_create dict_pairs get get_dict is_dict nb_link_dict nb_set_dict put put_dict select_dict
+highlight link prologExtension_dicts prologExtension
 highlight link prologExtension prologKeyword
 
 syn match prologLibrary '\<\w\+:\w\+\>'
@@ -239,6 +241,10 @@ syn keyword prologLibrary_prolog_xref xref_called xref_clean xref_comment xref_c
 highlight link prologLibrary_prolog_xref prologLibrary
 syn keyword prologLibrary_prolog_pack pack_attach pack_info pack_install pack_list pack_list_installed pack_property pack_rebuild pack_remove pack_search pack_upgrade pack_url_file
 highlight link prologLibrary_prolog_pack prologLibrary
+syn keyword prologLibrary_nb_set add_nb_set empty_nb_set gen_nb_set nb_set_to_list size_nb_set
+highlight link prologLibrary_nb_set prologLibrary
+syn keyword prologLibrary_error current_encoding current_type domain_error existence_error has_type instantiation_error is_of_type must_be permission_error representation_error resource_error syntax_error type_error uninstantiation_error
+highlight link prologLibrary_error prologLibrary
 
 " prolog.vim has no idea what an atom is apparently.
 "syn region prologAtom start='\w' end='\>'
@@ -295,11 +301,13 @@ highlight link prologVariable Identifier
 " add some missing special characters
 syn match prologSpecialCharacter ';'
 syn match prologSpecialCharacter '!'
+syn match prologSpecialCharacter '@'
 syn match prologSpecialCharacter '[^\$]\zs\$\ze\_[^\$]'
+syn match prologSpecialCharacter '[^\$]\zs\$\u\w*\ze\_[^\$]'
 syn match prologSpecialCharacter '[()[:space:][:alnum:]]\zs:-\ze'
 syn match prologSpecialCharacter '[()[:space:][:alnum:]]\zs?-\ze'
 syn match prologSpecialCharacter '[()[:space:][:alnum:]]\zs-->\ze'
-syn match prologSpecialCharacter '^'
+syn match prologSpecialCharacter '\^'
 syn match prologSpecialCharacter '|'
 syn match prologSpecialCharacter '{|}'
 syn match prologSpecialCharacter '\[|\]'
