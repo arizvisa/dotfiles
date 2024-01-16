@@ -131,6 +131,9 @@ if has("eval")
     "nnoremap <Tab> >>
     nnoremap gs <Cmd>echomsg SyntaxIds('.')<C-M>
 
+    " <S-Space> is recognized by some terminals, so we discard it.
+    tnoremap <S-Space> <Space>
+
     "" these mappings are just for copying the current location and some lines
     "" into the default register, current selection, or clipboard.
 
