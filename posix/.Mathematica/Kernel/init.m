@@ -223,6 +223,26 @@ BeginPackage["System`"];
    } // Apply[FromBaseForm[StringJoin[#1], #2] &]
  ];
 
+ GraphOfTree[tree_, options___] := Module[
+  {count = 0},
+  traverse[head_[children___]] := With[
+   {id = count},
+   {DirectedEdge[id, ++count], traverse[#]}& /@ {children}
+  ];
+  traverse[_] := Sequence[];
+  TreeGraph[traverse[tree] // Flatten, ##]& @ options
+ ];
+
+ (** Ripped from https://community.wolfram.com/groups/-/m/t/1678540 **)
+ vshape[width_][xy_, vertexname_, wh_] := Inset[
+  Framed[
+   Pane[Style[vertexname, TextAlignment -> Center], width],
+   Background -> RandomColor[],    (* FIXME: It would be better to generate a list of pale colors that we cycle through *)
+   RoundingRadius -> 5
+  ],
+  xy
+ ];
+
 EndPackage[];
 
 (** Default global options **)
