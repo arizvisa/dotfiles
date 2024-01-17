@@ -181,47 +181,47 @@ BeginPackage["System`"];
        ]
     ];
 
-    FromBaseForm::usage = "FromBaseForm will return an Integer for a number in BaseForm, a string, or if it is subscripted.";
-    FromBaseForm[Subscript[number_, base_Integer]] := FromBaseForm[number // ToString, base];
-    FromBaseForm[number_, base_Integer] := FromBaseForm[number // ToString, base];
-    FromBaseForm[number_String, base_Integer] :=
-      Block[{
-        Table = MapIndexed[
-          #1 -> #2[[1]] - 1 &,
-          "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" //
-             Characters //
-             #[[;; base]] &
-        ] // Association
-      },
-      With[{
-        digits = number //
-          ToUpperCase //
+ FromBaseForm::usage = "FromBaseForm will return an Integer for a number in BaseForm, a string, or if it is subscripted.";
+ FromBaseForm[Subscript[number_, base_Integer]] := FromBaseForm[number // ToString, base];
+ FromBaseForm[number_, base_Integer] := FromBaseForm[number // ToString, base];
+ FromBaseForm[number_String, base_Integer] :=
+   Block[{
+     Table = MapIndexed[
+       #1 -> #2[[1]] - 1 &,
+       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" //
           Characters //
-          Map[Table[[#]] & ]
-      },
-        FromDigits[digits, base]
-      ]
-    ];
-    FromBaseForm[BaseForm[number_, base_]] := number;   (* just in case our input isn't just formatting *)
-    FromBaseForm[number_String] := With[
-      {BaseTable = <|"b" -> 2, "d" -> 10, "x" -> 16, "o" -> 8|>},
-      Characters[number] /. {
-        {"0", digits__String} /; AllTrue[{digits}, StringMatchQ["01234567" // Characters]] ->
-          {{digits}, Lookup[BaseTable, "o"]},
-        {"0", x_String, digits__String} /; ToLowerCase[x] == "x" && AllTrue[{digits}, StringMatchQ[HexadecimalCharacter]] ->
-          {{digits}, Lookup[BaseTable, "x"]},
-        {"0", o_String, digits__String} /; ToLowerCase[x] == "o" && AllTrue[{digits}, StringContainsQ["01234567" // Characters]] ->
-          {{digits}, Lookup[BaseTable, "o"]},
-        {"0", b_String, digits__String} /; ToLowerCase[b] == "b" && AllTrue[{digits}, StringContainsQ["01" // Characters]] ->
-          {{digits}, Lookup[BaseTable, "b"]},
-        {"0", d_String, digits__String} /; ToLowerCase[d] == "d" && AllTrue[{digits}, DigitQ] ->
-          {{digits}, Lookup[BaseTable, "d"]},
-        {zero_String, digits__String} /; AllTrue[{zero, digits}, DigitQ] && StringContainsQ[zero, "123456789" // Characters] ->
-          {{zero, digits}, Lookup[BaseTable, "d"]},
-        {else___} ->
-          {{else}, 0}
-      } // Apply[FromBaseForm[StringJoin[#1], #2] &]
-    ];
+          #[[;; base]] &
+     ] // Association
+   },
+   With[{
+     digits = number //
+       ToUpperCase //
+       Characters //
+       Map[Table[[#]] & ]
+   },
+     FromDigits[digits, base]
+   ]
+ ];
+ FromBaseForm[BaseForm[number_, base_]] := number;   (* just in case our input isn't just formatting *)
+ FromBaseForm[number_String] := With[
+   {BaseTable = <|"b" -> 2, "d" -> 10, "x" -> 16, "o" -> 8|>},
+   Characters[number] /. {
+     {"0", digits__String} /; AllTrue[{digits}, StringMatchQ["01234567" // Characters]] ->
+       {{digits}, Lookup[BaseTable, "o"]},
+     {"0", x_String, digits__String} /; ToLowerCase[x] == "x" && AllTrue[{digits}, StringMatchQ[HexadecimalCharacter]] ->
+       {{digits}, Lookup[BaseTable, "x"]},
+     {"0", o_String, digits__String} /; ToLowerCase[x] == "o" && AllTrue[{digits}, StringContainsQ["01234567" // Characters]] ->
+       {{digits}, Lookup[BaseTable, "o"]},
+     {"0", b_String, digits__String} /; ToLowerCase[b] == "b" && AllTrue[{digits}, StringContainsQ["01" // Characters]] ->
+       {{digits}, Lookup[BaseTable, "b"]},
+     {"0", d_String, digits__String} /; ToLowerCase[d] == "d" && AllTrue[{digits}, DigitQ] ->
+       {{digits}, Lookup[BaseTable, "d"]},
+     {zero_String, digits__String} /; AllTrue[{zero, digits}, DigitQ] && StringContainsQ[zero, "123456789" // Characters] ->
+       {{zero, digits}, Lookup[BaseTable, "d"]},
+     {else___} ->
+       {{else}, 0}
+   } // Apply[FromBaseForm[StringJoin[#1], #2] &]
+ ];
 
 EndPackage[];
 
