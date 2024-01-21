@@ -243,6 +243,42 @@ BeginPackage["System`"];
   xy
  ];
 
+ CompilableQ[func_] := MemberQ[Compile`CompilerFunctions[], func];
+
+ (*
+   ripped entirely from https://stackoverflow.com/questions/3736942/test-if-an-expression-is-a-function
+     because i couldn't get https://stackoverflow.com/questions/4599241/checking-if-a-symbol-is-defined
+       to work on delayed symbols, or closures. we ignore upvalues entirely, of course.
+ *)
+ FunctionQ[expr_] := Module[
+  {symbolic, partial, function},
+
+  (* once we traverse to a symbol, we straight-up check everything. *)
+  SetAttributes[symbolic, HoldAllComplete];
+  symbolic[_Function | _InterpolatingFunction | _CompiledFunction] = True;
+  symbolic[symbol_Symbol] /; symbol =!= Symbol := Or[
+   SubValues[symbol] =!= {},
+   DownValues[symbol] =!= {},
+   MemberQ[Attributes[symbol], NumericFunction]
+  ];
+  symbolic[_] = False;
+
+  (* if we didn't recurse into a symbol, then it might be partially evaluated. *)
+  SetAttributes[partial, HoldAllComplete];
+  partial[symbol_Symbol[___]] := partial[symbol];
+  partial[symbol_[___]] := partial[symbol];
+  partial[symbol_] := symbolic@symbol;
+
+  (* start by testing all of the obvious things before trying partial-evaluation. *)
+  SetAttributes[function, HoldAllComplete];
+  function[_Function | _InterpolatingFunction | _CompiledFunction] = True;
+  function[symbol_Symbol] /; symbol =!= Symbol := symbolic@symbol;
+  function[notsymbol_Symbol] /; notsymbol === Symbol = False;
+  function[nothead_] := partial[nothead];
+
+  Return[function[expr]]
+ ];
+
 EndPackage[];
 
 (** Default global options **)
