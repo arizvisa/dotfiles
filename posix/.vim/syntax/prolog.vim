@@ -501,11 +501,9 @@ syntax match prologAnonymousVariable contained '\<_\w*\>'
 highlight link prologAnonymousVariable prologSpecial
 
 " FIXME: the prolog.vim author didn't seem to try too hard when defining this...
-"syn region   prologClause   matchgroup=prologClauseHead start='^\a\w*' matchgroup=Normal end='\.\s\|\.$' contains=ALLBUT,prologClause contains=@NoSpell
-"syn region   prologClause   matchgroup=prologClauseHead start=+^\s*[a-z]\w*+ matchgroup=Normal end=+\.\s\|\.$+ contains=ALLBUT,prologClause contains=@NoSpell
-syntax match prologDefineRule ':-' skipwhite skipempty
+syntax match prologDefineRule ':-' skipwhite skipempty contained
 "syntax region prologDefineRule start=':-\s*$' skipwhite skipempty contains=@prologBodyToken nextgroup=@prologRuleBody end='\.\s*$'
-syntax match prologEndingRule '\.\s*$'
+syntax match prologEndingRule '\.\s*\_[%]'
 highlight link prologDefineRule prologSpecial
 highlight link prologEndingRule prologSpecial
 
@@ -515,93 +513,44 @@ syn match prologDefineCHRRule '\S\s*\zs<=>\ze\s*'
 syntax cluster prologDefineConstraint contains=prologDefineConstraintRule,prologDefineCHRRule
 highlight link prologDefineConstraint prologSpecial
 
-"syntax region prologClause1 oneline
-"\   matchgroup=prologClauseHead start='^\zs\a\w*\ze'
-"\   contains=prologAtom,prologString,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter skip='(.*)'
-"\   matchgroup=prologEndingRule end='\zs\.\ze\s*$'
-
-"syntax match prologClauseHead '^\zs\a\w*\ze\s*' contains=prologDefineRule nextgroup=prologBody
-"syntax match prologClause1 '^\zs\a\w*\ze\s\.\s*$'
-syntax match prologClause1 '^\s*\zs\a\w*\ze\s*\.' keepend skipwhite nextgroup=prologEndingRule
-syntax match prologClause2 '^\s*\zs\a\w*\ze\s*()\s*\.' keepend skipwhite nextgroup=prologEndingRule
-highlight link prologClause1 prologClauseHead
-highlight link prologClause2 prologClauseHead
-
-syntax match prologClause3 '^\s*\zs\a\w*\ze\s*:-' keepend
-syntax match prologClause3 '^\s*\zs\a\w*\ze\s*-->' keepend
-syntax match prologClause4 '^\s*\zs\a\w*\ze\s*()\s*:-' keepend
-syntax match prologClause4 '^\s*\zs\a\w*\ze\s*()\s*-->' keepend
-highlight link prologClause3 prologClauseHead
-highlight link prologClause4 prologClauseHead
-
-"syntax region prologClause5 oneline
-"\   matchgroup=prologClauseHead start='^\zs\a\w*\ze\s*(\s*[^)]\@='
-"\   contains=@prologToken
-"\   matchgroup=prologEndingRule end=')\s*\zs\.'
-syntax region prologClause5 oneline
-\   matchgroup=prologClauseHead start='^\zs\a\w*\ze\s*([^)]'
-\   contains=@prologToken
-\   skipwhite skipempty matchgroup=NONE end=')'
-highlight link prologClause5 prologClauseHead
-
-"syntax match moduleQualified keepend '^\zs\a\w*\ze:' nextgroup=moduleQualifier
-"syntax match moduleQualifier keepend '\zs:\ze[a-z]' nextgroup=prologClause6
-"syntax region prologClause6 oneline
-"\   matchgroup=prologClauseHead start='\zs\a\w*\ze\s*([^)]'
-"\   contains=@prologToken
-"\   skipwhite skipempty matchgroup=NONE end=')'
-
-"syntax region prologClause6 oneline
-"\   matchgroup=prologClauseHead start='^\zs\a\w*\ze\s*(\s*[^)]'
-"\   contains=@prologToken
-"\   keepend skipwhite skipempty matchgroup=NONE end=')' nextgroup=prologDefineRule
-
-"syntax region prologClause7
-"\   matchgroup=prologClauseHead start='^\zs\a\w*\ze\s*(.*)\s*'
-"\   matchgroup=prologEndingRule end='\zs\.\s*$'
-
-syntax region prologRuleBodySingle oneline
-\   matchgroup=prologDefineRule skipwhite start='^:-.'
-\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption
-\   matchgroup=prologEndingRule end='\.\s*$'
 syntax region prologRuleBodyMultiple keepend
-\   matchgroup=prologDefineRule skipwhite skipempty start='.:-'
-\   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule excludenl end='\.\s*$'
-syntax region prologRuleBodyNoClause keepend
-\   matchgroup=prologDefineRule skipwhite skipempty start='^:-$'
-\   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule excludenl end='\.\s*$'
-syntax cluster prologRuleBody contains=prologRuleBodySingle,prologRuleBodyMultiple,prologRuleBodyNoClause
+\   matchgroup=prologDefineRule skipwhite skipempty start='.\zs:-\ze'
+\   contains=@prologBodyToken,@prologComment skip="%.*$"
+\   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
+syntax region prologRuleBodyNoHead keepend
+\   matchgroup=prologDefineRule skipwhite skipempty start='^\zs:-\ze'
+\   contains=@prologBodyToken,@prologComment skip="%.*$"
+\   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
+syntax region prologRuleBodySingle oneline
+\   matchgroup=prologDefineRule skipwhite start='^\zs:-\ze.'
+\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption
+\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
+syntax cluster prologRuleBody contains=prologRuleBodySingle,prologRuleBodyMultiple,prologRuleBodyNoHead
 
 syntax region prologConstraintBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='-->'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\s*$'
+\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='==>'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\s*$'
+\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='<=>'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\s*$'
+\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax cluster prologBody contains=prologRuleBody,prologConstraintBody,prologCHRBody
 
 " XXX: highlighting doesn't seem to work inside a cluster, so this is more a reference than anything else.
 syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter
 syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString
+syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
 
-"syntax region prologClause4
-"\   matchgroup=prologClauseHead start='^\zs\a\w*\ze(' contains=ALLBUT,prologClause skip=')\s*:-\s*\n' matchgroup=prologEndingRule end='\zs\.\ze\s*$'
+syntax match prologHead '^\zs\a\w*\ze' nextgroup=prologHeadParentheses
+syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=@prologBody contained
 
-"syn region   prologString   contained start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
-"syn region   prologAtom     contained start=+'+ skip=+\\\\\|\\'+ end=+'+
-
-syntax region prologString oneline start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
-syntax region prologAtom oneline start=+'+ skip=+\\\\\|\\'+ end=+'+
-"syntax region prologString_multi start=+"+ skip='.*' end=+"+ contains=@Spell
-"syntax region prologAtom_multi start=+'+ skip='.*' end=+'+
+syntax region prologString start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
+syntax region prologAtom start=+'+ skip=+\\\\\|\\'+ end=+'+
 
 " Comments
 syn match   prologLineComment   +%.*+                   contains=@Spell
@@ -625,8 +574,7 @@ highlight link prologSpecial        Special
 highlight link prologError          Error
 highlight link prologKeyword        Keyword
 
-highlight link prologClauseHead     Constant
-highlight link prologClause         Normal
+highlight link prologHead           Constant
 highlight link prologInterpreter    NonText
 highlight link prologLibrary        Type
 highlight link prologDirective      PreProc
