@@ -1532,6 +1532,17 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         var_ref = var.v
         ti = hexrays.variable.type(var_ref)
 
+    elif item.op == ida_hexrays.cot_call and item.x.op in {ida_hexrays.cot_helper}:
+        assert(item.x.op in {ida_hexrays.cot_obj}), "unexpected cot_call.x op: {:s}".format(item.x.opname)
+
+        # helpers are like platform-specific placeholders, so we can't do
+        # anything generic with them.
+        call = item
+        target = call.x
+        helper = target.helper
+
+        return
+
     elif item.op == ida_hexrays.cot_call:
         assert(item.x.op in {ida_hexrays.cot_obj}), "unexpected cot_call.x op: {:s}".format(item.x.opname)
         call = item
