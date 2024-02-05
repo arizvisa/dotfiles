@@ -484,8 +484,6 @@ highlight link prologOption_prolog_trace_interception prologKeyword
 highlight link prologOption_prolog_frame_attribute prologKeyword
 highlight link prologOption_prolog_choice_attribute prologKeyword
 
-"syn match prologSpecialCharacter '^:-' nextgroup=@prologDirective skipwhite skipempty
-
 """ Matches stolen from prolog.vim
 "syn match   prologCharCode  +0'\\\=.+
 "syn match   prologCharCode  +0'\\\=.+
@@ -503,7 +501,7 @@ highlight link prologAnonymousVariable prologSpecial
 " FIXME: the prolog.vim author didn't seem to try too hard when defining this...
 syntax match prologDefineRule ':-' skipwhite skipempty contained
 "syntax region prologDefineRule start=':-\s*$' skipwhite skipempty contains=@prologBodyToken nextgroup=@prologRuleBody end='\.\s*$'
-syntax match prologEndingRule '\.\s*\_[%]'
+syntax match prologEndingRule '\.\ze\s*\_[%]'
 highlight link prologDefineRule prologSpecial
 highlight link prologEndingRule prologSpecial
 
@@ -546,8 +544,9 @@ syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prolo
 syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString
 syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
 
-syntax match prologHead '^\zs\a\w*\ze' nextgroup=prologHeadParentheses
+syntax match prologHead '^\zs\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
 syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=@prologBody contained
+syntax match prologHead '^\zs\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)' skipwhite keepend
 
 syntax region prologString start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
 syntax region prologAtom start=+'+ skip=+\\\\\|\\'+ end=+'+
