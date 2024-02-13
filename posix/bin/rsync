@@ -30,14 +30,22 @@ if [ -z "$prog" ]; then
     unset IFS
 fi
 
-## now we just run the thing
+## Complain if we couldn't find the binary for this program.
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
+# If we received a signal during this process, then avoid the retry.
+ec=20       # 20 - Received SIGUSR1 or SIGINT
+trap "printf 'Aborted execution due to SIGINT(%d).\n' 2; exit $ec" SIGINT
+trap "printf 'Aborted execution due to SIGUSR(%d).\n' 10; exit $ec" SIGUSR1
+trap "printf 'Aborted execution due to SIGQUIT(%d).\n' 3; exit $ec" SIGQUIT
 "$prog" $args "$@"
 
+# Capture the error code, clear our traps, and exit if we were successful.
 ec=$?
-[ "$ec" -eq 0 ] && exit $ec
+trap - SIGINT SIGUSR1 SIGQUIT
+[ "$ec" -gt 0 ] || exit $ec
 
+# If it failed, then emit a barrier and explain that we're retrying.
 columns=`tput cols`
 threequarters=`expr "$columns" \* 3 \/ 4`
 perl -e 'print($ARGV[0]x$ARGV[1]."\n")' '!' "$threequarters" 1>&2
@@ -45,5 +53,6 @@ printf 'Execution of %s has failed (code %d).\n' "$prog" "$ec" 1>&2
 printf 'Trying again with the permission preservation flag disabled (%s).\n' "$failure_args_extra" 1>&2
 perl -e 'print($ARGV[0]x$ARGV[1]."\n")' '-' "$threequarters" 1>&2
 
+# If we didn't succeed the first time... try, try again.
 exec "$prog" $args $failure_args_extra "$@"
 exit $?
