@@ -1604,3 +1604,64 @@ def hexrays_by_default(plugin):
         sys.modules['__main__'].hexrays = hexrays
     return
 hook.ui.add('plugin_loaded', hexrays_by_default)
+
+def reset_args(ea):
+    frame, regs = func.frame(ea), func.frame.regs.size(ea)
+    for v in hexrays.variables(ea, args=False, like="a*"):
+        print(hexrays.repr(v))
+        print(hexrays.variable.name(v, None))
+    for v in hexrays.variables(ea, local=True, register=False, regex="v[0-9]+$|a.*"):
+        ti, store = hexrays.variable.type(v), hexrays.variable.storage(v)
+        matches = frame.members(store)
+        if len(matches) == 1 and matches[0].location == store:
+            matches[0].name = None
+        if len(matches) == 1 and int(matches[0].location) == int(store):
+            matches[0].typeinfo = ti
+        if len(matches) == 1 and matches[0].location == store:
+            hexrays.variable.name(v, None)
+        if len(matches) != 1 or matches[0].location != store:
+            print("skipped ({:d})".format(len(matches)), hexrays.repr(v))
+        continue
+    for v in hexrays.variables(ea, regex="a[0-9]+$|arg_[0-9A-F]+$", register=False, args=True, user=False):
+        print('unnamed', hexrays.variable.name(v, None))
+        ti = hexrays.variable.type(v)
+        store = hexrays.variable.storage(v)
+        assert(not(isinstance(store,register_t))), "{!r}".format(store)
+        if ti.is_ptr(): hexrays.variable.name(v, 'ap', int(store-regs))
+    return
+
+def type_formatter(storage, t, delta=4):
+    Fstackloc = lambda loc: "poi(@{:s}{:+x})".format(ins.reg.esp.name if db.information.bits() < 64 else ins.reg.rsp.name, int(loc+delta))
+    Fregister = lambda reg: "@{:s}".format(reg.name)
+    Flocation = Fregister if isinstance(storage,register_t) else Fstackloc
+    loc, mask, totalmask = Flocation(storage), pow(2, 8 * storage.size) - 1, pow(2, db.information.bits()) - 1
+
+    if not t.is_ptr():
+        if mask < totalmask:
+            formats = ['%#010p', "%#0{:d}x".format(2+storage.size)]
+            vals = ["{:s}&~{:#x}".format(loc, mask)]
+            vals.append("{:s}&{:#x}".format(loc, mask))
+            return '|'.join(formats), vals
+        return '%p', ["{:s}".format(loc)]
+
+    target = db.types.dereference(t)
+    if target.is_char():
+        return r'(%p) \"%ma\"', [loc, loc]
+    elif target.get_size() == 2 and target.equals_to(db.types.parse('wchar_t')):
+        return r'(%p) \"%mu\"', [loc, loc]
+    return '%p', [loc]
+
+def dbg_prototype(ea, delta=4):
+    res=[]
+    for i, t in enumerate(func.args(ea)):
+        res.append((t, func.arg.storage(ea, i), func.arg.name(ea, i)))
+    adescs, avals = [], []
+    for t, store, n in res:
+        aname = ' '.join(["{!s}".format(t).replace(' ',''), n][:2 if n else 1])
+        fmt, vals = type_formatter(store, t, delta)
+        adescs.append('='.join([aname, fmt])), avals.append(vals)
+    descr = ' '.join(["{!s}".format(func.result(ea)).replace(' ',''), func.name(ea)])
+    message = "{:s}({:s})".format(descr, ', '.join(adescs))
+    pc = "@{:s}".format(arch.promote(ins.reg.ip, db.information.bits()) if delta < db.information.size() else arch.promote(ins.reg.sp, db.information.bits()))
+    pcloc = pc if delta < db.information.size() else "poi({:s}{:+x})".format(pc, delta - db.information.size())
+    return ".printf\"(%p) {:s}\",{:s}{:s};g".format(app.windbg.escape(message + '\n'), pcloc, ",{:s}".format(','.join(itertools.chain(*avals))) if avals else '')
