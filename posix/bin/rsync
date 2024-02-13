@@ -2,10 +2,11 @@
 args=""
 #args="$args -rlHptogDX"
 args="$args -rlHD"
-args="$args -tog"
+args="$args -dtog"
 args="$args -ihs0PS"
-args="$args --stats"
-args_preserve="$args -p"
+args="$args --mkpath --stats"
+args="$args --perms --acls --xattrs --preallocate"
+failure_args_extra="--no-perms"
 
 ## paths to our binaries based on the platform
 posix=rsync
@@ -32,7 +33,7 @@ fi
 ## now we just run the thing
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
-"$prog" $args_preserve "$@"
+"$prog" $args "$@"
 
 ec=$?
 [ "$ec" -eq 0 ] && exit $ec
@@ -41,8 +42,8 @@ columns=`tput cols`
 threequarters=`expr "$columns" \* 3 \/ 4`
 perl -e 'print($ARGV[0]x$ARGV[1]."\n")' '!' "$threequarters" 1>&2
 printf 'Execution of %s has failed (code %d).\n' "$prog" "$ec" 1>&2
-printf 'Trying agains without the preservation flag (%s).\n' "-p" 1>&2
+printf 'Trying again with the permission preservation flag disabled (%s).\n' "$failure_args_extra" 1>&2
 perl -e 'print($ARGV[0]x$ARGV[1]."\n")' '-' "$threequarters" 1>&2
 
-exec "$prog" $args "$@"
+exec "$prog" $args $failure_args_extra "$@"
 exit $?
