@@ -184,6 +184,8 @@ syntax keyword prologBuiltin_trace contained prolog_trace_interception prolog_sk
 syntax cluster prologBuiltin add=prologBuiltin_trace
 syntax keyword prologBuiltin_environment contained prolog_current_frame prolog_current_choice prolog_cut_to prolog_frame_attribute deterministic
 syntax cluster prologBuiltin add=prologBuiltin_environment
+syntax keyword prologBuiltin_chr contained chr_module current_chr_constraint chr_leash chr_notrace chr_trace chr_show_store find_chr_constraint
+syntax cluster prologBuiltin add=prologBuiltin_chr
 
 highlight link prologBuiltin_ prologKeyword
 highlight link prologBuiltin_metacall prologKeyword
@@ -191,6 +193,7 @@ highlight link prologBuiltin_flag prologKeyword
 highlight link prologBuiltin_tabling prologKeyword
 highlight link prologBuiltin_trace prologKeyword
 highlight link prologBuiltin_environment prologKeyword
+highlight link prologBuiltin_chr prologKeyword
 
 syntax keyword prologTopLevel contained prolog prolog:called_by prolog:hook prolog:meta_goal prolog:message_line_element prolog:message_prefix_hook prolog_edit:edit_command prolog_edit:edit_source prolog_edit:load prolog_edit:locate prolog:debug_control_hook prolog_edit:edit_command prolog_edit:edit_source prolog_edit:locate prolog:help_hook
 syntax keyword prologTopLevel contained abort break expand_answer expand_query halt gxref attach_packs edit
@@ -306,7 +309,7 @@ syntax match prologNumber contained '[-+]\=\<\d\+r\d\+\>'
 " hopefully the rest of these numbers work...
 syntax match prologNumber contained '[-+]\=\<\d\+[eE][-+]\=\d\+\>'
 syntax match prologNumber contained '[-+]\=\<\d\+\.\d\+[eE][-+]\=\d\+\>'
-syntax match prologNumber contained "[-+]\=\<0'[\\]\?.\>"
+syntax match prologNumber contained "[-+]\=\<0'[\\]\?."
 syntax match prologNumber contained '[-+]\=\<0b[0-1]\+\>'
 syntax match prologNumber contained '[-+]\=\<0o\o\+\>'
 syntax match prologNumber contained '[-+]\=\<0x\x\+\>'
@@ -388,7 +391,7 @@ syntax keyword prologDirective_hook contained attr_unify_hook exception file_sea
 syntax keyword prologDirective_events contained prolog_listen prolog_unlisten
 syntax keyword prologDirective_tabling contained table
 syntax keyword prologDirective_trace contained prolog_trace_interception prolog_skip_frame prolog_skip_level
-syntax keyword prologDirective_chr contained chr_constraint
+syntax keyword prologDirective_chr contained chr_constraint chr_type
 
 syntax cluster prologDirective add=prologDirective_words
 syntax cluster prologDirective add=prologDirective_words
@@ -512,7 +515,7 @@ syntax cluster prologDefineConstraint contains=prologDefineConstraintRule,prolog
 highlight link prologDefineConstraint prologSpecial
 
 syntax region prologRuleBodyMultiple keepend
-\   matchgroup=prologDefineRule skipwhite skipempty start='.\zs:-\ze'
+\   matchgroup=prologDefineRule skipwhite skipempty start='\zs:-\ze'
 \   contains=@prologBodyToken,@prologComment skip="%.*$"
 \   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
 syntax region prologRuleBodyNoHead keepend
@@ -545,9 +548,34 @@ syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologTok
 syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
 
 syntax match prologHead '^\zs\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
-syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=@prologBody contained
+syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=prologNextHead,@prologBody contained
 syntax match prologHead '^\zs\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)' skipwhite keepend
 
+" XXX: it might be better to explicitly match the head continuation
+"      characters (',' and '\\') before chaining the the next head.
+syntax match prologHead '^\zs\a\w*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
+highlight link prologNextHead prologHead
+
+syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead  contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze(' skipwhite keepend nextgroup=prologHeadParentheses
+syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
+syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter
+
+syntax match prologCHRName '^\zs\a\w*\s*@' skipwhite keepend nextgroup=prologCHRHead,prologNextHead contains=prologCHRSpecialCharacter
+highlight link prologCHRName prologQuestion
+syntax match prologCHRHead '\a\w*\s*(\@=' skipwhite keepend nextgroup=prologHeadParentheses contained
+syntax match prologCHRHead '\a\w*\s*[,]\@=' skipwhite keepend nextgroup=prologNextHead contained
+syntax match prologCHRHead '\a\w*\s*[\\]\@=' skipwhite keepend nextgroup=prologNextHead contained contains=prologCHRSpecialCharacter
+syntax match prologCHRHead '\zs\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contained
+highlight link prologCHRHead prologHead
+
+syntax match prologCHRSpecialCharacter contained '\\'
+syntax match prologCHRSpecialCharacter contained '@'
+highlight link prologCHRSpecialCharacter prologSpecial
+
+" Strings and Atoms
 syntax region prologString start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
 syntax region prologAtom start=+'+ skip=+\\\\\|\\'+ end=+'+
 
