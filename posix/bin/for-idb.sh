@@ -219,21 +219,21 @@ runscript()
 
     cat <<EOF
 import builtins, sys, time, os
-sys.argv = __import__('idc').ARGV = ['$script'] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
+sys.argv = __import__('idc').ARGV = [r"$script"] + (__import__('idc').ARGV[1:] if len(__import__('idc').ARGV) else [])
 os.chdir(r"$workingdir")
 for module in ['traceback','logging','os','idaapi','idaapi','idc','idautils']:
     try:
         globals()[module] = __import__(module)
     except ImportError:
-        print("$arg0:unable to import module %s. skipping."% _)
+        print("[%s] (%s) unable to import module %s... continuing anyways."% (time.asctime(time.localtime()), r"$arg0", module))
     continue
 del(module)
-#print("%s:waiting for ida's autoanalysis to finish anything it missed (%s):%s"% ("$arg0", "$script", time.asctime(time.localtime())))
+#print("[%s] (%s) waiting for ida's autoanalysis to finish processing %s before running %s (%r)"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv))
 #idaapi.auto_wait()
 print("~"*90)
 builtins.clock = (lambda: time.time_ns() * 1e-9) if hasattr(time, 'time_ns') else time.time
 builtins._ = builtins.clock()
-print("%s:executing %s (%s) : %r"% ("$arg0", "$script", time.asctime(time.localtime()), sys.argv))
+print("[%s] (%s) running %s (%r) against %s"% (time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, idaapi.get_path(idaapi.PATH_TYPE_IDB)))
 try: sys.dont_write_bytecode = True
 except AttributeError: pass
 try: exec(compile(open(r"$scriptpath").read(), r"$scriptpath", 'exec'), globals())
@@ -242,22 +242,22 @@ except SystemExit:
     builtins.__ABORT__ = True
 except Exception:
     builtins.__ABORT__ = True
-    print('%s:Exception raised:%s\n'%("$arg0", repr(sys.exc_info()[1])) + ''.join(':'.join(("$arg0", _)) for _ in traceback.format_exception(*sys.exc_info())))
+    print('[%s] (%s) caught unhandled exception running %s (%r): %s\n\n%s\n'%(time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, repr(sys.exc_info()[1]), ''.join('[%s] (%s) %s'% (time.asctime(time.localtime()), r"$arg0", _) for _ in traceback.format_exception(*sys.exc_info())).rstrip('\n')))
 else:
     builtins.__ABORT__ = False
-print("%s:completed %s in %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
+print("[%s] (%s) execution of %s (%r) against %s %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, idaapi.get_path(idaapi.PATH_TYPE_IDB), 'terminated' if builtins.__ABORT__ and getattr(builtins, '__EXITCODE__', 0) else 'completed', builtins.clock()-builtins._))
 print("~"*90)
-print("%s:aborting save of database due to %s"% (r"$arg0", "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("%s:saving state of database to %s"% (r"$arg0", r"$input"))
+print("[%s] (%s) aborting save of database (%s) after running %s (%r) due to %s"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv, "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("[%s] (%s) saving current state of database to %s after running %s (%r)"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv))
 if builtins.__ABORT__:
     idaapi.set_database_flag(idaapi.DBFL_KILL)  # thanks to rolf and (indirectly) misty
 elif not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_version()).split('.', 2)[0]) < 7:
     builtins._ = builtins.clock()
     idaapi.save_database(idaapi.cvar.database_idb, idaapi.DBFL_COMP | idaapi.DBFL_BAK)
-    print("%s:saving %s took %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
+    print("[%s] (%s) succesfully wrote database to %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), builtins.clock()-builtins._))
 else:
     builtins._ = builtins.clock()
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP | idaapi.DBFL_BAK)
-    print("%s:saving %s took %.5f seconds (%s)"% ("$arg0", "$script", builtins.clock()-builtins._, time.asctime(time.localtime())))
+    print("[%s] (%s) succesfully wrote database to %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), builtins.clock()-builtins._))
 idaapi.qexit(getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0))
 EOF
 }
@@ -274,10 +274,10 @@ quoted=(`printf "\"%s\" " "${unquoted[@]}"`)
 tmppath_ida=`getportablepath "$tmp"`
 progresspath_ida=`getportablepath "$progress"`
 if [ "$#" -gt 0 ]; then
-    printf "[%s] script \"%s\" started on \"%s\" with parameters: %s\n" "`currentdate`" "$script" "$input" "${quoted[*]}"
+    printf "[%s] script \"%s\" started against \"%s\" with parameters: %s\n" "`currentdate`" "$script" "$input" "${quoted[*]}"
     "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\" ${quoted[*]}" "$input"
 else
-    printf "[%s] script \"%s\" started on \"%s\"\n" "`currentdate`" "$script" "$input"
+    printf "[%s] script \"%s\" started against \"%s\"\n" "`currentdate`" "$script" "$input"
     "$ida" -A "-L$progresspath_ida" -S"\"$tmppath_ida\"" "$input"
 fi
 result=$?
@@ -300,10 +300,10 @@ fi
 
 if [ "$result" -gt 0 ]; then
     logfile_abort "$ending" >> "$logfile"
-    printf "[%s] script \"%s\" failed(%d) on \"%s\"\n" "`currentdate`" "$script" "$result" "$input"
+    printf "[%s] script \"%s\" failed (error: %d) on \"%s\"\n" "`currentdate`" "$script" "$result" "$input"
 else
     logfile_end "$ending" >> "$logfile"
-    printf "[%s] script \"%s\" finished on \"%s\"\n" "`currentdate`" "$script" "$input"
+    printf "[%s] script \"%s\" completed on \"%s\"\n" "`currentdate`" "$script" "$input"
 fi
 rm -f "$clog" "$progress" "$tmp"
 exit "$result"
