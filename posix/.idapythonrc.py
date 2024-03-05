@@ -1519,13 +1519,24 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
 
     # FIXME: item.opname == 'idx'
     # FIXME: item.opname == 'ptr'
-    assert(item.op in {ida_hexrays.cot_var, ida_hexrays.cot_call, ida_hexrays.cot_idx}), "unexpected op: {:s}".format(item.opname)
+    # FIXME: item.opname == 'obj'
+    assert(item.op in {ida_hexrays.cot_var, ida_hexrays.cot_call, ida_hexrays.cot_idx, ida_hexrays.cot_obj, ida_hexrays.cot_ptr}), "unexpected op: {:s}".format(item.opname)
 
     if item.op == ida_hexrays.cot_idx:
         idx = item
         var, num = idx.x, idx.y
         var_ref = var.v
+        if not var_ref:
+            print("Variable has no type: {:s}".format(hexrays.repr(item)))
+            return
+
         ti = hexrays.variable.type(var_ref)
+
+    elif item.op == ida_hexrays.cot_obj:
+        obj_ea = item.obj_ea
+        assert(db.t.struc.has(obj_ea)), db.get.type(obj_ea)
+        st = db.t.struc(obj_ea)
+        ti = db.types.by(st)
 
     elif item.op == ida_hexrays.cot_var:
         var = item
@@ -1533,7 +1544,7 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         ti = hexrays.variable.type(var_ref)
 
     elif item.op == ida_hexrays.cot_call and item.x.op in {ida_hexrays.cot_helper}:
-        assert(item.x.op in {ida_hexrays.cot_obj}), "unexpected cot_call.x op: {:s}".format(item.x.opname)
+        assert(item.x.op in {ida_hexrays.cot_obj, ida_hexrays.cot_helper}), "unexpected cot_call.x op: {:s}".format(item.x.opname)
 
         # helpers are like platform-specific placeholders, so we can't do
         # anything generic with them.
@@ -1541,6 +1552,7 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         target = call.x
         helper = target.helper
 
+        print("Skipping an unsupported helper: {:s}".format(hexrays.repr(item)))
         return
 
     elif item.op == ida_hexrays.cot_call:
@@ -1549,8 +1561,17 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         obj = call.x
         ti = func.result(obj.obj_ea)
 
+    # FIXME: item.opname == 'ptr'
+    elif item.op == ida_hexrays.cot_ptr:
+        target, offset = item.x, item.m
+        var_ref = target.v
+        ti = hexrays.variable.type(var_ref)
+        print("Detected a cot_ptr with type: {!s}".format(ti))
+
     st = struc.by(ti)
     for _, moffset in res[::-1]:
+        if not st.has(moffset):
+            break
         member = st.members.by_realoffset(moffset)
         if not struc.has(member.typeinfo):
             break
