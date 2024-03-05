@@ -257,7 +257,7 @@ except Exception:
 else:
     builtins.__ABORT__ = False
 
-print("[%s] (%s) execution of %s (%r) against %s %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, idaapi.get_path(idaapi.PATH_TYPE_IDB), 'terminated' if builtins.__ABORT__ and getattr(builtins, '__EXITCODE__', 0) else 'completed', builtins.clock()-builtins._))
+print("[%s] (%s) execution of %s (%r) against %s %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, idaapi.get_path(idaapi.PATH_TYPE_IDB), 'terminated' if getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0) else 'completed', builtins.clock()-builtins._))
 print("~"*90)
 
 print("[%s] (%s) aborting save of database (%s) after running %s (%r) due to %s"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv, "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("[%s] (%s) saving current state of database to %s after running %s (%r)"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv))
