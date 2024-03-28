@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2023-03-23 19:59:47" build="210912">
+		<key name=".Vanilla" modified="2024-03-28 15:51:49" build="230724">
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data="C:\MinGW\msys\1.0\bin\bash.exe --login"/>
 			<value name="StartTasksFile" type="string" data=""/>
-			<value name="StartTasksName" type="string" data="{Bash::msys}"/>
+			<value name="StartTasksName" type="string" data="{Bash::msys2}"/>
 			<value name="StartFarFolders" type="hex" data="00"/>
 			<value name="StartFarEditors" type="hex" data="00"/>
 			<value name="ColorTable00" type="dword" data="00562401"/>
@@ -86,7 +86,6 @@
 			<value name="StoreTaskbarkTasks" type="hex" data="00"/>
 			<value name="StoreTaskbarCommands" type="hex" data="00"/>
 			<value name="SaveCmdHistory" type="hex" data="01"/>
-			<value name="CmdLineHistory" type="multi"/>
 			<value name="SingleInstance" type="hex" data="01"/>
 			<value name="ShowHelpTooltips" type="hex" data="00"/>
 			<value name="Multi" type="hex" data="01"/>
@@ -137,10 +136,10 @@
 			<value name="ColorKeyValue" type="dword" data="00010101"/>
 			<value name="UseCurrentSizePos" type="hex" data="01"/>
 			<value name="WindowMode" type="dword" data="0000051f"/>
-			<value name="ConWnd Width" type="dword" data="00000080"/>
-			<value name="ConWnd Height" type="dword" data="00000025"/>
+			<value name="ConWnd Width" type="dword" data="0000007f"/>
+			<value name="ConWnd Height" type="dword" data="0000001b"/>
 			<value name="Cascaded" type="hex" data="01"/>
-			<value name="ConWnd X" type="long" data="457"/>
+			<value name="ConWnd X" type="long" data="409"/>
 			<value name="ConWnd Y" type="long" data="0"/>
 			<value name="16bit Height" type="ulong" data="0"/>
 			<value name="AutoSaveSizePos" type="hex" data="01"/>
@@ -580,27 +579,54 @@
 				<value name="Key.EditMenu" type="dword" data="00000000"/>
 				<value name="Key.EditMenu2" type="dword" data="00000000"/>
 			</key>
-			<key name="Tasks" modified="2023-03-23 19:55:26" build="210912">
-				<value name="Count" type="long" data="26"/>
-				<key name="Task1" modified="2022-07-06 18:52:46" build="210912">
-					<value name="Name" type="string" data="{Bash::msys}"/>
+			<key name="Tasks" modified="2024-03-28 15:36:09" build="230724">
+				<value name="Count" type="long" data="29"/>
+				<key name="Task1" modified="2024-03-28 15:36:09" build="230724">
+					<value name="Name" type="string" data="{Bash::msys2}"/>
 					<value name="Flags" type="dword" data="00000003"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%" /icon "%ConEmuDrive%\msys64\msys2.ico"'/>
-					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\usr\bin\bash.exe" --login -i"'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\msys2_shell.cmd" -no-start -msys2 -defterm -no-start -l -i" -new_console:n:t:"bash"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task2" modified="2022-07-06 18:52:46" build="210912">
-					<value name="Name" type="string" data="{Bash::msys::Admin}"/>
+				<key name="Task2" modified="2024-03-28 15:39:17" build="230724">
+					<value name="Name" type="string" data="{Bash::msys2::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%" /icon "%ConEmuDrive%\msys64\msys2.ico"'/>
-					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\usr\bin\bash.exe" --login -i" -new_console:a:sT33V'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\msys2_shell.cmd" -no-start -msys2 -defterm -no-start -l -i" -new_console:a:sT33V:t:"bash"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task3" modified="2022-07-06 18:52:46" build="210912">
+				<key name="Task3" modified="2024-03-28 15:38:06" build="230724">
+					<value name="Name" type="string" data="{Bash::ucrt64}"/>
+					<value name="Flags" type="dword" data="00000004"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%" /icon "%ConEmuDrive%\msys64\ucrt64.ico"'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\msys2_shell.cmd" -no-start -ucrt64 -defterm -no-start -l -i" -new_console:n:t:"bash"'/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+				</key>
+				<key name="Task4" modified="2024-03-28 15:38:06" build="230724">
+					<value name="Name" type="string" data="{Bash::mingw32}"/>
+					<value name="Flags" type="dword" data="00000004"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%" /icon "%ConEmuDrive%\msys64\mingw32.ico"'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\msys2_shell.cmd" -no-start -mingw32 -defterm -no-start -l -i" -new_console:n:t:"bash"'/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+				</key>
+				<key name="Task5" modified="2024-03-28 15:38:06" build="230724">
+					<value name="Name" type="string" data="{Bash::mingw64}"/>
+					<value name="Flags" type="dword" data="00000004"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%" /icon "%ConEmuDrive%\msys64\mingw64.ico"'/>
+					<value name="Cmd1" type="string" data='""%ConEmuDrive%\msys64\msys2_shell.cmd" -no-start -mingw64 -defterm -no-start -l -i" -new_console:n:t:"bash"'/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+				</key>
+				<key name="Task6" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Bash::cygwin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -609,7 +635,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task4" modified="2022-07-06 18:52:46" build="210912">
+				<key name="Task7" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Bash::cygwin::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -618,7 +644,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task5" modified="2022-07-06 18:52:46" build="210912">
+				<key name="Task8" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Bash::git}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -627,7 +653,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task6" modified="2023-03-23 19:56:42" build="210912">
+				<key name="Task9" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{PowerShell::User}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -636,7 +662,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task7" modified="2023-03-23 19:56:42" build="210912">
+				<key name="Task10" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{PowerShell::Admin}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -645,7 +671,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task8" modified="2023-03-23 19:56:42" build="210912">
+				<key name="Task11" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{PowerShell::1.0::User}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -654,7 +680,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task9" modified="2023-03-23 19:56:42" build="210912">
+				<key name="Task12" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{PowerShell::1.0::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -663,7 +689,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task10" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task13" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::User}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -672,7 +698,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task11" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task14" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::Admin}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -681,7 +707,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task12" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task15" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs17 (x86)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -690,7 +716,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task13" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task16" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs17 (x64)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -699,7 +725,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task14" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task17" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs14 (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -708,7 +734,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task15" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task18" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs14 (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -717,7 +743,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task16" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task19" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -726,34 +752,34 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task17" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task20" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::vs12 (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64" -new_console:t:"VS2013 [12.0] (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64" -new_console:t:"VS2013 [12.0] (x64)"'/>
 				</key>
-				<key name="Task18" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task21" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::Python (x86)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" x86" -new_console:t:"Python 2.7 -- Microsoft Visual Studio 2008 (x86)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" x86" -new_console:t:"Python 2.7 -- Microsoft Visual Studio 2008 (x86)"'/>
 				</key>
-				<key name="Task19" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task22" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{cmd::SDK::Python (x64)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data='/dir "%USERPROFILE%"'/>
-					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" amd64" -new_console:t:"Python 2.7 -- Microsoft Visual Studio 2008 (x64)"'/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='"%ComSpec%" /k ""%LOCALAPPDATA%\Programs\Common\Microsoft\Visual C++ for Python\9.0\vcvarsall.bat" amd64" -new_console:t:"Python 2.7 -- Microsoft Visual Studio 2008 (x64)"'/>
 				</key>
-				<key name="Task20" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task23" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Tests::Show ANSI colors}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -762,7 +788,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='"%ComSpec%" /k type "%ConEmuBaseDir%\Addons\AnsiColors16t.ans" -cur_console:n'/>
 				</key>
-				<key name="Task21" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task24" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Language::Python}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -771,7 +797,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Python\Python.exe" -i" -new_console:sT45V'/>
 				</key>
-				<key name="Task22" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task25" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Language::Fsharp}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -780,7 +806,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='""%ProgramFiles%\dotnet\dotnet.exe" fsi --consolecolors+ --readline+ --utf8output" -new_console:sT45V'/>
 				</key>
-				<key name="Task23" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task26" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Language::Go}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -789,7 +815,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='""%USERPROFILE%\.go\bin\go-repl.exe"" -new_console:sT45V'/>
 				</key>
-				<key name="Task24" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task27" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Language::Ocaml}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -798,7 +824,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ocaml\bin\ocaml.exe"" -new_console:sT45V'/>
 				</key>
-				<key name="Task25" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task28" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Language::Ruby}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -807,7 +833,7 @@
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='""%ConEmuDrive%\Ruby21\bin\irb.bat"" -new_console:sT45V'/>
 				</key>
-				<key name="Task26" modified="2023-03-23 19:55:26" build="210912">
+				<key name="Task29" modified="2024-03-28 15:38:06" build="230724">
 					<value name="Name" type="string" data="{Mimikatz}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -857,6 +883,19 @@
 			<value name="AutoReloadEnvironment" type="hex" data="01"/>
 			<value name="AutoTrimSingleLine" type="hex" data="00"/>
 			<value name="StatusBar.Hide.InputGrouping" type="hex" data="00"/>
+			<value name="CmdLineHistory" type="multi">
+				<line data="{Bash::ucrt64}"/>
+				<line data="{Bash::msys2::Admin}"/>
+				<line data="{Bash::mingw32}"/>
+				<line data="{Bash::msys2::Admin}"/>
+				<line data="{PowerShell::Admin}"/>
+				<line data="{cmd::User}"/>
+				<line data="{cmd::SDK::vs17 (x64)}"/>
+				<line data="{PowerShell::User}"/>
+				<line data="{cmd::SDK::vs17 (x86)}"/>
+				<line data="{cmd::SDK::vs14 (x86)}"/>
+				<line data="{Bash::msys2}"/>
+			</value>
 		</key>
 	</key>
 </key>
