@@ -110,7 +110,7 @@ case "$platform" in
 
         # fix a bug with paths wrt compiling on msys2 which originated from some older version of cygwin and still remains.
         IFS='.()' read rmajor rminor rpatch _ < <( uname -r )
-        if [ "$rmajor" -eq "2" ]; then
+        if [ "$rmajor" -ge "2" ]; then
             export PATH=`sed 's/\(:\/bin:\)/:\/usr\/bin\1/' <<< "$PATH"`
         fi
         unset rmajor rminor rpatch
