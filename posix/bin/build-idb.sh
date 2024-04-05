@@ -100,7 +100,16 @@ allahu_awkbar()
     test "$#" -gt 1 && horizontal="$2" || horizontal='-'
     test "$#" -gt 2 && vertical="$3" || vertical='| '
     test "$#" -gt 3 && corner="$4" || corner='+'
-    awk -v "vert=$vertical" -v "horz=$horizontal" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz, "") } { print vert $0 }'
+    test "$#" -gt 4 && horizontal2="$5" || horizontal2='_'
+    awk -v "vert=$vertical" -v "horz=$horizontal" -v "horz2=$horizontal2" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz2, "") } { print vert $0 }'
+}
+
+perlbar_rjustified()
+{
+    width="$1"
+    test "$#" -gt 1 && horizontal="$2" || horizontal='-'
+    test "$#" -gt 2 && corner="$3" || corner='+'
+    with="$width" whorez="$horizontal" corn="$corner" perl -pe 'BEGIN{$whorez_and_corn=$ENV{corn}.$ENV{whorez};$whorez_and_corn=~s/(.)?(.)/$1.$2x$ENV{with}/e}; chomp;$_=" $_"unless $ENV{with}<=length;$_=substr($whorez_and_corn,0,$ENV{with}>length?$ENV{with}-length:0)."$_\n"'
 }
 
 logfile_begin()
@@ -123,7 +132,7 @@ logfile_abort()
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf '\n'
-    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '~'
+    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '='
 }
 
 makeanalysis()
@@ -131,7 +140,7 @@ makeanalysis()
     arg0=`basename "$0"`
     cat <<EOF
 import idaapi,time
-print("~"*90)
+print("^"*90)
 clock = (lambda: time.time_ns() * 1e-9) if hasattr(time, 'time_ns') else time.time
 ts = clock()
 print("$arg0:waiting for ida's auto-analysis to finish (%s)"% (time.asctime(time.localtime())))
@@ -145,7 +154,7 @@ if not hasattr(idaapi, 'get_kernel_version') or int(str(idaapi.get_kernel_versio
 else:
     idaapi.save_database(idaapi.get_path(idaapi.PATH_TYPE_IDB), idaapi.DBFL_COMP)
 print("$arg0:saving took %.5f seconds (%s)"% (clock() - save_ts, time.asctime(time.localtime())))
-print("~"*90)
+print("$"*90)
 idaapi.qexit(0)
 EOF
 }

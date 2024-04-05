@@ -108,7 +108,16 @@ allahu_awkbar()
     test "$#" -gt 1 && horizontal="$2" || horizontal='-'
     test "$#" -gt 2 && vertical="$3" || vertical='| '
     test "$#" -gt 3 && corner="$4" || corner='+'
-    awk -v "vert=$vertical" -v "horz=$horizontal" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz, "") } { print vert $0 }'
+    test "$#" -gt 4 && horizontal2="$5" || horizontal2='_'
+    awk -v "vert=$vertical" -v "horz=$horizontal" -v "horz2=$horizontal2" -v "corn=$corner" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { print corn rep(width - length(corn), horz, "") } END { print corn rep(width - length(corn), horz2, "") } { print vert $0 }'
+}
+
+perlbar_rjustified()
+{
+    width="$1"
+    test "$#" -gt 1 && horizontal="$2" || horizontal='-'
+    test "$#" -gt 2 && corner="$3" || corner='+'
+    with="$width" whorez="$horizontal" corn="$corner" perl -pe 'BEGIN{$whorez_and_corn=$ENV{corn}.$ENV{whorez};$whorez_and_corn=~s/(.)?(.)/$1.$2x$ENV{with}/e}; chomp;$_=" $_"unless $ENV{with}<=length;$_=substr($whorez_and_corn,0,$ENV{with}>length?$ENV{with}-length:0)."$_\n"'
 }
 
 logfile_begin()
@@ -131,7 +140,7 @@ logfile_abort()
     arg0=`basename "$0"`
     test "$#" -gt 0 && current="$1" || current=`currentdate`
     printf '\n'
-    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '~'
+    printf '%s failed at : %s\n' "$arg0" "$current" | allahu_awkbar 90 '='
 }
 
 unbase() { tr 'a-z' 'A-Z' | cat <( printf 'ibase=%d\n' "$1") - | bc; }
@@ -232,7 +241,7 @@ del(_)
 
 #print("[%s] (%s) waiting for autoanalysis to finish processing %s before running %s (%r)"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv))
 #idaapi.auto_wait()
-print("~"*90)
+print("^"*90)
 
 builtins.clock = (lambda: time.time_ns() * 1e-9) if hasattr(time, 'time_ns') else time.time
 builtins._ = builtins.clock()
@@ -258,7 +267,7 @@ else:
     builtins.__ABORT__ = False
 
 print("[%s] (%s) execution of %s (%r) against %s %s in %.5f seconds"% (time.asctime(time.localtime()), r"$arg0", r"$script", sys.argv, idaapi.get_path(idaapi.PATH_TYPE_IDB), 'terminated' if getattr(builtins, '__EXITCODE__', 1 if builtins.__ABORT__ else 0) else 'completed', builtins.clock()-builtins._))
-print("~"*90)
+print("$"*90)
 
 print("[%s] (%s) aborting save of database (%s) after running %s (%r) due to %s"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv, "script exit (error: %d)"% getattr(builtins, '__EXITCODE__', 0) if hasattr(builtins, '__EXITCODE__') else 'unhandled exception')) if builtins.__ABORT__ else print("[%s] (%s) saving current state of database to %s after running %s (%r)"% (time.asctime(time.localtime()), r"$arg0", idaapi.get_path(idaapi.PATH_TYPE_IDB), r"$script", sys.argv))
 if not builtins.__ABORT__:
