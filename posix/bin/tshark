@@ -3,13 +3,23 @@ posix=tshark
 dir="$HOME/tools/WiresharkPortable"
 windows="$dir/App/Wireshark/tshark.exe"
 
-args="-n -F pcapng"
+defaultargs=(-N dmn -q -t ud -P --color)
+windowsargs=(-F pcapng)
 
 ## figure out which one to run based on the platform
 case "${platform}" in
     msys|cygwin)
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
+esac
+
+case "${os}" in
+    windows)
+        args=("${windowsargs[@]}" "${defaultargs[@]}")
+    ;;
+    *)
+        args=("${defaultargs[@]}")
+    ;;
 esac
 
 ## if we're on a posixy platform, then search the path
@@ -26,4 +36,4 @@ fi
 ## now try and run shit
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
-exec "$prog" "$@" $args
+exec "$prog" "${args[@]}" "$@"
