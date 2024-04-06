@@ -406,6 +406,23 @@ if has("eval")
         execute printf('%dwincmd w', l:cwin)
     endfunction
 
+    " Execute a normal mode command for every line in a visual mode
+    " selection. This takes care to honor the visually-selected column.
+    function! VisualNormalCommand(command)
+        let [l:cleft, l:cright] = [col("'<") - 1, col("'>") - 1]
+        let [l:left, l:right] = [min([l:cleft, l:cright]), max([l:cleft, l:cright])]
+        let [l:top, l:bottom] = [line("'<"), line("'>")]
+        if l:cleft > 0 && l:cleft == l:cright
+            exec printf("%d,%dnormal 0%dl%s", l:top, l:bottom, l:cleft, a:command)
+        elseif l:cleft > 0 && l:cleft < l:cright
+            exec printf("%d,%dnormal 0%dl%dx%s", l:top, l:bottom, l:cleft, l:cright - l:cleft, a:command)
+        elseif l:cleft == l:cright
+            exec printf("%d,%dnormal 0%s", l:top, l:bottom, a:command)
+        else
+            exec printf("%d,%dnormal 0%dx%s", l:top, l:bottom, l:cright - l:cleft, a:command)
+        endif
+    endfunction
+
     "" allow for window zoom/unzoom in the current tab
     function! s:toggle_zoom(state)
         let l:tabnr = tabpagenr()
