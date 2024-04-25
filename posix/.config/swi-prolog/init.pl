@@ -12,3 +12,8 @@
 :- not(prolog_pack:current_pack(quickcheck)) -> (format("WARNING: Do not run the post-installation scripts for ~w~n", [quickcheck]), pack_install(quickcheck)); true.
 :- not(prolog_pack:current_pack(mavis)) -> pack_install(mavis); true.
 :- use_module(library(mavis)).
+
+%- https://www.swi-prolog.org/pack/list?p=dcgutils
+:- not(prolog_pack:current_pack(dcgutils)) -> pack_install(dcgutils); true.
+%:- use_module(library(dcg_core)).
+:- use_module(library(dcg_progress)).
