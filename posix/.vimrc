@@ -131,6 +131,11 @@ if has("eval")
     "nnoremap <Tab> >>
     nnoremap gs <Cmd>echomsg SyntaxIds('.')<C-M>
 
+    " Adjusting indentation does not exit visual-mode,
+    " since we're now using <Tab> for that.
+    vnoremap > ><CR>gv
+    vnoremap < <<CR>gv
+
     " <S-Space> is recognized by some terminals, so we discard it.
     tnoremap <S-Space> <Space>
 
