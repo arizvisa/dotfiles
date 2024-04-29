@@ -115,7 +115,7 @@ get_version_format()
 outpath=
 if [ "$#" -gt 0 ]; then
     logf 'Trying to determine format for "%s" using parameters "%s".' "$inpath" "$*"
-    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -- "$@" "$inpath" 2>/dev/null`
+    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" "$@" -- "$inpath" 2>/dev/null`
 fi
 
 # if the user chose an explicit path, then let them know that we're using it.
