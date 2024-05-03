@@ -60,12 +60,19 @@ alias cp='cp -i'
 alias cat='cat -v'
 
 # remapping of common utilities
-alias l="`type -P less || type -P more`"
 alias info="`type -P info` --vi-keys"
 alias strings="`type -P stringsext || type -P strings`"
 alias strace="`type -P strace` -vitttTs 131072"
 alias netstat="`type -P netstat` -W"
 alias z="`type -P zstd`"
+
+which_pager="`type -P less || type -P more`"
+case "${which_pager}" in
+    *less) which_pager_args=(-S -i -Q -s) ;;
+    *more) which_pager_args=(-d -s) ;;
+esac
+alias l="${which_pager} ${which_pager_args[*]}"
+unset which_pager which_pager_args
 
 # some defaults for the common utilities
 alias ls='ls -F'
