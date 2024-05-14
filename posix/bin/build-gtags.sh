@@ -42,12 +42,42 @@ tc_build_skip()
     printf '%s\0' "$@" | paste -zsd, - | xargs -0 printf "%s:\n"
 }
 
-tc_build_langmap_content()
+tc_build_langmap_content_entry()
+{
+    printf '%s\n' ':langmap=\'
+}
+
+tc_build_langmap_content_continue()
+{
+    printf '%s\n' ',\'
+}
+
+tc_build_langmap_content_exit()
+{
+    printf '%s\n' '\'
+}
+
+tc_build_langmap_content_text()
 {
     language="$1"
     shift
-    printf ':langmap=%s\:' "$language"
+    printf '%s\:' "$language"
+    xargs -0 printf '%s'
+}
+
+tc_build_langmap_content_pattern()
+{
+    language="$1"
+    shift
+    printf '%s\:' "$language"
     xargs -0 printf '(%s)'
+}
+
+tc_build_empty_header()
+{
+    label="$1"
+    shift
+    printf '%s:%s\n\t%s\n' "$label" '\' '::'
 }
 
 tc_build_langmap_header()
@@ -61,23 +91,64 @@ tc_build_langmap_footer()
 {
     label="$1"
     shift
-    printf ':'
+    printf '%s\n' ':'
+}
+
+global_langmap_extensions()
+{
+    declare -A default_langmap
+    while read language extensions; do
+        default_langmap[$language]+="$extensions"
+    done < <( global_langmap )
+    declare -p default_langmap
+}
+
+tc_build_langmap_defaults()
+{
+    name="$1"
+    eval `global_langmap_extensions`
+    tc_build_langmap_header "$name"
+    tc_build_langmap_content_entry
+
+    count=1
+    total="${#default_langmap[@]}"
+    for lang in "${!default_langmap[@]}"; do
+        exts="${default_langmap[$lang]}"
+        printf '%s\0' "$exts" | tc_build_langmap_content_text "$lang"
+        [ "$count" -lt "$total" ] && tc_build_langmap_content_continue
+        count=`expr $count + 1`
+    done
+    [ "$total" -gt 0 ] && tc_build_langmap_content_exit
+    tc_build_langmap_footer "$name"
 }
 
 # XXX: i think i was testing adding support for arbitrary languages here
 global_build_test()
 {
-    tc_build_label "fucker" "tc=exclude" "tc=include"
-    tc_build_skip "exclude" "GPATH" "GRTAGS" "GTAGS" "*.h"
+    number="$1"
+
+    tc_build_label "default" "tc=general" "tc=exclude" "tc=include"
+    tc_build_skip "exclude" "GPATH" "GRTAGS" "GTAGS"
     #printf "%s\0" '*.cc' '*.cpp' '*.x' '' 1>&3
     #tc_build_langmap "include" 'cpp' $'*.c\0*.cc\0*.cc' #'php' $'*.php\n*.php3' "c\n*.c\n*.h\n'
-    clang=( "*.cc" "*.cpp" "*.c" "" )
-    plang=( "*.php" "*.php3" )
 
-    tc_build_langmap_header 'include'
-    printf '%s\0' "${clang[@]}" | tc_build_langmap_content cpp
-    printf '%s\0' "${plang[@]}" | tc_build_langmap_content php
-    tc_build_langmap_footer 'include'
+    tc_build_langmap_defaults "general"
+
+    if [ "$number" -gt 0 ]; then
+        tc_build_langmap_header 'include'
+        tc_build_langmap_content_entry
+
+        count=1
+        while read -d $'\0' language filters; do
+            printf '%s\0' $filters | tc_build_langmap_content_pattern "$language"
+            [ "$count" -lt "$number" ] && tc_build_langmap_content_continue
+            count=`expr "$count" + 1`
+        done
+        tc_build_langmap_content_exit
+        tc_build_langmap_footer 'include'
+    else
+        tc_build_empty_header 'include'
+    fi
 }
 
 ### command-detection utilities
@@ -182,11 +253,12 @@ cmd=`choose_command "$csprog" "$CSPROG"`
 description=`eval $cmd\_description`
 
 ## now we can process our command line parameters
-declare -a filter
-operation=build_database
-#operation=build_test
+declare -a opt_filters
+declare -a opt_exclude
+#operation=build_database
+operation=build_test
 
-while getopts hlf: opt; do
+while getopts hlf:x: opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
@@ -195,15 +267,49 @@ while getopts hlf: opt; do
         l)
             operation=list_languages
             ;;
+        x)
+            opt_exclude+=( "$OPTARG" )
+            ;;
         f)
-            printf '%s: adding filter : %s\n' "$ARG0" "$OPTARG"
-            filter=( "${filter[@]}" "$OPTARG" )
+            language="$OPTARG"
+            if [ ${OPTIND} -le $# ]; then
+                filter=${!OPTIND}
+                let OPTIND++
+            else
+                printf '%s: missing filter for language parameter : -f %s\n' "$ARG0" "$language"
+                exit 1
+            fi
+            printf '%s: adding filter : %s : %s\n' "$ARG0" "$language" "$filter"
+            opt_filters+=( "$language $filter" )
             ;;
     esac
 done
 shift `expr "$OPTIND" - 1`
 
-eval "$cmd\_$operation"
+# build an index for each language referencing the opt_filter
+declare -A language_filter
+index=0
+for flt in "${opt_filters[@]}"; do
+    IFS=' ' read language filter <<<"$flt"
+    language_filter["$language"]+=":$index"
+    let index++
+done
+
+# now we need to feed them to our langmap builder.
+number="${#language_filter[@]}"
+for language in "${!language_filter[@]}"; do
+    IFS=: read _ rest <<<"${language_filter[$language]}"
+    IFS=: read -a indices <<<"$rest"
+    filters=()
+    for index in "${indices[@]}"; do
+        IFS=' ' read _ filter <<<"${opt_filters[$index]}"
+        filters+=("$filter")
+    done
+    printf '%s\n' "$language"
+    printf "%s\n" "${filters[@]}"
+    printf '\0'
+done | global_build_test "$number"
+
 
 exit 1  # XXX
 
