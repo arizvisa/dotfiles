@@ -40,3 +40,5 @@
 [credential "https://gist.github.com"]
 	helper =
 	helper = !/usr/bin/gh auth git-credential
+[http]
+	version = HTTP/1.1
