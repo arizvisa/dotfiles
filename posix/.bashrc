@@ -80,11 +80,14 @@ alias ls='ls -F'
 # sort(1) does not honor record order by default.
 alias sort='sort -s'
 
-# nl(1) is stupid by default.
+# nl(1) is stupid by default, due to not using a proper field separator.
 nl()
 {
     "`type -P nl`" -w32 -nrn -v0 -ba -s $'\t' "$@" | sed -e $'s/^ *//g' ;
 }
+
+# bash's time(1) is stupid by default, due to not emitting any resource usage.
+alias time="`type -P time` --verbose"
 
 # remove any distro-specific aliases that have been added for
 # some of our core posix utilities, while adding some sane ones.
