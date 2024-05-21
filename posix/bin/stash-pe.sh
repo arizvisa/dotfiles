@@ -12,13 +12,20 @@ usage()
 logf()
 {
     format="$1"; shift
-    [ "$QUIET" -gt 0 ] || printf -- "$format\n" "$@" 1>&2
+    ts=`current_date`
+    [ "$QUIET" -gt 0 ] || printf -- "[$ts] $format\n" "$@" 1>&2
 }
 
 fatalf()
 {
     format="$1"; shift
-    printf -- "$format\n" "$@" 1>&2
+    ts=`current_date`
+    printf -- "[$ts] $format\n" "$@" 1>&2
+}
+
+current_date()
+{
+    date --rfc-3339=seconds
 }
 
 CWD=`pwd`
