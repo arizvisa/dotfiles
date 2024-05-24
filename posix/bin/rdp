@@ -2,9 +2,9 @@
 mstsc_args='-f'
 xfreerdp_args=""
 xfreerdp_args="$xfreerdp_args +heartbeat +auto-reconnect"
-xfreerdp_args="$xfreerdp_args +sec-tls +sec-rdp +authentication"
+xfreerdp_args="$xfreerdp_args /sec:tls:on /sec:rdp:on /sec:ext:on /sec:aad:on /sec:nla:on +authentication /auth-pkg-list:!kerberos"
 xfreerdp_args="$xfreerdp_args +dynamic-resolution +home-drive"
-xfreerdp_args="$xfreerdp_args +offscreen-cache +bitmap-cache +glyph-cache +gfx +nscodec +home-drive"
+xfreerdp_args="$xfreerdp_args /cache:offscreen:on +cache:bitmap:on +cache:glyph:on +gfx +nscodec +home-drive"
 
 ## figure out whether a prog exists for the current platform
 case "$platform" in
