@@ -104,6 +104,7 @@ case "$platform" in
     msys|cygwin)    alias ps='ps -af'       ;;
     *)              alias ps="ps -ww -lj"   ;;
 esac
+alias split="split -d -a3"
 
 ## platform-specific fixes
 # darwin
