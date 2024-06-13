@@ -2,9 +2,14 @@
 quiet:yes
 clean:no
 bare:yes
-wrap:0
+wrap:132
 tidy-mark:no
 write-back:no
+
+// hide stuff that tidy might write to stdout (should be using stderr, guy).
+show-warnings:yes
+show-errors:0
+force-output:yes
 
 // indentation
 indent:yes
