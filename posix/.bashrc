@@ -115,6 +115,7 @@ fi
 
 if [ "$platform" == "linux-gnu" ]; then
     alias tar='tar --force-local'
+    alias ip='ip -color=never'      # system tools using colors by default is pretty fucking stupid.
 fi
 
 # posix
