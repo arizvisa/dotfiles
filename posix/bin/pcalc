@@ -1,5 +1,5 @@
-#!/usr/bin/perl
-# pcalc v13.4 - w/ <3, from sohlow
+#!/usr/bin/env perl
+# pcalc v13.5 - w/ <3, from sohlow
 # thx to deft and the perl cb for the bin2dec suggestion and implementation
 # thx again to deft for the asc2chr suggestion
 # thx to deft for being my only user and having the exe to this when latest version was lost so i could recover the src
