@@ -14,7 +14,7 @@ find_service_port()
     service="$1"
     protocol="$2"
     service_path=/etc/services
-    grep -- "^$service" "$service_path" | sed "s/\s\+/\t/g" | cut -f2 | while read port; do
+    grep -- "^$service" "$service_path" | sed "s/[ 	]\+/	/g" | cut -f2 | while read port; do
         case "$port" in
         */$protocol)
             echo "$port" | cut -d/ -f1
