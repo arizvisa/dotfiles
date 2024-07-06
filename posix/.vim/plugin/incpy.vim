@@ -63,7 +63,6 @@
 " file. The available options are as follows.
 "
 " string g:incpy#Program      -- name of subprogram (if empty, use vim's internal python).
-" bool   g:incpy#Greenlets    -- whether to use greenlets (lightweight-threads) or not.
 " bool   g:incpy#OutputFollow -- flag that specifies to tail the output of the subprogram.
 " any    g:incpy#InputStrip   -- when executing input, specify whether to strip leading indentation.
 " bool   g:incpy#Echo         -- when executing input, echo it to the "Scratch" buffer.
@@ -80,9 +79,16 @@
 " dict   g:incpy#WindowOptions  -- the options to use when creating the output window.
 " bool   g:incpy#WindowPreview  -- whether to use preview windows for the program output.
 " float  g:incpy#WindowRatio    -- the ratio of the window size when creating it
+" bool   g:incpy#WindowStartup  -- show the window as soon as the plugin is started.
 " string g:incpy#WindowPosition -- the position at which to create the window. can be
 "                                  either "above", "below", "left", or "right".
 " string g:incpy#PythonStartup  -- the name of the dotfile to seed python's globals with.
+"
+" bool   g:incpy#Terminal   -- whether to use the terminal api for external interpreters.
+" bool   g:incpy#Greenlets  -- whether to use greenlets for external interpreters.
+"
+" string g:incpy#PluginName     -- the internal name of the plugin, used during logging.
+" string g:incpy#PackageName    -- the internal package name, found in sys.modules.
 "
 " Todo:
 " - When the filetype of the current buffer was specified, the target output buffer
@@ -99,199 +105,13 @@
 "   buffer so that management of multiple program buffers would be local to
 "   whatever the user is currently editing.
 
-if has("python") || has("python3")
+if exists("g:loaded_incpy") && g:loaded_incpy
+    finish
+endif
+let g:loaded_incpy = v:true
 
-""" Utility functions for indentation stuff
-function! s:count_indent(string)
-    " count the whitespace that prefixes a single-line string
-    let characters = 0
-    for c in split(a:string, '\zs')
-        if stridx(" \t", c) == -1
-            break
-        endif
-        let characters += 1
-    endfor
-    return characters
-endfunction
+""" Utilities for dealing with visual-mode selection
 
-function! s:find_common_indent(lines)
-    " find the smallest common indent of a list of strings
-    let smallestindent = -1
-    for l in a:lines
-        " skip lines that are all whitespace
-        if strlen(l) == 0 || l =~ '^\s\+$'
-            continue
-        endif
-
-        let spaces = s:count_indent(l)
-        if smallestindent < 0 || spaces < smallestindent
-            let smallestindent = spaces
-        endif
-    endfor
-    return smallestindent
-endfunction
-
-function! s:strip_common_indent(lines, size)
-    " strip the specified number of characters from a list of lines
-
-    let results = []
-    let prevlength = 0
-
-    " iterate through each line
-    for l in a:lines
-
-        " if the line is empty, then pad it with the previous indent
-        if strlen(l) == 0
-            let row = repeat(" ", prevlength)
-
-        " otherwise remove the requested size, and count the leftover indent
-        else
-            let row = strpart(l, a:size)
-            let prevlength = s:count_indent(row)
-        endif
-
-        " append our row to the list of results
-        let results += [row]
-    endfor
-    return results
-endfunction
-
-function! s:python_strip_and_fix_indent(lines)
-    let indentsize = s:find_common_indent(a:lines)
-    let stripped = s:strip_common_indent(a:lines, indentsize)
-
-    " trim any beginning lines that are meaningless
-    let l:start = 0
-    for l:index in range(len(stripped))
-        let l:item = stripped[l:index]
-        if strlen(l:item) > 0 && l:item !~ '^\s\+$'
-            break
-        endif
-        let l:start += 1
-    endfor
-
-    " trim any ending lines that are meaningless
-    let l:tail = 0
-    for l:index in range(len(stripped))
-        let l:tail += 1
-        let l:item = stripped[-(1 + l:index)]
-        if strlen(l:item) > 0 && l:item !~ '^\s\+$'
-            break
-        endif
-    endfor
-
-    " if the last line is indented, then we append another newline (python)
-    let trimmed = split(trim(join(stripped[l:start : -l:tail], "\n"), " \t\n", 2), "\n")
-    if len(trimmed) > 0 && trimmed[-1] =~ '^\s\+'
-        let result = add(trimmed, '')
-    else
-        let result = trimmed
-    endif
-    return join(result, "\n") .. "\n"
-endfunction
-
-function! s:striplist_by_option(option, lines)
-    let items = a:lines
-
-    " Strip the fetched lines if the user configured us to
-    if type(a:option) == v:t_bool
-        let result = a:option == v:true? map(items, "trim(v:val)") : items
-
-    " If the type is a string, then use it as a regex that
-    elseif type(a:option) == v:t_string
-        let result = map(items, a:option)
-
-    " Otherwise it's a function to use as a transformation
-    elseif type(a:option) == v:t_func
-        let F = a:option
-        let result = F(items)
-
-    " Anything else is an unsupported filtering option.
-    else
-        throw printf("Unable to strip lines using an unknown filtering option (%s): %s", typename(a:option), a:option)
-    endif
-
-    return result
-endfunction
-
-function! s:stripstring_by_option(option, string)
-    if type(a:option) == v:t_bool
-        let result = a:option == v:true? trim(a:string) : a:string
-
-    elseif type(a:option) == v:t_string
-        let expression = a:option
-        let results = map([a:string], expression)
-        let result = results[0]
-
-    elseif type(a:option) == v:t_func
-        let F = a:option
-        let result = F(a:string)
-
-    else
-        throw printf("Unable to strip string due to an unknown filtering option (%s): %s", typename(a:option), a:option)
-    endif
-    return result
-endfunction
-
-function! s:strip_by_option(option, input)
-    if type(a:input) == v:t_list
-        let result = s:striplist_by_option(a:option, a:input)
-    elseif type(a:input) == v:t_string
-        let result = s:stripstring_by_option(a:option, a:input)
-    else
-        throw printf("Unknown parameter type: %s", type(a:input))
-    endif
-    return result
-endfunction
-
-""" Window management
-function! s:windowselect(id)
-
-    " check if we were given a bunk window id
-    if a:id == -1
-        throw printf("Invalid window identifier %d", a:id)
-    endif
-
-    " select the requested window id, return the previous window id
-    let current = winnr()
-    execute printf("%d wincmd w", a:id)
-    return current
-endfunction
-
-function! s:windowtail(bufid)
-
-    " if we were given a bunk buffer id, then we need to bitch
-    " because we can't select it or anything
-    if a:bufid == -1
-        throw printf("Invalid buffer identifier %d", a:bufid)
-    endif
-
-    " tail the window that's using the specified buffer id
-    let last = s:windowselect(bufwinnr(a:bufid))
-    if winnr() == bufwinnr(a:bufid)
-        keepjumps noautocmd normal gg
-        keepjumps noautocmd normal G
-        call s:windowselect(last)
-
-    " check which tabs the buffer is in
-    else
-        call s:windowselect(last)
-
-        let tc = tabpagenr()
-        for tn in range(tabpagenr('$'))
-            if index(tabpagebuflist(1 + tn), a:bufid) > -1
-                execute printf("tabnext %d", tn)
-                let tl = s:windowselect(bufwinnr(a:bufid))
-                keepjumps noautocmd normal gg
-                keepjumps noautocmd normal G
-                call s:windowselect(tl)
-            endif
-        endfor
-        execute printf("tabnext %d", tc)
-    endif
-endfunction
-
-""" Miscellanous utilities
 function! s:selected() range
     " really, vim? really??
     let oldvalue = getreg("")
@@ -349,116 +169,222 @@ function! s:selected_block() range
     return selection
 endfunction
 
+""" Utilities for window management
+function! s:windowselect(id)
+
+    " check if we were given a bunk window id
+    if a:id == -1
+        throw printf("Invalid window identifier %d", a:id)
+    endif
+
+    " select the requested window id, return the previous window id
+    let current = winnr()
+    execute printf("%d wincmd w", a:id)
+    return current
+endfunction
+
+function! s:windowtail(bufid)
+
+    " if we were given a bunk buffer id, then we need to bitch
+    " because we can't select it or anything
+    if a:bufid == -1
+        throw printf("Invalid buffer identifier %d", a:bufid)
+    endif
+
+    " tail the window that's using the specified buffer id
+    let last = s:windowselect(bufwinnr(a:bufid))
+    if winnr() == bufwinnr(a:bufid)
+        keepjumps noautocmd normal gg
+        keepjumps noautocmd normal G
+        call s:windowselect(last)
+
+    " check which tabs the buffer is in
+    else
+        call s:windowselect(last)
+
+        let tc = tabpagenr()
+        for tn in range(tabpagenr('$'))
+            if index(tabpagebuflist(1 + tn), a:bufid) > -1
+                execute printf("tabnext %d", tn)
+                let tl = s:windowselect(bufwinnr(a:bufid))
+                keepjumps noautocmd normal gg
+                keepjumps noautocmd normal G
+                call s:windowselect(tl)
+            endif
+        endfor
+        execute printf("tabnext %d", tc)
+    endif
+endfunction
+
+""" Utility functions for indentation, stripping, string processing, etc.
+
+" count the whitespace that prefixes a single-line string
+function! s:count_indent(string)
+    let characters = 0
+    for c in split(a:string, '\zs')
+        if stridx(" \t", c) == -1
+            break
+        endif
+        let characters += 1
+    endfor
+    return characters
+endfunction
+
+" find the smallest common indent of a list of strings
+function! s:find_common_indent(lines)
+    let smallestindent = -1
+    for l in a:lines
+
+        " skip lines that are all whitespace
+        if strlen(l) == 0 || l =~ '^\s\+$'
+            continue
+        endif
+
+        let spaces = s:count_indent(l)
+        if smallestindent < 0 || spaces < smallestindent
+            let smallestindent = spaces
+        endif
+    endfor
+    return smallestindent
+endfunction
+
+" strip the specified number of characters from a list of lines
+function! s:strip_common_indent(lines, size)
+    let results = []
+    let prevlength = 0
+
+    " iterate through each line
+    for l in a:lines
+
+        " if the line is empty, then pad it with the previous indent
+        if strlen(l) == 0
+            let row = repeat(" ", prevlength)
+
+        " otherwise remove the requested size, and count the leftover indent
+        else
+            let row = strpart(l, a:size)
+            let prevlength = s:count_indent(row)
+        endif
+
+        " append our row to the list of results
+        let results += [row]
+    endfor
+    return results
+endfunction
+
+function! s:striplist_by_option(option, lines)
+    let items = a:lines
+
+    " Strip the fetched lines if the user configured us to
+    if type(a:option) == v:t_bool
+        let result = a:option == v:true? map(items, "trim(v:val)") : items
+
+    " If the type is a string, then use it as a regex that
+    elseif type(a:option) == v:t_string
+        let result = map(items, a:option)
+
+    " Otherwise it's a function to use as a transformation
+    elseif type(a:option) == v:t_func
+        let F = a:option
+        let result = F(items)
+
+    " Anything else is an unsupported filtering option.
+    else
+        throw printf("Unable to strip lines using an unknown filtering option (%s): %s", typename(a:option), a:option)
+    endif
+
+    return result
+endfunction
+
+function! s:stripstring_by_option(option, string)
+    if type(a:option) == v:t_bool
+        let result = a:option == v:true? trim(a:string) : a:string
+
+    elseif type(a:option) == v:t_string
+        let expression = a:option
+        let results = map([a:string], expression)
+        let result = results[0]
+
+    elseif type(a:option) == v:t_func
+        let F = a:option
+        let result = F(a:string)
+
+    else
+        throw printf("Unable to strip string due to an unknown filtering option (%s): %s", typename(a:option), a:option)
+    endif
+    return result
+endfunction
+
+function! s:strip_by_option(option, input)
+    if type(a:input) == v:t_list
+        let result = s:striplist_by_option(a:option, a:input)
+    elseif type(a:input) == v:t_string
+        let result = s:stripstring_by_option(a:option, a:input)
+    else
+        throw printf("Unknown parameter type: %s", type(a:input))
+    endif
+    return result
+endfunction
+
+function! s:python_strip_and_fix_indent(lines)
+    let indentsize = s:find_common_indent(a:lines)
+    let stripped = s:strip_common_indent(a:lines, indentsize)
+
+    " trim any beginning lines that are meaningless
+    let l:start = 0
+    for l:index in range(len(stripped))
+        let l:item = stripped[l:index]
+        if strlen(l:item) > 0 && l:item !~ '^\s\+$'
+            break
+        endif
+        let l:start += 1
+    endfor
+
+    " trim any ending lines that are meaningless
+    let l:tail = 0
+    for l:index in range(len(stripped))
+        let l:tail += 1
+        let l:item = stripped[-(1 + l:index)]
+        if strlen(l:item) > 0 && l:item !~ '^\s\+$'
+            break
+        endif
+    endfor
+
+    " if the last line is indented, then we append another newline (python)
+    let trimmed = split(trim(join(stripped[l:start : -l:tail], "\n"), " \t\n", 2), "\n")
+    if len(trimmed) > 0 && trimmed[-1] =~ '^\s\+'
+        let result = add(trimmed, '')
+    else
+        let result = trimmed
+    endif
+    return join(result, "\n") .. "\n"
+endfunction
+
+""" Utilities for escaping strings and such
+function! s:escape_single(string)
+    return escape(a:string, '''\')
+endfunction
+
+function! s:escape_double(string)
+    return escape(a:string, '"\')
+endfunction
+
+function! s:quote_single(string)
+    return printf("'%s'", escape(a:string, '''\'))
+endfunction
+
+function! s:quote_double(string)
+    return printf("\"%s\"", escape(a:string, '"\'))
+endfunction
+
+" escape the multiline string with the specified characters and return it as a single-line string
 function! s:singleline(string, escape)
-    " escape the multiline string with the specified characters and return it as a single-line string
     let escaped = escape(a:string, a:escape)
     let result = substitute(escaped, "\n", "\\\\n", "g")
     return result
 endfunction
 
-""" Interface for setting up the plugin
-function! incpy#SetupOptions()
-    " Set any default options for the plugin that the user missed
-    let defopts = {}
-    let defopts["Program"] = ""
-    let defopts["Greenlets"] = v:false
-    let defopts["Echo"] = v:true
-    let defopts["OutputFollow"] = v:true
-    let defopts["WindowName"] = "Scratch"
-    let defopts["WindowRatio"] = 1.0/3
-    let defopts["WindowPosition"] = "below"
-    let defopts["WindowOptions"] = {}
-    let defopts["WindowPreview"] = v:false
-    let defopts["WindowFixed"] = 0
-    let python_builtins = "__import__(\"builtins\")"
-    let python_pydoc = "__import__(\"pydoc\")"
-    let defopts["HelpFormat"] = printf("%s.getpager = lambda: %s.plainpager\ntry:exec(\"%s.help({0})\")\nexcept SyntaxError:%s.help(\"{0}\")\n\n", python_pydoc, python_pydoc, escape(python_builtins, "\"\\"), python_builtins)
-    let python_sys = "__import__(\"sys\")"
-
-    let defopts["InputStrip"] = function("s:python_strip_and_fix_indent")
-    let defopts["EchoFormat"] = "# >>> {}"
-    let defopts["EchoNewline"] = "{}\n"
-    " let defopts["EvalFormat"] = printf("_={};print _')", python_builtins, python_builtins, python_builtins)
-    " let defopts["EvalFormat"] = printf("__incpy__.sys.displayhook({})')")
-    " let defopts["EvalFormat"] = printf("__incpy__.builtins._={};print __incpy__.__builtin__._")
-    let defopts["EvalFormat"] = printf("%s.displayhook({})\n", python_sys)
-    let defopts["EvalStrip"] = v:false
-    let defopts["ExecFormat"] = "{}\n"
-    let defopts["ExecStrip"] = v:false
-
-    " If the PYTHONSTARTUP environment-variable exists, then use it. Otherwise use the default one.
-    if exists("$PYTHONSTARTUP")
-        let defopts["PythonStartup"] = $PYTHONSTARTUP
-    else
-        let defopts["PythonStartup"] = printf("%s/.pythonrc.py", $HOME)
-    endif
-
-    " Default window options that the user will override
-    let defopts["CoreWindowOptions"] = {"buftype": has("terminal")? "terminal" : "nowrite", "swapfile": v:false, "updatecount":0, "buflisted": v:false}
-
-    " If any of these options aren't defined during evaluation, then go through and assign them as defaults
-    for o in keys(defopts)
-        if ! exists("g:incpy#{o}")
-            let g:incpy#{o} = defopts[o]
-        endif
-    endfor
-endfunction
-
-function! incpy#SetupPython(currentscriptpath)
-    " Set up the module search path to include the script's "python" directory
-    let m = substitute(a:currentscriptpath, "\\", "/", "g")
-
-    " FIXME: use sys.meta_path
-
-    " setup the default logger
-    pythonx __import__('logging').basicConfig()
-    pythonx __import__('logging').getLogger('incpy')
-
-    " add the python path using the runtimepath directory that this script is contained in
-    for p in split(&runtimepath, ",")
-        let p = substitute(p, "\\", "/", "g")
-        if stridx(m, p, 0) == 0
-            execute printf("pythonx __import__('sys').path.append('%s/python')", p)
-            return
-        endif
-    endfor
-
-    " otherwise, look up from our current script's directory for a python sub-directory
-    let p = finddir("python", m . ";")
-    if isdirectory(p)
-        execute printf("pythonx __import__('sys').path.append('%s')", p)
-        return
-    endif
-
-    throw printf("Unable to determine basepath from script %s", m)
-endfunction
-
-function! incpy#ImportDotfile()
-    " Check to see if a python site-user dotfile exists in the users home-directory.
-    let source = g:incpy#PythonStartup
-    if filereadable(source)
-        let input = printf("with open(\"%s\") as infile: exec(infile.read())", escape(source, "\"\\"))
-        execute printf("pythonx __incpy__.cache.communicate('%s', silent=True)", escape(input, "'\\"))
-    endif
-endfunction
-
-""" Mapping of vim commands and keys
-function! incpy#SetupCommands()
-    " Create some vim commands that interact with the plugin
-    command PyLine call incpy#Range(line("."), line("."))
-    command PyBuffer call incpy#Range(0, line('$'))
-
-    command -nargs=1 Py call incpy#Execute(<q-args>)
-    command -range PyRange call incpy#Range(<line1>, <line2>)
-
-    command -nargs=1 PyEval call incpy#Evaluate(<q-args>)
-    command -range PyEvalRange <line1>,<line2>call incpy#EvaluateRange()
-    command -range PyEvalBlock <line1>,<line2>call incpy#EvaluateBlock()
-    command -range PyEvalSelection call incpy#Evaluate(s:selected())
-    command -nargs=1 PyHelp call incpy#Halp(<q-args>)
-    command -range PyHelpSelection <line1>,<line2>call incpy#HalpSelected()
-endfunction
-
+""" Miscellaneous utilities related to python
 function! s:keyword_under_cursor()
     let res = expand("<cexpr>")
     return len(res)? res : expand("<cword>")
@@ -556,8 +482,424 @@ function! s:pyexpr_under_cursor()
     return join([trimmed, join(order, '')], '')
 endfunction
 
+""" Utilities related to executing python
+function! s:execute_python_in_workspace(package, command)
+    let l:multiline_command = split(a:command, "\n")
+    let l:workspace_module = join([a:package, 'workspace'], '.')
+
+    " Guard whatever it is we were asked to execute by
+    " ensuring that our module workspace has been loaded.
+    execute printf("pythonx __builtins__.__import__(%s).exec_", s:quote_single(a:package))
+    execute printf("pythonx __builtins__.__import__(%s)", s:quote_single(l:workspace_module))
+
+    " If our command contains 3x single or double-quotes, then
+    " we format our strings with the one that isn't used.
+    if stridx(a:command, '"""') < 0
+        let strings = printf("%s\n%s\n%s", 'r"""', join(l:multiline_command, "\n"), '"""')
+    else
+        let strings = printf("%s\n%s\n%s", "r'''", join(l:multiline_command, "\n"), "'''")
+    endif
+
+    " Now we need to render our multilined list of commands to
+    " a multilined string, and then execute it in our workspace.
+    let l:python_execute = join(['__builtins__', printf("__import__(%s)", s:quote_single(a:package)), 'exec_'], '.')
+    let l:python_workspace = join(['__builtins__', printf("__import__(%s)", s:quote_single(l:workspace_module)), 'workspace', '__dict__'], '.')
+
+    execute printf("pythonx (lambda F, ns: (lambda s: F(s, ns, ns)))(%s, %s)(%s)", l:python_execute, l:python_workspace, strings)
+endfunction
+
+function! s:execute_interpreter_cache(method, parameters)
+    let l:cache = [printf('__import__(%s)', s:quote_single(g:incpy#PackageName)), 'cache']
+    let l:method = (type(a:method) == v:t_list)? a:method : [a:method]
+    call s:execute_python_in_workspace(g:incpy#PackageName, printf('%s(%s)', join(l:cache + l:method, '.'), join(a:parameters, ', ')))
+endfunction
+
+function! s:execute_interpreter_cache_guarded(method, parameters)
+    let l:cache = [printf('__import__(%s)', s:quote_single(g:incpy#PackageName)), 'cache']
+    let l:method = (type(a:method) == v:t_list)? a:method : [a:method]
+    call s:execute_python_in_workspace(g:incpy#PackageName, printf("hasattr(%s, %s) and %s(%s)", join(slice(l:cache, 0, -1), '.'), s:quote_single(l:cache[-1]), join(l:cache + l:method, '.'), join(a:parameters, ', ')))
+endfunction
+
+function! s:communicate_interpreter_encoded(format, code)
+    let l:cache = [printf('__import__(%s)', s:quote_single(g:incpy#PackageName)), 'cache']
+    let l:encoded = substitute(a:code, '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
+    let l:lambda = printf("(lambda interpreter: (lambda code: interpreter.communicate(code)))(%s)", join(cache, '.'))
+    execute printf("pythonx %s(\"%s\".format(\"%s\"))", l:lambda, a:format, l:encoded)
+endfunction
+
+" Just a utility for generating a python expression that accesses a vim global variable
+function! s:generate_gvar_expression(name)
+    let interface = [printf('__import__(%s)', s:quote_single(join([g:incpy#PackageName, 'interface'], '.'))), 'interface']
+    let gvars = ['vim', 'gvars']
+    return printf("%s[%s]", join(interface + gvars, '.'), s:quote_double(a:name))
+endfunction
+
+""" Dynamically generated python code used during setup
+function! s:generate_package_loader_function(name)
+
+    " Generate a closure that we will use to update the meta_path.
+    let unnamed_definition =<< trim EOF
+    def %s(package_name, package_path, plugin_name):
+        import builtins, os, sys, six
+
+        # Create a namespace that we will execute our loader.py
+        # script in. This is so we can treat it as a module.
+        class workspace: pass
+        loader = workspace()
+        loader.path = os.path.join(package_path, 'loader.py')
+
+        with builtins.open(loader.path, 'rt') as infile:
+            six.exec_(infile.read(), loader.__dict__, loader.__dict__)
+
+        # These are our types that are independent of the python version.
+        integer_types = tuple({type(sys.maxsize + n) for n in range(2)})
+        string_types = tuple({type(s) for s in ['', u'']})
+        text_types = tuple({t.__base__ for t in string_types}) if sys.version_info.major < 3 else string_types
+        ordinal_types = (string_types, bytes)
+
+        version_independent_types = {
+            'integer_types': integer_types,
+            'string_types': string_types,
+            'text_types': text_types,
+            'ordinal_types': ordinal_types,
+        }
+
+        # Populate the namespace that will be used by the fake package
+        # that will be generated by our instantiated meta_path object.
+        namespace = {name : value for name, value in version_independent_types.items()}
+        namespace['reraise'] = six.reraise
+        namespace['exec_'] = six.exec_
+
+        # Initialize a logger and assign it to our package.
+        import logging
+        namespace['logger'] = logging.basicConfig() or logging.getLogger(plugin_name)
+
+        # Now we can instantiate a meta_path object that creates a
+        # package containing the contents of the path we were given.
+        files = [filename for filename in os.listdir(package_path) if filename.endswith('.py')]
+        iterable = ((os.path.splitext(filename), os.path.join(package_path, filename)) for filename in files)
+        submodules = {name : path for (name, ext), path in iterable}
+        pythonx_finder = loader.vim_plugin_support_finder(package_path, submodules)
+
+        # Then we do another to expose a temporary workspace
+        # that we can use to load code and other things into.
+        workspace_finder = loader.workspace_finder(workspace=loader)
+
+        # Now we can return a packager that wraps both finders.
+        yield loader.vim_plugin_packager(package_name, [pythonx_finder, workspace_finder], namespace)
+    EOF
+
+    return printf(join(unnamed_definition, "\n"), a:name)
+endfunction
+
+function! s:generate_interpreter_cache_snippet(package)
+
+    let install_interpreter =<< trim EOC
+        __import__, package_name = __builtins__['__import__'], %s
+        package = __import__(package_name)
+        interface, interpreters = (getattr(__import__('.'.join([package.__name__, module])), module) for module in ['interface', 'interpreters'])
+
+        # grab the program specified by the user
+        program = interface.vim.gvars["incpy#Program"]
+        use_terminal = interface.vim.eval('has("terminal")') and interface.vim.gvars["incpy#Terminal"]
+
+        # spawn interpreter requested by user with the specified options
+        opt = {'winfixwidth':True, 'winfixheight':True} if interface.vim.gvars["incpy#WindowFixed"] > 0 else {}
+        try:
+            if len(program) > 0:
+                interpreter = interpreters.terminal if use_terminal else interpreters.external
+                cache = interpreter.new(program, opt=opt)
+            else:
+                interpreter = interpreters.python_internal
+                cache = interpreter.new(opt=opt)
+
+        # if we couldn't start the interpreter, then fall back to an internal one
+        except Exception:
+            logger.fatal("error starting external interpreter: {:s}".format(program), exc_info=True)
+            logger.warning("falling back to internal python interpreter")
+            cache = interpreters.python_internal.new(opt=opt)
+
+        # assign the interpreter object into our package
+        package.cache = cache
+    EOC
+
+    return printf(join(install_interpreter, "\n"), s:quote_single(a:package))
+endfunction
+
+function! s:generate_interpreter_view_snippet(package)
+
+    let create_view =<< trim EOC
+        __import__, package_name = __builtins__['__import__'], %s
+        package = __import__(package_name)
+        [interface] = (getattr(__import__('.'.join([package.__name__, module])), module) for module in ['interface'])
+
+        # grab the cached interpreter out of the package
+        cache = package.cache
+
+        # now we just need to store its buffer id
+        interface.vim.gvars['incpy#BufferId'] = cache.view.buffer.number
+    EOC
+
+    return printf(join(create_view, "\n"), s:quote_single(a:package))
+endfunction
+
+""" Public interface and management
+
+" Start the target program and attach it to a buffer
+function! incpy#Start()
+    call s:execute_interpreter_cache('start', [])
+endfunction
+
+" Stop the target program and detach it from its buffer
+function! incpy#Stop()
+    call s:execute_interpreter_cache('stop', [])
+endfunction
+
+" Restart the target program by stopping and starting it
+function! incpy#Restart()
+    for method in ['stop', 'start']
+        call s:execute_interpreter_cache(method, [])
+    endfor
+endfunction
+
+function! incpy#Show()
+    let parameters = map(['incpy#WindowPosition', 'incpy#WindowRatio'], 's:generate_gvar_expression(v:val)')
+    call s:execute_interpreter_cache_guarded(['view', 'show'], parameters)
+endfunction
+
+function! incpy#Hide()
+    call s:execute_interpreter_cache_guarded(['view', 'hide'], [])
+endfunction
+
+" Attach or detach a buffer from the interpreter to a window
+function! incpy#Attach()
+    call s:execute_interpreter_cache_guarded('attach', [])
+endfunction
+
+function! incpy#Detach()
+    call s:execute_interpreter_cache_guarded('detach', [])
+endfunction
+
+""" Plugin interaction interface
+function! incpy#Execute(line)
+    call s:execute_interpreter_cache_guarded(['view', 'show'], map(['incpy#WindowPosition', 'incpy#WindowRatio'], 's:generate_gvar_expression(v:val)'))
+
+    call s:execute_interpreter_cache('communicate', [s:quote_single(a:line)])
+    if g:incpy#OutputFollow
+        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
+    endif
+endfunction
+
+" Execute the specified lines within the current interpreter.
+function! incpy#Range(begin, end)
+    let lines = getline(a:begin, a:end)
+    let input_stripped = s:strip_by_option(g:incpy#InputStrip, lines)
+
+    " Verify that the input returned is a type that we support
+    if index([v:t_string, v:t_list], type(input_stripped)) < 0
+        throw printf("Unable to process the given input due to it being of an unsupported type (%s): %s", typename(input_stripped), input_stripped)
+    endif
+
+    " Strip our input prior to its execution.
+    let code_stripped = s:strip_by_option(g:incpy#ExecStrip, input_stripped)
+    call s:execute_interpreter_cache_guarded(['view', 'show'], map(['incpy#WindowPosition', 'incpy#WindowRatio'], 's:generate_gvar_expression(v:val)'))
+
+    " If it's not a list or a string, then we don't support it.
+    if !(type(code_stripped) == v:t_string || type(code_stripped) == v:t_list)
+        throw printf("Unable to execute due to an unknown input type (%s): %s", typename(code_stripped), code_stripped)
+    endif
+
+    " If we've got a string, then execute it as a single line.
+    let l:commands_stripped = (type(code_stripped) == v:t_list)? code_stripped : [code_stripped]
+    for command_stripped in l:commands_stripped
+        call s:communicate_interpreter_encoded(s:singleline(g:incpy#ExecFormat, "\"\\"), command_stripped)
+    endfor
+
+    " If the user configured us to follow the output, then do as we were told.
+    if g:incpy#OutputFollow
+        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
+    endif
+endfunction
+
+function! incpy#Evaluate(expr)
+    let stripped = s:strip_by_option(g:incpy#EvalStrip, a:expr)
+
+    " Evaluate and emit an expression in the target using the plugin
+    call s:execute_interpreter_cache_guarded(['view', 'show'], map(['incpy#WindowPosition', 'incpy#WindowRatio'], 's:generate_gvar_expression(v:val)'))
+    call s:communicate_interpreter_encoded(s:singleline(g:incpy#EvalFormat, "\"\\"), stripped)
+
+    if g:incpy#OutputFollow
+        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
+    endif
+endfunction
+
+function! incpy#EvaluateRange() range
+    return incpy#Evaluate(join(s:selected_range()))
+endfunction
+
+function! incpy#EvaluateBlock() range
+    return incpy#Evaluate(join(s:selected_block()))
+endfunction
+
+function! incpy#Halp(expr)
+    let LetMeSeeYouStripped = substitute(a:expr, '^[ \t\n]\+\|[ \t\n]\+$', '', 'g')
+
+    " Execute g:incpy#HelpFormat in the target using the plugin's cached communicator
+    if len(LetMeSeeYouStripped) > 0
+        call s:execute_interpreter_cache_guarded(['view', 'show'], map(['incpy#WindowPosition', 'incpy#WindowRatio'], 's:generate_gvar_expression(v:val)'))
+        call s:communicate_interpreter_encoded(s:singleline(g:incpy#HelpFormat, "\"\\"), s:escape_double(LetMeSeeYouStripped))
+    endif
+endfunction
+
+function! incpy#HalpSelected() range
+    return incpy#Halp(join(s:selected()))
+endfunction
+
+function! incpy#ExecuteFile(filename)
+    let open_and_execute = printf("with open(%s) as infile: exec(infile.read())", s:quote_double(a:filename))
+    call s:execute_interpreter_cache('communicate', [s:quote_single(open_and_execute), 'silent=True'])
+endfunction
+
+""" Internal interface for setting up the plugin loader and packages
+function! incpy#SetupPackageLoader(package, path)
+    let [l:package_name, l:package_path] = [a:package, fnamemodify(a:path, ":p")]
+
+    let l:loader_closure_name = 'generate_package_loaders'
+    let l:loader_closure_definition = s:generate_package_loader_function(l:loader_closure_name)
+    execute printf("pythonx %s", l:loader_closure_definition)
+
+    " Next we need to use it with our parameters so that we can
+    " create a hidden module to capture any python-specific work.
+    let quoted_parameters = map([l:package_name, l:package_path, g:incpy#PluginName], 's:quote_double(v:val)')
+    execute printf("pythonx __import__(%s).meta_path.extend(%s(%s))", s:quote_single('sys'), l:loader_closure_name, join(quoted_parameters, ', '))
+
+    " Now that it's been used, we're free to delete it.
+    execute printf("pythonx del(%s)", l:loader_closure_name)
+endfunction
+
+"" Setting up the interpreter and its view
+function! incpy#SetupInterpreter(package)
+    let install_interpreter = s:generate_interpreter_cache_snippet(a:package)
+    call s:execute_python_in_workspace(a:package, install_interpreter)
+endfunction
+
+function! incpy#SetupInterpreterView(package)
+    let create_view_code = s:generate_interpreter_view_snippet(a:package)
+    call s:execute_python_in_workspace(a:package, create_view_code)
+endfunction
+
+""" Plugin options and setup
+function! incpy#SetupOptions()
+    let defopts = {}
+
+    let defopts["PackageName"] = '__incpy__'
+    let defopts["PluginName"] = 'incpy'
+
+    " Set any default options for the plugin that the user missed
+    let defopts["Program"] = ""
+    let defopts["Echo"] = v:true
+    let defopts["OutputFollow"] = v:true
+    let defopts["WindowName"] = "Scratch"
+    let defopts["WindowRatio"] = 1.0/3
+    let defopts["WindowPosition"] = "below"
+    let defopts["WindowOptions"] = {}
+    let defopts["WindowPreview"] = v:false
+    let defopts["WindowFixed"] = 0
+    let defopts["WindowStartup"] = v:true
+
+    let defopts["Greenlets"] = v:false
+    let defopts["Terminal"] = has('terminal')
+
+    let python_builtins = printf("__import__(%s)", s:quote_double('builtins'))
+    let python_pydoc = printf("__import__(%s)", s:quote_double('pydoc'))
+    let python_sys = printf("__import__(%s)", s:quote_double('sys'))
+    let python_help = join([python_builtins, 'help'], '.')
+    let defopts["HelpFormat"] = printf("%s.getpager = lambda: %s.plainpager\ntry:exec(\"%s({0})\")\nexcept SyntaxError:%s(\"{0}\")\n\n", python_pydoc, python_pydoc, escape(python_help, "\"\\"), python_help)
+
+    let defopts["InputStrip"] = function("s:python_strip_and_fix_indent")
+    let defopts["EchoFormat"] = "# >>> {}"
+    let defopts["EchoNewline"] = "{}\n"
+    let defopts["EvalFormat"] = printf("%s.displayhook(({}))\n", python_sys)
+    let defopts["EvalStrip"] = v:false
+    let defopts["ExecFormat"] = "{}\n"
+    let defopts["ExecStrip"] = v:false
+
+    " If the PYTHONSTARTUP environment-variable exists, then use it. Otherwise use the default one.
+    if exists("$PYTHONSTARTUP")
+        let defopts["PythonStartup"] = $PYTHONSTARTUP
+    else
+        let defopts["PythonStartup"] = printf("%s/.pythonrc.py", $HOME)
+    endif
+
+    " Default window options that the user will override
+    let defopts["CoreWindowOptions"] = {"buftype": has("terminal")? "terminal" : "nowrite", "swapfile": v:false, "updatecount":0, "buflisted": v:false}
+
+    " If any of these options aren't defined during evaluation, then go through and assign them as defaults
+    for o in keys(defopts)
+        if ! exists("g:incpy#{o}")
+            let g:incpy#{o} = defopts[o]
+        endif
+    endfor
+endfunction
+
+" Add a virtual package with the specified name referencing the given path.
+function! incpy#SetupPythonLoader(package, currentscriptpath)
+    let l:slashes = substitute(a:currentscriptpath, "\\", "/", "g")
+
+    " Look up from our current script's directory for a python sub-directory
+    let python_dir = finddir("python", printf("%s;", l:slashes))
+    if isdirectory(python_dir)
+        call incpy#SetupPackageLoader(a:package, python_dir)
+        return
+    endif
+
+    throw printf("Unable to determine basepath from script %s", l:slashes)
+endfunction
+
+function! incpy#SetupPythonInterpreter(package)
+
+    " If greenlets were specified, then make it visible by importing `gevent
+    " into the current python environment via sys.modules.
+    if g:incpy#Greenlets
+        pythonx __import__('gevent')
+
+    " Otherwise, we only need to warn the user about using it if they're
+    " trying to run an external program without having the terminal api.
+    elseif len(g:incpy#Program) > 0 && !has("terminal")
+        echohl WarningMsg | echomsg printf('WARNING:%s:Using plugin to run an external program without support for greenlets could be unstable', g:incpy#PluginName) | echohl None
+    endif
+
+    " Now we can setup the interpreter and its view.
+    call incpy#SetupInterpreter(a:package)
+    call incpy#SetupInterpreterView(a:package)
+
+    """ Set any of the specified options for the interpreter interface.
+    if g:incpy#WindowStartup | call incpy#Show() | endif
+
+endfunction
+
+""" Mapping of vim commands and keys
+
+" Create some vim commands that can interact with the plugin
+function! incpy#SetupCommands()
+    command PyLine call incpy#Range(line("."), line("."))
+    command PyBuffer call incpy#Range(0, line('$'))
+
+    command -nargs=1 Py call incpy#Execute(<q-args>)
+    command -range PyRange call incpy#Range(<line1>, <line2>)
+
+    command -nargs=1 PyEval call incpy#Evaluate(<q-args>)
+    command -range PyEvalRange <line1>,<line2>call incpy#EvaluateRange()
+    command -range PyEvalBlock <line1>,<line2>call incpy#EvaluateBlock()
+    command -range PyEvalSelection call incpy#Evaluate(s:selected())
+    command -nargs=1 PyHelp call incpy#Halp(<q-args>)
+    command -range PyHelpSelection <line1>,<line2>call incpy#HalpSelected()
+endfunction
+
+" Set up the default key mappings for vim to use the plugin
 function! incpy#SetupKeys()
-    " Set up the default key mappings for vim to use the plugin
+
+    " Execute a single or range of lines
     nnoremap ! :PyLine<C-M>
     vnoremap ! :PyRange<C-M>
 
@@ -577,774 +919,33 @@ function! incpy#SetupKeys()
     vnoremap <C-S-@> :PyHelpSelection<C-M>
 endfunction
 
-"" Define the whole python interface for the plugin
-function! incpy#Setup()
-
-    " Set any the options for the python module part.
-    if g:incpy#Greenlets
-        " If greenlets were specified, then enable it by importing 'gevent' into the current python environment
-        pythonx __import__('gevent')
-    elseif g:incpy#Program != "" && !has("terminal")
-        " Otherwise we only need to warn the user that they should use it if they're trying to run an external program
-        echohl WarningMsg | echomsg "WARNING:incpy.vim:Using vim-incpy to run an external program without support for greenlets will be unstable" | echohl None
-    endif
-
-    " Initialize the python __incpy__ namespace
-    pythonx <<EOF
-
-# create a pseudo-builtin module
-__incpy__ = __builtins__.__class__('__incpy__', 'Internal state module for vim-incpy')
-__incpy__.sys, __incpy__.incpy, __incpy__.builtins, __incpy__.six = __import__('sys'), __import__('incpy'), __import__('builtins'), __import__('six')
-__incpy__.vim, __incpy__.buffer, __incpy__.spawn = __incpy__.incpy.vim, __incpy__.incpy.buffer, __incpy__.incpy.spawn
-
-# save initial state
-__incpy__.state = __incpy__.builtins.tuple(__incpy__.builtins.getattr(__incpy__.sys, _) for _ in ['stdin', 'stdout', 'stderr'])
-__incpy__.logger = __import__('logging').getLogger('incpy').getChild('vim')
-
-# interpreter classes
-class interpreter(object):
-    # options that are used for constructing the view
-    view_options = ['buffer', 'opt', 'preview', 'tab']
-
-    @__incpy__.builtins.classmethod
-    def new(cls, **options):
-        options.setdefault('buffer', None)
-        return cls(**options)
-
-    def __init__(self, **kwds):
-        opt = {}.__class__(__incpy__.vim.gvars['incpy#CoreWindowOptions'])
-        opt.update(__incpy__.vim.gvars['incpy#WindowOptions'])
-        opt.update(kwds.pop('opt', {}))
-        kwds.setdefault('preview', __incpy__.vim.gvars['incpy#WindowPreview'])
-        kwds.setdefault('tab', __incpy__.internal.tab.getCurrent())
-        self.view = __incpy__.view(kwds.pop('buffer', None) or __incpy__.vim.gvars['incpy#WindowName'], opt, **kwds)
-
-    def write(self, data):
-        """Writes data directly into view"""
-        return self.view.write(data)
-
-    def __repr__(self):
-        if self.view.window > -1:
-            return "<__incpy__.{:s} buffer:{:d}>".format(self.__class__.__name__, self.view.buffer.number)
-        return "<__incpy__.{:s} buffer:{:d} hidden>".format(self.__class__.__name__, self.view.buffer.number)
-
-    def attach(self):
-        """Attaches interpreter to view"""
-        raise __incpy__.builtins.NotImplementedError
-
-    def detach(self):
-        """Detaches interpreter from view"""
-        raise __incpy__.builtins.NotImplementedError
-
-    def communicate(self, command, silent=False):
-        """Sends commands to interpreter"""
-        raise __incpy__.builtins.NotImplementedError
-
-    def start(self):
-        """Starts the interpreter"""
-        raise __incpy__.builtins.NotImplementedError
-
-    def stop(self):
-        """Stops the interpreter"""
-        raise __incpy__.builtins.NotImplementedError
-__incpy__.interpreter = interpreter; del(interpreter)
-
-class interpreter_python_internal(__incpy__.interpreter):
-    state = None
-
-    def attach(self):
-        sys, logging, logger = __incpy__.sys, __import__('logging'), __incpy__.logger
-        self.state = sys.stdin, sys.stdout, sys.stderr, logger
-
-        # notify the user
-        logger.debug("redirecting sys.stdin, sys.stdout, and sys.stderr to {!r}".format(self.view))
-
-        # add a handler for python output window so that it catches everything
-        res = logging.StreamHandler(self.view)
-        res.setFormatter(logging.Formatter(logging.BASIC_FORMAT, None))
-        logger.root.addHandler(res)
-
-        _, sys.stdout, sys.stderr = None, self.view, self.view
-
-    def detach(self):
-        if self.state is None:
-            logger = __import__('logging').getLogger('incpy').getChild('vim')
-            logger.fatal("refusing to detach internal interpreter as it was already previously detached")
-            return
-
-        sys, logging = __incpy__ and __incpy__.sys or __import__('sys'), __import__('logging')
-        _, _, err, logger = self.state
-
-        # remove the python output window formatter from the root logger
-        logger.debug("removing window handler from root logger")
-        try:
-            logger.root.removeHandler(__incpy__.six.next(L for L in logger.root.handlers if isinstance(L, logging.StreamHandler) and type(L.stream).__name__ == 'view'))
-        except StopIteration:
-            pass
-
-        logger.warning("detaching internal interpreter from sys.stdin, sys.stdout, and sys.stderr.")
-
-        # notify the user that we're restoring the original state
-        logger.debug("restoring sys.stdin, sys.stdout, and sys.stderr from: {!r}".format(self.state))
-        (sys.stdin, sys.stdout, sys.stderr, _), self.state = self.state, None
-
-    def communicate(self, data, silent=False):
-        echonewline = __incpy__.vim.gvars['incpy#EchoNewline']
-        if __incpy__.vim.gvars['incpy#Echo'] and not silent:
-            echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
-            lines = data.split('\n')
-            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
-            trimmed = next(iterable, 0)
-            echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
-            self.write(echonewline.format(echo))
-        __incpy__.six.exec_(data, __incpy__.builtins.globals())
-
-    def start(self):
-        __incpy__.logger.warning("internal interpreter has already been (implicitly) started")
-
-    def stop(self):
-        __incpy__.logger.fatal("unable to stop internal interpreter as it is always running")
-__incpy__.interpreter_python_internal = interpreter_python_internal; del(interpreter_python_internal)
-
-# external interpreter (newline delimited)
-class interpreter_external(__incpy__.interpreter):
-    instance = None
-
-    @__incpy__.builtins.classmethod
-    def new(cls, command, **options):
-        res = cls(**options)
-        [ options.pop(item, None) for item in cls.view_options ]
-        res.command, res.options = command, options
-        return res
-
-    def attach(self):
-        logger, = __incpy__.logger,
-
-        logger.debug("connecting i/o from {!r} to {!r}".format(self.command, self.view))
-        self.instance = __incpy__.spawn(self.view.write, self.command, **self.options)
-        logger.info("started process {:d} ({:#x}): {:s}".format(self.instance.id, self.instance.id, self.command))
-
-        self.state = logger,
-
-    def detach(self):
-        logger, = self.state
-        if not self.instance:
-            logger.fatal("refusing to detach external interpreter as it was already previous detached")
-            return
-        if not self.instance.running:
-            logger.fatal("refusing to stop already terminated process {!r}".format(self.instance))
-            self.instance = None
-            return
-        logger.info("killing process {!r}".format(self.instance))
-        self.instance.stop()
-
-        logger.debug("disconnecting i/o for {!r} from {!r}".format(self.instance, self.view))
-        self.instance = None
-
-    def communicate(self, data, silent=False):
-        echonewline = __incpy__.vim.gvars['incpy#EchoNewline']
-        if __incpy__.vim.gvars['incpy#Echo'] and not silent:
-            echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
-            lines = data.split('\n')
-            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
-            trimmed = next(iterable, 0)
-            echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
-            self.write(echonewline.format(echo))
-        self.instance.write(data)
-
-    def __repr__(self):
-        res = __incpy__.builtins.super(__incpy__.interpreter_external, self).__repr__()
-        if self.instance.running:
-            return "{:s} {{{!r} {:s}}}".format(res, self.instance, self.command)
-        return "{:s} {{{!s}}}".format(res, self.instance)
-
-    def start(self):
-        __incpy__.logger.info("starting process {!r}".format(self.instance))
-        self.instance.start()
-
-    def stop(self):
-        __incpy__.logger.info("stopping process {!r}".format(self.instance))
-        self.instance.stop()
-__incpy__.interpreter_external = interpreter_external; del(interpreter_external)
-
-# terminal interpreter
-class interpreter_terminal(__incpy__.interpreter_external):
-    instance = None
-
-    # hacked this in because i'm not sure what interpreter_external is supposed to be doing
-    @property
-    def options(self):
-        return self.__options
-    @options.setter
-    def options(self, dict):
-        self.__options.update(dict)
-
-    def __init__(self, **kwds):
-        self.__options = {'hidden': True}
-        opt = {}.__class__(__incpy__.vim.gvars['incpy#CoreWindowOptions'])
-        opt.update(__incpy__.vim.gvars['incpy#WindowOptions'])
-        opt.update(kwds.pop('opt', {}))
-        self.__options.update(opt)
-
-        kwds.setdefault('preview', __incpy__.vim.gvars['incpy#WindowPreview'])
-        kwds.setdefault('tab', __incpy__.internal.tab.getCurrent())
-        self.__keywords = kwds
-        #self.__view = None
-        self.buffer = None
-
-    @property
-    def view(self):
-        #if self.__view:
-        #    return self.__view
-        current = __incpy__.internal.window.current()
-        #__incpy__.internal.window.select(__incpy__.vim.gvars['incpy#WindowName'])
-        #__incpy__.vim.command('terminal ++open ++noclose ++curwin')
-        buffer = self.start() if self.buffer is None else self.buffer
-        self.__view = res = __incpy__.view(buffer, self.options, **self.__keywords)
-        __incpy__.internal.window.select(current)
-        return res
-
-    def attach(self):
-        """Attaches interpreter to view"""
-        view = self.view
-        window = view.window
-        current = __incpy__.internal.window.current()
-
-        # search to see if window exists, if it doesn't..then show it.
-        searched = __incpy__.internal.window.buffer(self.buffer)
-        if searched < 0:
-            self.view.buffer = self.buffer
-
-        __incpy__.internal.window.select(current)
-        # do nothing, always attached
-
-    def detach(self):
-        """Detaches interpreter from view"""
-        # do nothing, always attached
-
-    def communicate(self, data, silent=False):
-        """Sends commands to interpreter"""
-        echonewline = __incpy__.vim.gvars['incpy#EchoNewline']
-        if __incpy__.vim.gvars['incpy#Echo'] and not silent:
-            echoformat = __incpy__.vim.gvars['incpy#EchoFormat']
-            lines = data.split('\n')
-            iterable = (index for index, item in enumerate(lines[::-1]) if item.strip())
-            trimmed = next(iterable, 0)
-
-            # Terminals don't let you modify or edit the buffer in any way
-            #echo = '\n'.join(map(echoformat.format, lines[:-trimmed] if trimmed > 0 else lines))
-            #self.write(echonewline.format(echo))
-
-        term_sendkeys = __incpy__.vim.Function('term_sendkeys')
-        buffer = self.view.buffer
-        term_sendkeys(buffer.number, data)
-
-    def start(self):
-        """Starts the interpreter"""
-        term_start = __incpy__.vim.Function('term_start')
-
-        # because python is maintained by fucking idiots
-        ignored_env = {'PAGER', 'MANPAGER'}
-        filtered_env = {name : '' if name in ignored_env else value for name, value in __import__('os').environ.items() if name not in ignored_env}
-        filtered_env['TERM'] = 'emacs'
-
-        options = vim.Dictionary({
-            "hidden": 1,
-            "stoponexit": 'term',
-            "term_name": __incpy__.vim.gvars['incpy#WindowName'],
-            "term_kill": 'hup',
-            "term_finish": "open",
-            # "env": vim.Dictionary(filtered_env),  # because VIM doesn't do as it's told
-        })
-        self.buffer = res = term_start(self.command, options)
-        return res
-
-    def stop(self):
-        """Stops the interpreter"""
-        term_getjob = __incpy__.vim.Function('term_getjob')
-        job = term_getjob(self.buffer)
-
-        job_stop = __incpy__.vim.Function('job_stop')
-        job_stop(job)
-
-        job_status = __incpy__.vim.Function('job_status')
-        if job_status(job) != 'dead':
-            raise builtins.Exception("Unable to terminate job {:d}".format(job))
-        return
-__incpy__.interpreter_terminal = interpreter_terminal; del(interpreter_terminal)
-
-# vim internal
-class internal(object):
-    """Commands that interface with vim directly"""
-
-    class tab(object):
-        """Internal vim commands for interacting with tabs"""
-        goto = __incpy__.builtins.staticmethod(lambda n: __incpy__.vim.command("tabnext {:d}".format(1 + n)))
-        close = __incpy__.builtins.staticmethod(lambda n: __incpy__.vim.command("tabclose {:d}".format(1 + n)))
-        #def move(n, t):    # FIXME
-        #    current = int(__incpy__.vim.eval('tabpagenr()'))
-        #    _ = t if current == n else current if t > current else current + 1
-        #    __incpy__.vim.command("tabnext {:d} | tabmove {:d} | tabnext {:d}".format(1 + n, t, _))
-
-        getCurrent = __incpy__.builtins.staticmethod(lambda: __incpy__.builtins.int(__incpy__.vim.eval('tabpagenr()')) - 1)
-        getCount = __incpy__.builtins.staticmethod(lambda: __incpy__.builtins.int(__incpy__.vim.eval('tabpagenr("$")')))
-        getBuffers = __incpy__.builtins.staticmethod(lambda n: [ __incpy__.builtins.int(item) for item in __incpy__.vim.eval("tabpagebuflist({:d})".format(n - 1)) ])
-
-        getWindowCurrent = __incpy__.builtins.staticmethod(lambda n: __incpy__.builtins.int(__incpy__.vim.eval("tabpagewinnr({:d})".format(n - 1))))
-        getWindowPrevious = __incpy__.builtins.staticmethod(lambda n: __incpy__.builtins.int(__incpy__.vim.eval("tabpagewinnr({:d}, '#')".format(n - 1))))
-        getWindowCount = __incpy__.builtins.staticmethod(lambda n: __incpy__.builtins.int(__incpy__.vim.eval("tabpagewinnr({:d}, '$')".format(n - 1))))
-
-    class buffer(object):
-        """Internal vim commands for getting information about a buffer"""
-        name = __incpy__.builtins.staticmethod(lambda id: __incpy__.builtins.str(__incpy__.vim.eval("bufname({!s})".format(id))))
-        number = __incpy__.builtins.staticmethod(lambda id: __incpy__.builtins.int(__incpy__.vim.eval("bufnr({!s})".format(id))))
-        window = __incpy__.builtins.staticmethod(lambda id: __incpy__.builtins.int(__incpy__.vim.eval("bufwinnr({!s})".format(id))))
-        exists = __incpy__.builtins.staticmethod(lambda id: __incpy__.builtins.bool(__incpy__.vim.eval("bufexists({!s})".format(id))))
-
-    class window(object):
-        """Internal vim commands for doing things with a window"""
-
-        # ui position conversion
-        @__incpy__.builtins.staticmethod
-        def positionToLocation(position):
-            if position in {'left', 'above'}:
-                return 'leftabove'
-            if position in {'right', 'below'}:
-                return 'rightbelow'
-            raise __incpy__.builtins.ValueError(position)
-
-        @__incpy__.builtins.staticmethod
-        def positionToSplit(position):
-            if position in {'left', 'right'}:
-                return 'vsplit'
-            if position in {'above', 'below'}:
-                return 'split'
-            raise __incpy__.builtins.ValueError(position)
-
-        @__incpy__.builtins.staticmethod
-        def optionsToCommandLine(options):
-            builtins = __incpy__.builtins
-            result = []
-            for k, v in __incpy__.six.iteritems(options):
-                if builtins.isinstance(v, __incpy__.six.string_types):
-                    result.append("{:s}={:s}".format(k, v))
-                elif builtins.isinstance(v, builtins.bool):
-                    result.append("{:s}{:s}".format('' if v else 'no', k))
-                elif builtins.isinstance(v, __incpy__.six.integer_types):
-                    result.append("{:s}={:d}".format(k, v))
-                else:
-                    raise NotImplementedError(k, v)
-                continue
-            return '\\ '.join(result)
-
-        # window selection
-        @__incpy__.builtins.staticmethod
-        def current():
-            '''return the current window number'''
-            return __incpy__.builtins.int(__incpy__.vim.eval('winnr()'))
-
-        @__incpy__.builtins.staticmethod
-        def select(window):
-            '''Select the window with the specified window number'''
-            return (__incpy__.builtins.int(__incpy__.vim.eval('winnr()')), __incpy__.vim.command("{:d} wincmd w".format(window)))[0]
-
-        @__incpy__.builtins.staticmethod
-        def currentsize(position):
-            builtins = __incpy__.builtins
-            if position in ('left', 'right'):
-                return builtins.int(__incpy__.vim.eval('&columns'))
-            if position in ('above', 'below'):
-                return builtins.int(__incpy__.vim.eval('&lines'))
-            raise builtins.ValueError(position)
-
-        # properties
-        @__incpy__.builtins.staticmethod
-        def buffer(window):
-            '''Return the bufferid for the specified window'''
-            return __incpy__.builtins.int(__incpy__.vim.eval("winbufnr({:d})".format(window)))
-
-        @__incpy__.builtins.staticmethod
-        def available(bufferid):
-            '''Return the first window number for a buffer id'''
-            return __incpy__.builtins.int(__incpy__.vim.eval("bufwinnr({:d})".format(bufferid)))
-
-        # window actions
-        @__incpy__.builtins.classmethod
-        def create(cls, bufferid, position, ratio, options, preview=False):
-            '''create a window for the bufferid and return its number'''
-            builtins = __incpy__.builtins
-            last = cls.current()
-
-            size = cls.currentsize(position) * ratio
-            if preview:
-                if builtins.len(options) > 0:
-                    __incpy__.vim.command("noautocmd silent {:s} pedit! +setlocal\\ {:s} {:s}".format(cls.positionToLocation(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
-                else:
-                    __incpy__.vim.command("noautocmd silent {:s} pedit! {:s}".format(cls.positionToLocation(position), __incpy__.internal.buffer.name(bufferid)))
-            else:
-                if builtins.len(options) > 0:
-                    __incpy__.vim.command("noautocmd silent {:s} {:d}{:s}! +setlocal\\ {:s} {:s}".format(cls.positionToLocation(position), builtins.int(size), cls.positionToSplit(position), cls.optionsToCommandLine(options), __incpy__.internal.buffer.name(bufferid)))
-                else:
-                    __incpy__.vim.command("noautocmd silent {:s} {:d}{:s}! {:s}".format(cls.positionToLocation(position), builtins.int(size), cls.positionToSplit(position), __incpy__.internal.buffer.name(bufferid)))
-
-            # grab the newly created window
-            new = cls.current()
-            try:
-                if builtins.bool(__incpy__.vim.gvars['incpy#WindowPreview']):
-                    return new
-
-                newbufferid = cls.buffer(new)
-                if bufferid > 0 and newbufferid == bufferid:
-                    return new
-
-                # if the bufferid doesn't exist, then we have to recreate one.
-                if __incpy__.vim.eval("bufnr({:d})".format(bufferid)) < 0:
-                    raise Exception("The requested buffer ({:d}) does not exist and will need to be created.".format(bufferid))
-
-                # if our new bufferid doesn't match the requested one, then we switch to it.
-                elif newbufferid != bufferid:
-                    __incpy__.vim.command("buffer {:d}".format(bufferid))
-                    __incpy__.logger.debug("Adjusted buffer ({:d}) for window {:d} to point to the correct buffer id ({:d})".format(newbufferid, new, bufferid))
-
-            finally:
-                cls.select(last)
-            return new
-
-        @__incpy__.builtins.classmethod
-        def show(cls, bufferid, position, ratio, options, preview=False):
-            '''return the window for the bufferid, recreating it if its now showing'''
-            window = cls.available(bufferid)
-
-            # if we already have a windowid for the buffer, then we can return it. otherwise
-            # we rec-reate the window which should get the buffer to work.
-            return window if window > 0 else cls.create(bufferid, position, ratio, options, preview=preview)
-
-        @__incpy__.builtins.classmethod
-        def hide(cls, bufferid, preview=False):
-            last = cls.select(cls.buffer(bufferid))
-            if preview:
-                __incpy__.vim.command("noautocmd silent pclose!")
-            else:
-                __incpy__.vim.command("noautocmd silent close!")
-            return cls.select(last)
-
-        # window state
-        @__incpy__.builtins.classmethod
-        def saveview(cls, bufferid):
-            last = cls.select( cls.buffer(bufferid) )
-            res = __incpy__.vim.eval('winsaveview()')
-            cls.select(last)
-            return res
-
-        @__incpy__.builtins.classmethod
-        def restview(cls, bufferid, state):
-            do = __incpy__.vim.Function('winrestview')
-            last = cls.select( cls.buffer(bufferid) )
-            do(state)
-            cls.select(last)
-
-        @__incpy__.builtins.classmethod
-        def savesize(cls, bufferid):
-            last = cls.select( cls.buffer(bufferid) )
-            w, h = __incpy__.builtins.map(__incpy__.vim.eval, ['winwidth(0)', 'winheight(0)'])
-            cls.select(last)
-            return { 'width':w, 'height':h }
-
-        @__incpy__.builtins.classmethod
-        def restsize(cls, bufferid, state):
-            window = cls.buffer(bufferid)
-            return "vertical {:d} resize {:d} | {:d} resize {:d}".format(window, state['width'], window, state['height'])
-
-__incpy__.internal = internal; del(internal)
-
-# view -- window <-> buffer
-class view(object):
-    """This represents the window associated with a buffer."""
-
-    # Create a fake descriptor that always returns the default encoding.
-    class encoding_descriptor(object):
-        def __init__(self):
-            self.module = __import__('sys')
-        def __get__(self, obj, type=None):
-            return self.module.getdefaultencoding()
-    encoding = encoding_descriptor()
-    del(encoding_descriptor)
-
-    def __init__(self, buffer, opt, preview, tab=None):
-        """Create a view for the specified buffer.
-
-        Buffer can be an existing buffer, an id number, filename, or even a new name.
-        """
-        self.options = opt
-        self.preview = preview
-
-        # Get the vim.buffer from the buffer the caller gave us.
-        try:
-            buf = __incpy__.buffer.of(buffer)
-
-        # If we couldn't find the desired buffer, then we'll just create one
-        # with the name that we were given.
-        except Exception as E:
-
-            # Create a buffer with the specified name. This is not really needed
-            # as we're only creating it to sneak off with the buffer's name.
-            if isinstance(buffer, __incpy__.six.string_types):
-                buf = __incpy__.buffer.new(buffer)
-            elif isinstance(buffer, __incpy__.six.integer_types):
-                buf = __incpy__.buffer.new(__incpy__.vim.gvars['incpy#WindowName'])
-            else:
-                raise __incpy__.incpy.vim.error("Unable to determine output buffer name from parameter : {!r}".format(buffer))
-
-        # Now we can grab the buffer's name so that we can use it to re-create
-        # the buffer if it was deleted by the user.
-        self.__buffer_name = buf.number
-        #res = "'{!s}'".format(buf.name.replace("'", "''"))
-        #self.__buffer_name = __incpy__.vim.eval("fnamemodify({:s}, \":.\")".format(res))
-
-    @property
-    def buffer(self):
-        name = self.__buffer_name
-
-        # Find the buffer by the name that was previously cached.
-        try:
-            result = __incpy__.buffer.of(name)
-
-        # If we got an exception when trying to snag the buffer by its name, then
-        # log the exception and create a new one to take the old one's place.
-        except __incpy__.incpy.vim.error as E:
-            __incpy__.logger.info("recreating output buffer due to exception : {!s}".format(E), exc_info=True)
-
-            # Create a new buffer using the name that we expect it to have.
-            if isinstance(name, __incpy__.six.string_types):
-                result = __incpy__.buffer.new(name)
-            elif isinstance(name, __incpy__.six.integer_types):
-                result = __incpy__.buffer.new(__incpy__.vim.gvars['incpy#WindowName'])
-            else:
-                raise __incpy__.incpy.vim.error("Unable to determine output buffer name from parameter : {!r}".format(name))
-
-        # Return the buffer we found back to the caller.
-        return result
-    @buffer.setter
-    def buffer(self, number):
-        id = __incpy__.vim.eval("bufnr({:d})".format(number))
-        name = __incpy__.vim.eval("bufname({:d})".format(id))
-        if id < 0:
-            raise __incpy__.incpy.vim.error("Unable to locate buffer id from parameter : {!r}".format(number))
-        elif not name:
-            raise __incpy__.incpy.vim.error("Unable to determine output buffer name from parameter : {!r}".format(number))
-        self.__buffer_name = id
-
-    @property
-    def window(self):
-        result = self.buffer
-        return __incpy__.internal.window.buffer(result.number)
-
-    def write(self, data):
-        """Write data directly into window contents (updating buffer)"""
-        result = self.buffer
-        return result.write(data)
-
-    # Methods wrapping the window visibility and its scope
-    def create(self, position, ratio):
-        """Create window for buffer"""
-        builtins, buffer = __incpy__.builtins, self.buffer
-
-        # FIXME: creating a view in another tab is not supported yet
-        if __incpy__.internal.buffer.number(buffer.number) == -1:
-            raise builtins.Exception("Buffer {:d} does not exist".format(buffer.number))
-        if 1.0 <= ratio < 0.0:
-            raise builtins.Exception("Specified ratio is out of bounds {!r}".format(ratio))
-
-        # create the window, get its buffer, and update our state with it.
-        window = __incpy__.internal.window.create(buffer.number, position, ratio, self.options, preview=self.preview)
-        self.buffer = __incpy__.vim.eval("winbufnr({:d})".format(window))
-        return window
-
-    def show(self, position, ratio):
-        """Show window at the specified position if it is not already showing."""
-        builtins, buffer = __incpy__.builtins, self.buffer
-
-        # FIXME: showing a view in another tab is not supported yet
-        # if buffer does not exist then recreate the fucker
-        if __incpy__.internal.buffer.number(buffer.number) == -1:
-            raise builtins.Exception("Buffer {:d} does not exist".format(buffer.number))
-        # if __incpy__.internal.buffer.window(buffer.number) != -1:
-        #    raise builtins.Exception("Window for {:d} is already showing".format(buffer.number))
-
-        window = __incpy__.internal.window.show(buffer.number, position, ratio, self.options, preview=self.preview)
-        self.buffer = __incpy__.vim.eval("winbufnr({:d})".format(window))
-        return window
-
-    def hide(self):
-        """Hide the window"""
-        builtins, buffer = __incpy__.builtins, buffer, self.buffer
-
-        # FIXME: hiding a view in another tab is not supported yet
-        if __incpy__.internal.buffer.number(buffer.number) == -1:
-            raise builtins.Exception("Buffer {:d} does not exist".format(buffer.number))
-        if __incpy__.internal.buffer.window(buffer.number) == -1:
-            raise builtins.Exception("Window for {:d} is already hidden".format(buffer.number))
-
-        return __incpy__.internal.window.hide(buffer.number, preview=self.preview)
-
-    def __repr__(self):
-        name = self.buffer.name
-        descr = "{:d}".format(name) if isinstance(name, __incpy__.six.integer_types) else "\"{:s}\"".format(name)
-        identity = descr if __incpy__.buffer.exists(self.__buffer_name) else "(missing) {:s}".format(descr)
-        if self.preview:
-            return "<__incpy__.view buffer:{:d} {:s} preview>".format(self.window, identity)
-        return "<__incpy__.view buffer:{:d} {:s}>".format(self.window, identity)
-__incpy__.view = view; del(view)
-
-# spawn interpreter requested by user
-_ = __incpy__.vim.gvars["incpy#Program"]
-opt = {'winfixwidth':True, 'winfixheight':True} if __incpy__.vim.gvars["incpy#WindowFixed"] > 0 else {}
-try:
-    if __incpy__.vim.eval('has("terminal")') and len(_) > 0:
-        __incpy__.cache = __incpy__.interpreter_terminal.new(_, opt=opt)
-    elif len(_) > 0:
-        __incpy__.cache = __incpy__.interpreter_external.new(_, opt=opt)
-    else:
-        __incpy__.cache = __incpy__.interpreter_python_internal.new(opt=opt)
-
-except Exception:
-    __incpy__.logger.fatal("error starting external interpreter: {:s}".format(_), exc_info=True)
-    __incpy__.logger.warning("falling back to internal python interpreter")
-    __incpy__.cache = __incpy__.interpreter_python_internal.new(opt=opt)
-del(opt)
-
-# create it's window, and store the buffer's id
-view = __incpy__.cache.view
-__incpy__.vim.gvars['incpy#BufferId'] = view.buffer.number
-view.create(__incpy__.vim.gvars['incpy#WindowPosition'], __incpy__.vim.gvars['incpy#WindowRatio'])
-
-# delete our temp variable
-del(view)
-
-EOF
-endfunction
-
-""" Plugin management interface
-function! incpy#Start()
-    " Start the target program and attach it to a buffer
-    pythonx __incpy__.cache.start()
-endfunction
-
-function! incpy#Stop()
-    " Stop the target program and detach it from its buffer
-    pythonx __incpy__.cache.stop()
-endfunction
-
-function! incpy#Restart()
-    " Restart the target program
-    pythonx __incpy__.cache.stop()
-    pythonx __incpy__.cache.start()
-endfunction
-
-""" Plugin interaction interface
-function! incpy#Show()
-    execute "pythonx __incpy__.cache.view.show(__incpy__.vim.gvars['incpy#WindowPosition'], __incpy__.vim.gvars['incpy#WindowRatio'])"
-endfunction
-
-function! incpy#Hide()
-    execute "pythonx __incpy__.cache.view.hide()"
-endfunction
-
-function! incpy#Execute(line)
-    call incpy#Show()
-    execute printf("pythonx __incpy__.cache.communicate('%s')", escape(a:line, "'\\"))
-    if g:incpy#OutputFollow
-        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
+" Check to see if a python site-user dotfile exists in the users home-directory.
+function! incpy#ImportDotfile()
+    let l:dotfile = g:incpy#PythonStartup
+    if filereadable(l:dotfile)
+        call incpy#ExecuteFile(l:dotfile)
     endif
 endfunction
 
-function! incpy#Range(begin, end)
-    " Execute the specified lines in the target
-    let lines = getline(a:begin, a:end)
-    let input_stripped = s:strip_by_option(g:incpy#InputStrip, lines)
-
-    " Verify that the input returned is a type that we support
-    if index([v:t_string, v:t_list], type(input_stripped)) < 0
-        throw printf("Unable to process the given input due to it being of an unsupported type (%s): %s", typename(input_stripped), input_stripped)
-    endif
-
-    " Strip our input prior to its execution.
-    let code_stripped = s:strip_by_option(g:incpy#ExecStrip, input_stripped)
-    call incpy#Show()
-
-    " If we've got a string, then execute it as a single line.
-    if type(code_stripped) == v:t_string
-        let encoded = substitute(printf("%s", code_stripped), '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
-        execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#ExecFormat, "\"\\"), encoded)
-
-    " If it was a list, though, then execute our command multiple times.
-    elseif type(code_stripped) == v:t_list
-        for command_stripped in code_stripped
-            let encoded = substitute(printf("(%s)", command_stripped), '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
-            execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#ExecFormat, "\"\\"), encoded)
-        endfor
-
-    " If it's anything else, then we don't support it.
-    else
-        throw printf("Unable to execute due to an unknown input type (%s): %s", typename(code_stripped), code_stripped)
-    endif
-
-    " If the user configured us to follow the output, then do as we were told.
-    if g:incpy#OutputFollow
-        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
-    endif
-endfunction
-
-function! incpy#Evaluate(expr)
-    let stripped = s:strip_by_option(g:incpy#EvalStrip, a:expr)
-    let encoded = substitute(printf("%s", stripped), '.', '\=printf("\\x%02x", char2nr(submatch(0)))', 'g')
-
-    " Evaluate and emit an expression in the target using the plugin
-    call incpy#Show()
-    execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#EvalFormat, "\"\\"), encoded)
-
-    if g:incpy#OutputFollow
-        try | call s:windowtail(g:incpy#BufferId) | catch /^Invalid/ | endtry
-    endif
-endfunction
-
-function! incpy#EvaluateRange() range
-    return incpy#Evaluate(join(s:selected_range()))
-endfunction
-
-function! incpy#EvaluateBlock() range
-    return incpy#Evaluate(join(s:selected_block()))
-endfunction
-
-function! incpy#Halp(expr)
-    " Remove all encompassing whitespace from expression
-    let LetMeSeeYouStripped = substitute(a:expr, '^[ \t\n]\+\|[ \t\n]\+$', '', 'g')
-
-    " Execute g:incpy#HelpFormat in the target using the plugin's cached communicator
-    call incpy#Show()
-    execute printf("pythonx (lambda code=\"%s\".format(\"%s\"): __incpy__.cache.communicate(code))()", s:singleline(g:incpy#HelpFormat, "\"\\"), escape(LetMeSeeYouStripped, "\"\\"))
-endfunction
-
-function! incpy#HalpSelected() range
-    return incpy#Halp(join(s:selected()))
-endfunction
-
-""" Actual execution and setup of the plugin
+"" Entry point
+function! incpy#LoadPlugin()
     let s:current_script=expand("<sfile>:p:h")
+
     call incpy#SetupOptions()
-    call incpy#SetupPython(s:current_script)
-    call incpy#Setup()
+    call incpy#SetupPythonLoader(g:incpy#PackageName, s:current_script)
+    call incpy#SetupPythonInterpreter(g:incpy#PackageName)
     call incpy#SetupCommands()
     call incpy#SetupKeys()
 
-    " if we're using an external program, then there's no dotfile we need to seed with.
+    " if we're using an external program, then we can just ignore the dotfile
+    " since it really only makes sense when using the python interpreter.
     if g:incpy#Program == ""
         call incpy#ImportDotfile()
     endif
 
     " on entry, silently import the user module to honor any user-specific configurations
-    autocmd VimEnter * pythonx hasattr(__incpy__, 'cache') and __incpy__.cache.attach()
-    autocmd VimLeavePre * pythonx hasattr(__incpy__, 'cache') and __incpy__.cache.detach()
+    autocmd VimEnter * call incpy#Attach()
+    autocmd VimLeavePre * call incpy#Detach()
 
     " if greenlets were specifed then make sure to update them during cursor movement
     if g:incpy#Greenlets
@@ -1353,7 +954,14 @@ endfunction
         autocmd CursorMoved * pythonx __import__('gevent').idle(0.0)
         autocmd CursorMovedI * pythonx __import__('gevent').idle(0.0)
     endif
+endfunction
 
+" Now we can attempt to load the plugin...if python is available.
+if has("python") || has("python3")
+    call incpy#LoadPlugin()
+
+" Otherwise we need to complain about the lack of python.
 else
-    echoerr "Vim compiled without +python support. Unable to initialize plugin from ". expand("<sfile>")
+    call incpy#SetupOptions()
+    echohl ErrorMsg | echomsg printf("ERROR:%s:Vim compiled without +python support. Unable to initialize plugin from %s", g:incpy#PluginName, expand("<sfile>")) | echohl None
 endif
