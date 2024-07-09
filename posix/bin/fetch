@@ -218,6 +218,15 @@ else
     printf "%s: Downloading file from url \"%s\" to \"%s\".\n" "$0" "$url" "$filename" 1>&2
 fi
 
+# check if we need to create the target directory
+rp=`cygpath -u "$filename"`
+rd=`dirname "$rp"`
+wd=`cygpath -u "."`
+if [ "$rd" != "$wd" ]; then
+    printf "%s: Creating target directory \"%s\".\n" "$0" "$rd" 1>&2
+    mkdir -p "$rd"
+fi
+
 # allow the user to abort. after aborting, calculate all of the digests
 # for the file that we downloaded, sort them, and display them tohe caller
 trap "abort \"\$url\" \"\$filename\"" INT
