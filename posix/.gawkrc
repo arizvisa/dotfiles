@@ -1,0 +1,68 @@
+# join.awk --- join an array into a string
+function join(array, start, end, sep, result, i)
+{
+    increment = (start <= end)? +1 : -1
+    if (sep == "")
+        sep = " "
+    else if (sep == SUBSEP) # magic value
+        sep = ""
+    result = ""
+    for (i = start; i != end; i += increment)
+        result = result sep array[i]
+    return result
+}
+
+function max(a, b) {
+    return (a < b)? b : a
+}
+
+function min(a, b) {
+    return (a < b)? a : b
+}
+
+function split0(string, array, fieldsep, seps)
+{
+    result = split(string, parts, fieldsep, separators)
+    count = 0
+    for (key in parts)
+        array[count++] = parts[key]
+    count = 0
+    for (key in separators)
+        seps[count++] = separators[key]
+    return result
+}
+
+function append(left, right, result)
+{
+    count = 0
+    for (key in left)
+        result[count++] = left[key]
+    for (key in right)
+        result[count++] = right[key]
+    return count
+}
+
+function getslice(array, start, end, result)
+{
+    half = length(array)
+    count = append(array, array, doublearray)
+
+    if ((start < 0) && (end < 0)) {
+        istart = half + start
+        iend = half + end
+    } else if ((start >= 0) && (end >= 0)) {
+        istart = start
+        iend = end
+    } else {
+        istart = (start < 0)? half + start : start
+        iend = (istart < half)? half + end : end
+    }
+
+    cstart = (istart >= count)? count : max(0, istart)
+    cend = (cstart < half)? min(iend, cstart + half) : min(iend, count)
+
+    base = 0
+    for (i = cstart; i < cend; i++)
+        result[base++] = doublearray[i]
+    return base
+}
