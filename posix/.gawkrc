@@ -31,7 +31,7 @@ function keys(array, result,        base, key)
     return base
 }
 
-function split0(string, array, fieldsep, seps)
+function split0(string, array, fieldsep, seps,      count, parts, result)
 {
     result = split(string, parts, fieldsep, separators)
     count = 0
