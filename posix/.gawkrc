@@ -77,3 +77,10 @@ function getslice(array, start, end, result,        half, count, i, base)
         result[base++] = doublearray[i]
     return base
 }
+
+function slice(string, sep, start, stop,            parts, sliced)
+{
+    split0(string, parts, sep)
+    getslice(parts, start, stop, sliced)
+    return join(sliced, 0, length(sliced), sep)
+}
