@@ -6,8 +6,11 @@ function join(array, start, end, sep, result, i)
         sep = " "
     else if (sep == SUBSEP) # magic value
         sep = ""
-    result = ""
-    for (i = start; i != end; i += increment)
+    else if (start != end)
+        result = array[start]
+    else
+        result = ""
+    for (i = start + increment; i != end; i += increment)
         result = result sep array[i]
     return result
 }
@@ -18,6 +21,14 @@ function max(a, b) {
 
 function min(a, b) {
     return (a < b)? a : b
+}
+
+function keys(array, result,        base, key)
+{
+    base = 0;
+    for (key in array)
+        result[base++] = key
+    return base
 }
 
 function split0(string, array, fieldsep, seps)
