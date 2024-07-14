@@ -42,27 +42,27 @@ function append(left, right, result)
     return count
 }
 
-function getslice(array, start, end, result)
+function getslice(array, start, end, result,        half, count, i, base)
 {
     half = length(array)
     count = append(array, array, doublearray)
 
     if ((start < 0) && (end < 0)) {
-        istart = half + start
-        iend = half + end
+        start = half + start
+        end = half + end
     } else if ((start >= 0) && (end >= 0)) {
-        istart = start
-        iend = end
+        start = start
+        end = end
     } else {
-        istart = (start < 0)? half + start : start
-        iend = (istart < half)? half + end : end
+        start = (start < 0)? half + start : start
+        end = (istart < half)? half + end : end
     }
 
-    cstart = (istart >= count)? count : max(0, istart)
-    cend = (cstart < half)? min(iend, cstart + half) : min(iend, count)
+    start = (start >= count)? count : max(0, start)
+    end = (start < half)? min(end, start + half) : min(end, count)
 
     base = 0
-    for (i = cstart; i < cend; i++)
+    for (i = start; i < end; i++)
         result[base++] = doublearray[i]
     return base
 }
