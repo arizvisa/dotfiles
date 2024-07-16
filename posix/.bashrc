@@ -76,6 +76,7 @@ unset which_pager which_pager_args
 
 # some defaults for the common utilities
 alias ls='ls -F'
+alias gawk="gawk -i '$HOME/.gawkrc'"
 
 # sort(1) does not honor record order by default.
 alias sort='sort -s'
