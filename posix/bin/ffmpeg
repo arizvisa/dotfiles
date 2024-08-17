@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+arg0=`basename "$0"`
+args="-hide_banner"
+
+## paths to our binaries based on the platform
+name=`basename "$arg0"`
+posix="$name"
+windows="$name.exe"
+
+## determine which program to run
+case "$platform" in
+    msys|cygwin)
+        prog=`[ -x "$windows" ] && echo "$windows"`
+        ;;
+esac
+
+## if it's not found, then search the path
+if [ -z "$prog" ]; then
+    argv0=`readlink -f "$0"`
+    IFS=:
+    for p in $PATH; do
+        rp=`readlink -f "$p/$posix"`
+        [ -x "$rp" ] && [ ! -d "$rp" ] && [ `stat -f%i "$argv0" 2>/dev/null || echo "$argv0"` != `stat -f%i "$rp" 2>/dev/null || echo "$rp"` ] && prog="$rp"
+    done
+    unset IFS
+fi
+
+## Complain if we couldn't find the binary for this program.
+[ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
+
+exec "$prog" $args "$@"
+exit $?
