@@ -418,9 +418,9 @@ end
 
 define show_stack32
     emit "\n-=[stack]=-\n"
-    if $access($esp, sizeof(long))
-        emit $hexdump($esp, 4 * sizeof(long), 'I')
-        #x/6wx $esp
+    if $access($sp, sizeof(long))
+        emit $hexdump($sp, 4 * sizeof(long), 'I')
+        #x/6wx $sp
     else
         emit $sprintf("... address %p not available ...\n", $esp)
     end
@@ -428,9 +428,9 @@ end
 
 define show_stack64
     emit "\n-=[stack]=-\n"
-    if $access($rsp, sizeof(long))
-        emit $hexdump($rsp, 1 * sizeof(long), 'L')
-        #x/6gx $rsp
+    if $access($sp, sizeof(long))
+        emit $hexdump($sp, 1 * sizeof(long), 'L')
+        #x/6gx $sp
     else
         emit $sprintf("... address %p not available ...\n", $rsp)
     end
@@ -439,11 +439,11 @@ end
 define show_data32
     set variable $_data_rows = 8
 
-    if $access($arg0, sizeof(int))
+    if $access($arg0, sizeof(long))
         if $argc > 1
-            emit $hexdump($arg0, $arg1 * 0x10 / sizeof(int), 'I')
+            emit $hexdump($arg0, $arg1 * 0x10 / sizeof(long), 'I')
         else
-            emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(int), 'I')
+            emit $hexdump($arg0, $_data_rows * 0x10 / sizeof(long), 'I')
         end
     else
         emit $sprintf("... address %p not available ...\n", $arg0)
@@ -453,7 +453,7 @@ end
 define show_data64
     set variable $_data_rows = 8
 
-    if $access($arg0, sizeof(int))
+    if $access($arg0, sizeof(long))
         if $argc > 1
             emit $hexdump($arg0, $arg1 * 0x10 / sizeof(long), 'L')
         else
