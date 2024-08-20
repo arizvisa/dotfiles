@@ -420,7 +420,7 @@ end
 
 define show_stack64
     emit "\n-=[stack]=-\n"
-    if $access($esp, sizeof(long))
+    if $access($rsp, sizeof(long))
         emit $hexdump($rsp, 1 * sizeof(long), 'L')
         #x/6gx $rsp
     else
