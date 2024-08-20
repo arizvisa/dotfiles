@@ -63,6 +63,14 @@ class clip(command):
 class typeof(function):
     def invoke(self, symbol):
         return str(symbol.type).replace(' ','')
+class sizeof(function):
+    def invoke(self, value):
+        try:
+            type = gdb.lookup_type(value.string())
+        except gdb.error:
+            type = value.type
+        return type.sizeof
+
 class sprintf(function):
     def invoke(self, *args):
         res,formatter,args = '',string.Formatter(),iter(args)
@@ -94,7 +102,7 @@ class sprintf(function):
                 raise gdb.error("Unknown format specifier: {:s}".format(typestr))
             continue
         return res
-execute(),emit(),typeof(),clip(),sprintf()
+execute(),emit(),typeof(),sizeof(),clip(),sprintf()
 
 def intcast(val):
     if val.type.sizeof == 8:
