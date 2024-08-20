@@ -22,7 +22,8 @@
     stat = true
 
 [alias]
-    oneline = log --pretty=oneline
+    oneline = log --pretty=oneline --abbrev-commit --all --graph --decorate=auto --color
+    line = log --pretty=oneline --decorate=no
     noauthor = rebase --committer-date-is-author-date
     unstage = restore --staged
     untouch = restore --staged --worktree
