@@ -682,6 +682,9 @@ end
 
 define lm
     info proc mappings
+    #progspace = gdb.current_progspace()
+    #objfiles = progspace.objfiles()
+    #progspace.objfile_for_address($pc)
 end
 
 define bl
@@ -808,26 +811,6 @@ alias -- h32 = here32
 alias -- h64 = here64
 alias -- ps = info inferiors
 
-## catchpoints
-catch exec
-disable breakpoint $bpnum
-catch fork
-disable breakpoint $bpnum
-catch vfork
-disable breakpoint $bpnum
-tbreak main
-
-## options
-set stop-on-solib-events 0
-set follow-fork-mode parent
-set detach-on-fork on
-set input-radix 0x10
-set output-radix 0x10
-#set width unlimited
-#set height unlimited
-set max-value-size unlimited
-set debuginfod enabled off
-
 ## registers ($ps)
 set variable $cf = 1 << 0
 #set variable $r1 = 1 << 1
@@ -847,5 +830,39 @@ set variable $of = 1 << 11
 #set variable $rf = 1 << 16
 #set variable $vm = 1 << 17
 
-#source /usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py
-source /usr/share/doc/python3-devel/gdbinit
+## catchpoints
+catch exec
+disable breakpoint $bpnum
+catch fork
+disable breakpoint $bpnum
+catch vfork
+disable breakpoint $bpnum
+tbreak main
+
+## options
+set stop-on-solib-events 0
+set follow-fork-mode parent
+set detach-on-fork on
+set input-radix 0x10
+set output-radix 0x10
+#set width unlimited
+#set height unlimited
+set max-value-size unlimited
+set debuginfod enabled off
+#set disassemble-next-line on
+
+## tui
+set tui border-kind ascii
+set tui border-mode half
+set tui active-border-mode normal
+
+tui new-layout default {-horizontal src 1 asm 1} 2 status 0 cmd 1
+tui layout default
+tui window height src 16
+tui focus cmd
+
+## utility scripts
+#guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
+#guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/share/doc/python3-devel/gdbinit")
+python (lambda filename: __import__('os.path').path.exists(filename) and gdb.execute("source {:s}".format(filename)))("/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
+python (lambda filename: __import__('os.path').path.exists(filename) and gdb.execute("source {:s}".format(filename)))("/usr/share/doc/python3-devel/gdbinit")
