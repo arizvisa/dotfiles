@@ -24,6 +24,8 @@
 [alias]
     oneline = log --pretty=oneline --abbrev-commit --all --graph --decorate=auto --color
     line = log --pretty=oneline --decorate=no
+    #rawdog = log --pretty=raw --decorate=auto --color --all --graph
+    rawdog = log '--pretty=format:%C(auto)commit        %C(auto)%H%d%n%C(auto)tree          %C(yellow)%T%n%C(auto)author        %C(auto)%an <%C(green)%ae%C(auto)>%n%C(auto)authordate    %C(auto)%ad (%C(cyan)%at%C(auto))%n%C(auto)committer     %C(auto)%cn <%C(green)%ce%C(auto)>%n%C(auto)committerdate %C(auto)%cd (%C(cyan)%ct%C(auto))%nsubject       %s%-n%-n%w(0,4,4)%-b%-n'
     noauthor = rebase --committer-date-is-author-date
     unstage = restore --staged
     untouch = restore --staged --worktree
