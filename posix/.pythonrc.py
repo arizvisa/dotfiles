@@ -219,3 +219,23 @@ try:
 
 except ImportError:
     pass
+
+def progression(length, iterable, width=72):
+    import math
+    for index, item in enumerate(iterable):
+        blocks = math.trunc(width * index / length)
+        bar = '█' * blocks
+        spaces = ' ' * (width - blocks)
+        parts = [
+            "{:.2f}% ".format(100 * index / length),
+            '|',
+            bar,
+            spaces,
+            '|',
+            "{:d}/{:d}".format(index, length),
+        ]
+        sys.stdout.write('\033[s'), sys.stdout.flush()
+        print(''.join(parts), end=''), sys.stdout.flush()
+        yield item
+        sys.stdout.write('\033[u'), sys.stdout.flush()
+    print()
