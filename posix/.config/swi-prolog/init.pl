@@ -17,3 +17,6 @@
 :- not(prolog_pack:current_pack(dcgutils)) -> pack_install(dcgutils); true.
 %:- use_module(library(dcg_core)).
 :- use_module(library(dcg_progress)).
+
+%- https://github.com/jamesnvc/lsp_server
+:- not(prolog_pack:current_pack(lsp_server)) -> pack_install(lsp_server); true.
