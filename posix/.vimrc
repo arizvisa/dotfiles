@@ -594,3 +594,10 @@ if has("eval")
         augroup end
     endif
 endif
+
+""" plugin configuration.
+if has("eval")
+    call plug#begin()
+    Plug 'https://github.com/arizvisa/vim-incpy.git'
+    call plug#end()
+endif
