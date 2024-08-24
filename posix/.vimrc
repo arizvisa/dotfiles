@@ -31,7 +31,9 @@ set visualbell
 set laststatus=2
 set ruler
 set number
-" set relativenumber
+
+set list
+set listchars=tab:▷⋅,trail:·
 
 "" get rid of any c indentation
 set nocindent
