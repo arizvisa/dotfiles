@@ -899,11 +899,18 @@ set output-radix 0x10
 set max-value-size unlimited
 set debuginfod enabled off
 #set disassemble-next-line on
+set pagination off
+
+set history save on
+set history size 131072
+set history expansion on
+set history filename ~/.gdb_history
 
 ## tui
 set tui border-kind ascii
 set tui border-mode half
 set tui active-border-mode normal
+set tui mouse-events off
 
 tui new-layout default {-horizontal src 1 asm 1} 2 status 0 cmd 1
 tui layout default
