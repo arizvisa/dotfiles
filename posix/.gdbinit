@@ -395,6 +395,51 @@ class wat(command):
         gdb.flush()
 wat()
 
+import fnmatch
+class select_process_mappings(command):
+    def mappings(self):
+        mappings = gdb.execute('info proc mappings', False, True)
+        rows = mappings.strip().split('\n')
+        iterable = (index for index, row in enumerate(rows) if row.lstrip().startswith('0x'))
+        index = next(iterable, 0)
+        headers = rows[:index][-1].rsplit(None, 4)
+        iterable = itertools.chain(filter(None, headers[:1][0].rsplit('  ')), headers[1:])
+        fields = [header.strip() for header in iterable]
+        return [{field : value for field, value in zip(fields, row.strip().split())} for row in rows[index:]]
+
+    def columns(self, results):
+        fields = {}
+        for row in results:
+            iterable = ((field, column) for field, column in row.items())
+            columns = {field : len(column) for field, column in iterable if len(column) > fields.get(field, -1)}
+            fields.update(columns)
+        return fields
+
+    def invoke(self, string, from_tty, count=None):
+        res, ordered = {}, self.mappings()
+        [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+        filtered = {objfile for objfile in fnmatch.filter(res, string)}
+        if len(string):
+            #indices = itertools.chain(*(res[objfile] for objfile in fnmatch.filter(res, string)))
+            indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), fnmatch.filter(res, string))))
+        else:
+            indices = range(len(ordered))
+        results = [ordered[index] for index in indices]
+        columns = self.columns(results)
+        [ gdb.write("{:s}\n".format(self.format(item, columns))) for item in results ]
+        return
+
+    def format(self, fields, columns):
+        range = ("{:{:s}{:d}s}".format(fields[address], justification, columns[address]) for address, justification in zip(['Start Addr', 'End Addr'], '><'))
+        #relative = ''.join([fields['Offset'], '+', fields['Size']])
+        relative = '+'.join("{:#0{:d}x}".format(int(fields[field], 16), columns[field]) for field in ['Offset', 'Size'])
+        location = "{:s} {:<{:d}s}".format('..'.join(range), "({:s})".format(relative), 2 + 1 + sum(columns[field] for field in ['Offset', 'Size']))
+        permissions = "{:{:d}s}".format(fields['Perms'], columns['Perms'])
+        filename = "{:{:d}s}".format(fields.get('objfile', ''), columns['objfile'])
+        #return "{:s} {:>{:d}s} {:{:d}s}".format(location, fields['Perms'], columns['Perms'], fields.get('objfile', ''), columns['objfile'])
+        return ' '.join([location, "<{:s}>".format(permissions), filename])
+
+select_process_mappings()
 end
 
 ### 32-bit / 64-bit functions
@@ -681,7 +726,11 @@ define ln
 end
 
 define lm
-    info proc mappings
+    if $argc > 0
+        select_process_mappings $arg0
+    else
+        select_process_mappings
+    end
     #progspace = gdb.current_progspace()
     #objfiles = progspace.objfiles()
     #progspace.objfile_for_address($pc)
