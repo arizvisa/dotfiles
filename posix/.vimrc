@@ -597,7 +597,25 @@ endif
 
 """ plugin configuration.
 if has("eval")
+    let g:plug_window = '$tabnew'
+
     call plug#begin()
     Plug 'https://github.com/arizvisa/vim-incpy.git'
     call plug#end()
+
+    " check if the plugins have been installed, and install them if not.
+    if !exists("g:plug_home")
+        echohl WarningMsg | echomsg "Unable to determine the plugin home directory (junegunn/vim-plug might not be installed correctly)." | echohl None
+
+    elseif !isdirectory(g:plug_home)
+        echohl ErrorMsg | echomsg printf("Plugin directory has not yet been created at %s.", g:plug_home) | echohl None
+        echohl WarningMsg | echomsg printf("The following %d plugin%s %s been configured:", len(g:plugs), (len(g:plugs) == 1)? "" : "s", (len(g:plugs) == 1)? "has" : "have") | echohl None
+        for plugin in keys(g:plugs)
+            echomsg printf("%s : %s", plugin, g:plugs[plugin]['uri'])
+        endfor
+
+        " FIXME: it would be better if this used a preview or quickfix window (rather than a tab).
+        echohl WarningMsg | echomsg printf("Proceeding to install %splugin%s into directory at %s.", (len(g:plugs) == 1)? "" : printf("%d ", len(g:plugs)), (len(g:plugs) == 1)? "" : "s", g:plug_home) | echohl None
+        PlugInstall
+    endif
 endif
