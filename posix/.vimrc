@@ -46,10 +46,8 @@ silent! while 0
     silent! source $HOME/.vimrc.local
 silent! endwhile
 
-""" everything after this needs evaluation to work
-if has("eval")
-
 """ default configuration
+if has("eval")
 
     "" rcfile script paths
     if has("unix") || &shellslash | let s:pathsep = '/' | else | let s:pathsep = '\' | endif
@@ -112,14 +110,19 @@ if has("eval")
             colorscheme elflord
         endtry
     endif
+endif
 
-    "" default plugin options
+"" default plugin options
+if has("eval")
 
     " for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
     let g:MultipleSearchMaxColors=16
     let w:PHStatusLine = ''
 
+endif
+
 """ useful key mappings
+if has("eval")
 
     "" bring shift-tab back to life. we don't bother with <Tab> because it
     "" seems to interfere with jumplist navigation (<C-i> and <C-o>)...
@@ -209,8 +212,10 @@ if has("eval")
         xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
     unlet g:mapleader
+endif
 
 """ utility functions
+if has("eval")
 
     " Return the full path for the specified program by searching through $PATH
     function! Which(program)
@@ -277,8 +282,10 @@ if has("eval")
             silent echomsg printf('Refusing to source file "%s" due to having been previously sourced.', a:path)
         endif
     endfunction
+endif
 
 """ autocommand configuration
+if has("eval") && has("autocmd")
     function! s:apply_layout_(info, type, layout)
 
         " Iterate through each item in our layout in order to extract the window
@@ -553,41 +560,43 @@ if has("eval")
             autocmd FileType actionscript setlocal noexpandtab fileformat=dos shiftwidth=4 tabstop=4
         augroup end
     endif
+endif
 
 """ session auto-saving and things
-    if has("mksession") && has("autocmd")
-        let s:state = ".vim.session"
+if has("mksession") && has("autocmd")
+    let s:state = ".vim.session"
 
-        set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
-        let g:session_state = join([getcwd(),s:state], s:pathsep)
+    set sessionoptions=blank,buffers,curdir,folds,help,options,tabpages,winsize
+    let g:session_state = join([getcwd(),s:state], s:pathsep)
 
-        let g:session = ((argc() == 0) && empty(v:this_session) && filereadable(g:session_state))? 1 : 0
-        function! Session_save(filename)
-            if g:session > 0
-                echomsg printf('Saving current session to %s', a:filename)
-                execute printf('mksession! %s', a:filename)
-                if !filewritable(a:filename)
-                    echoerr printf('Unable to save current session to %s', a:filename)
-                endif
+    let g:session = ((argc() == 0) && empty(v:this_session) && filereadable(g:session_state))? 1 : 0
+    function! Session_save(filename)
+        if g:session > 0
+            echomsg printf('Saving current session to %s', a:filename)
+            execute printf('mksession! %s', a:filename)
+            if !filewritable(a:filename)
+                echoerr printf('Unable to save current session to %s', a:filename)
             endif
-        endfunction
-        function! Session_load(filename)
-            if g:session > 0
-                echomsg printf('Loading session from %s', a:filename)
-                if filereadable(a:filename)
-                    execute printf('source %s', a:filename)
-                endif
+        endif
+    endfunction
+    function! Session_load(filename)
+        if g:session > 0
+            echomsg printf('Loading session from %s', a:filename)
+            if filereadable(a:filename)
+                execute printf('source %s', a:filename)
             endif
-        endfunction
+        endif
+    endfunction
 
-        augroup session
-            autocmd!
-            autocmd VimEnter * call Session_load(g:session_state)
-            autocmd VimLeave * call Session_save(g:session_state)
-        augroup end
-    endif
+    augroup session
+        autocmd!
+        autocmd VimEnter * call Session_load(g:session_state)
+        autocmd VimLeave * call Session_save(g:session_state)
+    augroup end
+endif
 
 """ user-local .vimrc
+if has("eval")
     if filereadable(g:rcfilename_site)
         try
             call <SID>source_vimrc(g:rcfilename_site)
@@ -610,7 +619,7 @@ if has("eval")
     endif
 endif
 
-""" plugin configuration.
+""" plugin manager configuration.
 if has("eval")
     let g:plug_window = '$tabnew'
 
