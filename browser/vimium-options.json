@@ -18,12 +18,16 @@
       "passKeys": ""
     },
     {
-      "pattern": "https://cisco-my.sharepoint.com/*",
+      "pattern": "https?://cisco-my.sharepoint.com/*",
       "passKeys": ""
     },
     {
-      "pattern": "https?://word-edit.officeapps.live.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://word-edit.officeapps.live.com/*"
+    },
+    {
+      "passKeys": "",
+      "pattern": "https?://docs.google.com/*"
     }
   ],
   "filterLinkHints": false,
