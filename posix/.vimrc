@@ -181,19 +181,15 @@ if has("eval")
             return join([""] + l:items + [""], "\n")
         endfunction
 
-        "" copy current path
-        nnoremap <silent> <Leader>cp :let @"=<SID>normalpath(expand('%:p'))<CR>:let @*=@"<CR>
-        nnoremap <silent> <Leader>cp+ :let @"=<SID>normalpath(expand('%:p'))<CR>:let @+=@"<CR>
+        "" copy current path, filename, or location to x-selection and clipboard registers.
+        nnoremap <silent> <Leader>cp :let @"=<SID>normalpath(expand('%:~'))<CR>:let @+=@"<CR>:let @*=@"<CR>
+        nnoremap <silent> <Leader>cf :let @"=<SID>normalpath(expand('%:.'))<CR>:let @+=@"<CR>:let @*=@"<CR>
+        noremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count)<CR>:let @+=@"<CR>:let @*=@"<CR>
+        xnoremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines()<CR>:let @+=@"<CR>:let @*=@"<CR>
 
-        "" copy current filename
-        nnoremap <silent> <Leader>cf :let @"=<SID>normalpath(expand('%:~'))<CR>:let @*=@"<CR>
-        nnoremap <silent> <Leader>cf+ :let @"=<SID>normalpath(expand('%:~'))<CR>:let @+=@"<CR>
-
-        "" copy current location and any lines if a range or selection is given
-        noremap <silent> <Leader>. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @*=@"<CR>
-        noremap <silent> <Leader>.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @+=@"<CR>
-        xnoremap <silent> <Leader>. :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @*=@"<CR>
-        xnoremap <silent> <Leader>.+ :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @+=@"<CR>
+        "" copy current location and any code for a range or selection.
+        noremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @+=@"<CR>:let @*=@"<CR>
+        xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @+=@"<CR>:let @*=@"<CR>
 
     unlet g:mapleader
 
