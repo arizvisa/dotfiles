@@ -141,6 +141,18 @@ if has("eval")
     " <S-Space> is recognized by some terminals, so we discard it.
     tnoremap <S-Space> <Space>
 
+    " Remap the 'w' window command (wincmd) so that visiting the
+    " previous window can be performed on one side of the keyboard.
+    noremap <silent> <C-w>w <Cmd>wincmd p<CR>
+    noremap <silent> <C-w>W <Cmd>wincmd p<CR>
+    noremap <silent> <C-w><C-w> <Cmd>wincmd p<CR>
+
+    " Replace the original variations of the 'p' window command (wincmd),
+    " with a mapping that jumps to the currently available preview window.
+    noremap <silent> <C-w>p <Cmd>wincmd P<CR>
+    noremap <silent> <C-w>P <Cmd>wincmd P<CR>
+    noremap <silent> <C-w><C-p> <Cmd>wincmd P<CR>
+
     "" these mappings are just for copying the current location and some lines
     "" into the default register, current selection, or clipboard.
 
