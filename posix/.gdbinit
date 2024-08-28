@@ -9,6 +9,8 @@ class function(gdb.Function):
 class command(gdb.Command):
     def __init__(self):
         return super(command, self).__init__(self.__class__.__name__, getattr(self,'COMMAND',0))
+    def complete(self, arguments_string, last):
+        return getattr(self,'COMPLETE',gdb.COMPLETE_NONE)
 class execute(command):
     def invoke(self, string, from_tty):
         gdb.execute(gdb.parse_and_eval(string).string())
@@ -284,7 +286,7 @@ class Memory(object):
 
 ## commands
 class __dump__(command):
-    COMMAND = gdb.COMMAND_DATA
+    COMMAND, COMPLETE = gdb.COMMAND_DATA, gdb.COMPLETE_EXPRESSION
     method = kind = None
     def invoke(self, string, from_tty, count=None):
         args = gdb.string_to_argv(string)
@@ -356,7 +358,7 @@ class access(function):
 hexdump(),itemdump(),bindump(),access()
 
 class wat(command):
-    COMMAND = gdb.COMPLETE_SYMBOL | gdb.COMMAND_USER
+    COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_SYMBOL
     DOMAINS = {value : key for key, value in gdb.__dict__.items() if all([key.startswith('SYMBOL_'), key.endswith('_DOMAIN')])}
     CLASS = {value : key for key, value in gdb.__dict__.items() if key.startswith('SYMBOL_LOC_')}
     TYPE = {operator.attrgetter(attribute) : attribute for attribute in ['needs_frame', 'is_argument', 'is_constant', 'is_function', 'is_variable', 'is_valid']}
@@ -397,6 +399,10 @@ wat()
 
 import fnmatch
 class select_process_mappings(command):
+    COMMAND, COMPLETE = gdb.COMMAND_STATUS, gdb.COMPLETE_FILENAME
+    def complete(self, arguments_string, last):
+        # FIXME: we should probably enumerate the mappings so we can complete things.
+        return self.COMPLETE
     def mappings(self):
         mappings = gdb.execute('info proc mappings', False, True)
         rows = mappings.strip().split('\n')
@@ -787,29 +793,33 @@ end
 ### breakpoints with wildcards
 python
 class bc(command):
+    COMMAND = gdb.COMMAND_BREAKPOINTS
     def invoke(self, s, from_tty):
         if s == '*':
             gdb.execute("delete breakpoints")
             return
         gdb.execute("delete breakpoints " + s)
 class bd(command):
+    COMMAND = gdb.COMMAND_BREAKPOINTS
     def invoke(self, s, from_tty):
         if s == '*':
             gdb.execute("disable breakpoints")
             return
         gdb.execute("disable breakpoints " + s)
 class be(command):
+    COMMAND = gdb.COMMAND_BREAKPOINTS
     def invoke(self, s, from_tty):
         if s == '*':
             gdb.execute("enable breakpoints")
             return
         gdb.execute("enable breakpoints " + s)
 class ba(command):
+    COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_EXPRESSION
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-        if not addr.startswith('*'):
-            addr = "*({})".format(addr)
+         if not addr.startswith('*'):
+             addr = "*({})".format(addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -819,11 +829,12 @@ class ba(command):
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
         gdb.execute("hbreak " + addr + thread + rest)
 class bp(command):
+    COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-        if not addr.startswith('*'):
-            addr = "*({})".format(addr)
+         if not addr.startswith('*'):
+             addr = "*({})".format(addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -833,6 +844,7 @@ class bp(command):
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
         gdb.execute("break " + addr + thread + rest)
 class go(command):
+    COMMAND, COMPLETE = gdb.COMMAND_RUNNING, gdb.COMPLETE_LOCATION
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
