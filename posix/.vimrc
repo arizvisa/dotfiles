@@ -177,19 +177,24 @@ if has("eval")
             elseif a:mode == ""
                 let l:sliced = printf("v:val[%d:%d]", col("'<") - 1, col("'>") - 1)
                 let l:items = map(l:lines, l:sliced)
+            else
+                throw printf('Unable to return visual text using an invalid mode (%s).', a:mode)
             endif
             return join([""] + l:items + [""], "\n")
         endfunction
 
-        "" copy current path, filename, or location to x-selection and clipboard registers.
-        nnoremap <silent> <Leader>cp :let @"=<SID>normalpath(expand('%:~'))<CR>:let @+=@"<CR>:let @*=@"<CR>
-        nnoremap <silent> <Leader>cf :let @"=<SID>normalpath(expand('%:.'))<CR>:let @+=@"<CR>:let @*=@"<CR>
-        noremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count)<CR>:let @+=@"<CR>:let @*=@"<CR>
-        xnoremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines()<CR>:let @+=@"<CR>:let @*=@"<CR>
+        "" copy current path, filename (relative), location (line number), or
+        "" the location with code to the x-selection and clipboard registers.
+        nnoremap <silent> <Leader>cp <Cmd>let @"=<SID>normalpath(expand('%:~'))<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        nnoremap <silent> <Leader>cf <Cmd>let @"=<SID>normalpath(expand('%:.'))<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        noremap <silent> <Leader>cl <Cmd>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count)<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        noremap <silent> <Leader>cc <Cmd>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
-        "" copy current location and any code for a range or selection.
-        noremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count) . <SID>normaltext(v:count)<CR>:let @+=@"<CR>:let @*=@"<CR>
-        xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR>:let @+=@"<CR>:let @*=@"<CR>
+        " We can't use a command mapping (<Cmd>) in visual or select mode since it
+        " seems to change the result of the "visualmode" function. So, we assign
+        " the copy location and with code mappings separately from the others.
+        xnoremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines()<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
     unlet g:mapleader
 
