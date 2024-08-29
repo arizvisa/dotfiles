@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import builtins, os, operator, math, functools, itertools, sys, types   # boomfist
 
@@ -221,7 +222,8 @@ except ImportError:
     pass
 
 def progression(length, iterable, width=72):
-    import math
+    import sys, math
+    write, flush = (getattr(sys.stdout, attribute) for attribute in ['write', 'flush'])
     for index, item in enumerate(iterable):
         blocks = math.trunc(width * index / length)
         bar = '█' * blocks
@@ -234,8 +236,12 @@ def progression(length, iterable, width=72):
             '|',
             "{:d}/{:d}".format(index, length),
         ]
-        sys.stdout.write('\033[s'), sys.stdout.flush()
-        print(''.join(parts), end=''), sys.stdout.flush()
+        write('\033[s'), flush()
+        write(''.join(parts)), flush()
         yield item
-        sys.stdout.write('\033[u'), sys.stdout.flush()
-    print()
+        write('\033[u'), flush()
+
+    write('\033[s'), flush()
+    write(''.join(["{:.1f}% ".format(100), '|', '█' * width, '|', "{:d}/{:d}".format(length, length)])), flush()
+    write('\033[u'), flush()
+    write('\n'), flush()
