@@ -13,10 +13,12 @@ class function(gdb.Function):
         keyword = getattr(self, 'KEYWORD', cls.__name__)
         return super(function, self).__init__(keyword)
     @property
-    def WORKSPACE(self):
+    def workspace(self):
         if hasattr(self, '__space__'):
             return self.__space__
-        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'WORKSPACE'))
+        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'workspace'))
+    def invoke(self, *args):
+        raise NotImplementedError("Unable to invoke unimplemented function \"{:s}\" with arguments: {!s}".format('.'.join(getattr(cls, attribute) for attribute in ['__module__', '__name__'] if hasattr(cls, attribute)), args))
 
 class command(gdb.Command):
     def __init__(self, *group):
@@ -28,19 +30,23 @@ class command(gdb.Command):
             self.__space__ = space
         keyword = getattr(self, 'KEYWORD', cls.__name__)
         return super(command, self).__init__(keyword, getattr(self,'COMMAND',0))
-    def complete(self, arguments_string, last):
+    def invoke(self, argument, from_tty):
+        description = "from tty ({!s})".format(from_tty) if from_tty else ''
+        raise NotImplementedError("Unable to invoke unimplemented command \"{:s}\"{:s} with argument: {:s}".format('.'.join(getattr(cls, attribute) for attribute in ['__module__', '__name__'] if hasattr(cls, attribute)), " {:s}".format(description) if description else '', argument))
+    def complete(self, text, word):
         return getattr(self,'COMPLETE',gdb.COMPLETE_NONE)
     @property
-    def WORKSPACE(self):
+    def workspace(self):
         if hasattr(self, '__space__'):
             return self.__space__
-        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'WORKSPACE'))
+        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'workspace'))
 
 class workspace(object):
-    __slots__, system = (), __import__('sys')
+    __slots__, system = ['EXPORTS'], __import__('sys')
     @classmethod
     def register(cls):
-        available = {klass for klass in getattr(cls, 'EXPORTS', ())}
+        exports = getattr(cls, 'EXPORTS', ())
+        available = {} if isinstance(exports, type('', (object,), {'__slots__': ['descriptor']}).descriptor.__class__) else {klass for klass in exports}
         invalid = {klass for klass in available if not issubclass(klass, (gdb.Command, gdb.Function))}
 
         if available:
