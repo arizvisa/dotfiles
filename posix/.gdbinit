@@ -50,15 +50,25 @@ class workspace(object):
 
         for klass in invalid:
             gdb.write("Refusing to register class `{:s}` from workspace `{:s}` due to inheriting of an unsupported type.\n".format('.'.join(filter(None, [klass.__module__, klass.__name__])), '.'.join(filter(None, [cls.__module__, cls.__name__]))))
+
+        # update the namespace of the caller to remove all references to
+        # the workspace that we registered. this is dirty, but whatever...
+        snapshot = cls.depth(2)
+        [current, parent] = (frame for frame in snapshot)
+        names = {name for name, value in parent.f_locals.items() if id(value) == id(cls)}
+        [ parent.f_locals.pop(name) for name in names ]
+        names = {name for name, value in parent.f_globals.items() if id(value) == id(cls)}
+        [ parent.f_globals.pop(name) for name in names ]
         return
     @classmethod
-    def depth(cls):
+    def depth(cls, count=-1):
         current = cls.system._getframe()
-        frame = current.f_back
-        while frame:
-            yield frame
+        results, frame = [], current.f_back
+        while frame and (count < 0 or count > 0):
+            results.append(frame)
             frame = frame.f_back
-        return
+            count -= 1
+        return (frame for frame in results)
     def __init__(self):
         cls = self.__class__
         raise SystemError("Unable to instantiate an object of type `{:s}`.".format('.'.join(filter(None, [cls.__module__, cls.__name__]))))
