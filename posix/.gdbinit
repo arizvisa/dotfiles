@@ -466,13 +466,17 @@ class wat(command):
         gdb.flush()
 wat()
 
-import fnmatch
-class select_process_mappings(command):
-    COMMAND, COMPLETE = gdb.COMMAND_STATUS, gdb.COMPLETE_FILENAME
-    def complete(self, arguments_string, last):
-        # FIXME: we should probably enumerate the mappings so we can complete things.
-        return self.COMPLETE
-    def mappings(self):
+class process_mappings(workspace):
+    commands = set()
+
+    @classmethod
+    def filter_by_glob(cls, glob, fnmatch=__import__('fnmatch')):
+        def filter(iterable):
+            return fnmatch.filter(iterable, glob)
+        return filter
+
+    @classmethod
+    def mappings(cls):
         mappings = gdb.execute('info proc mappings', False, True)
         rows = mappings.strip().split('\n')
         iterable = (index for index, row in enumerate(rows) if row.lstrip().startswith('0x'))
@@ -482,7 +486,8 @@ class select_process_mappings(command):
         fields = [header.strip() for header in iterable]
         return [{field : value for field, value in zip(fields, row.strip().split())} for row in rows[index:]]
 
-    def columns(self, results):
+    @classmethod
+    def columns(cls, results):
         fields = {}
         for row in results:
             iterable = ((field, column) for field, column in row.items())
@@ -490,21 +495,8 @@ class select_process_mappings(command):
             fields.update(columns)
         return fields
 
-    def invoke(self, string, from_tty, count=None):
-        res, ordered = {}, self.mappings()
-        [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
-        filtered = {objfile for objfile in fnmatch.filter(res, string)}
-        if len(string):
-            #indices = itertools.chain(*(res[objfile] for objfile in fnmatch.filter(res, string)))
-            indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), fnmatch.filter(res, string))))
-        else:
-            indices = range(len(ordered))
-        results = [ordered[index] for index in indices]
-        columns = self.columns(results)
-        [ gdb.write("{:s}\n".format(self.format(item, columns))) for item in results ]
-        return
-
-    def format(self, fields, columns):
+    @classmethod
+    def format(cls, fields, columns):
         range = ("{:{:s}{:d}s}".format(fields[address], justification, columns[address]) for address, justification in zip(['Start Addr', 'End Addr'], '><'))
         #relative = ''.join([fields['Offset'], '+', fields['Size']])
         relative = '+'.join("{:#0{:d}x}".format(int(fields[field], 16), columns[field]) for field in ['Offset', 'Size'])
@@ -514,7 +506,31 @@ class select_process_mappings(command):
         #return "{:s} {:>{:d}s} {:{:d}s}".format(location, fields['Perms'], columns['Perms'], fields.get('objfile', ''), columns['objfile'])
         return ' '.join([location, "<{:s}>".format(permissions), filename])
 
-select_process_mappings()
+    @commands.add
+    class select(command):
+        KEYWORD = 'select_process_mappings'
+        COMMAND, COMPLETE = gdb.COMMAND_STATUS, gdb.COMPLETE_FILENAME
+
+        def complete(self, arguments_string, last):
+            # FIXME: we should probably enumerate the mappings so we can complete things.
+            return self.COMPLETE
+
+        def invoke(self, string, from_tty, count=None):
+            res, ordered, filteritems = {}, self.workspace.mappings(), self.workspace.filter_by_glob(string)
+            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+            filtered = {objfile for objfile in filteritems(res)}
+            if len(string):
+                #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
+                indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), filteritems(res))))
+            else:
+                indices = range(len(ordered))
+            results = [ordered[index] for index in indices]
+            columns = self.workspace.columns(results)
+            [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
+            return
+    EXPORTS = commands
+
+process_mappings.register()
 end
 
 ### 32-bit / 64-bit functions
@@ -861,90 +877,110 @@ end
 
 ### breakpoints with wildcards
 python
-class bc(command):
-    COMMAND = gdb.COMMAND_BREAKPOINTS
-    def invoke(self, s, from_tty):
-        if s == '*':
-            gdb.execute("delete breakpoints")
-            return
-        gdb.execute("delete breakpoints " + s)
-class bd(command):
-    COMMAND = gdb.COMMAND_BREAKPOINTS
-    def invoke(self, s, from_tty):
-        if s == '*':
-            gdb.execute("disable breakpoints")
-            return
-        gdb.execute("disable breakpoints " + s)
-class be(command):
-    COMMAND = gdb.COMMAND_BREAKPOINTS
-    def invoke(self, s, from_tty):
-        if s == '*':
-            gdb.execute("enable breakpoints")
-            return
-        gdb.execute("enable breakpoints " + s)
-class ba(command):
-    COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_EXPRESSION
-    def invoke(self, s, from_tty):
-        args = gdb.string_to_argv(s)
-        addr = args.pop(0)
+class uses_an_address(workspace):
+    @staticmethod
+    def escape_address(string):
+        addr = string
         if addr.startswith('0x'):
             escaped_addr = "*({})".format(addr)
-        else:   # not sure if this is the right way to escape a symbol in gdb-speak
-            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
-            quoted_addr = "\"{:s}\"".format(escaped)
-            escaped_addr = "'{:s}'".format(quoted_addr)
-        if len(args) > 0 and args[0].startswith('~'):
-            t=args.pop(0)[1:]
-            thread = '' if t == '*' else (' thread %s'% t)
-        else:
-            th = gdb.selected_thread()
-            thread = '' if th is None else ' thread %d'% th.num
-        rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("hbreak {:s}".format(escaped_addr) + thread + rest)
-class bp(command):
-    COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
-    def invoke(self, s, from_tty):
-        args = gdb.string_to_argv(s)
-        addr = args.pop(0)
-        if addr.startswith('0x'):
-            escaped_addr = "*({})".format(addr)
-        else:   # not sure if this is the right way to escape a symbol in gdb-speak
-            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
-            quoted_addr = "\"{:s}\"".format(escaped)
-            escaped_addr = "'{:s}'".format(quoted_addr)
-        if len(args) > 0 and args[0].startswith('~'):
-            t=args.pop(0)[1:]
-            thread = '' if t == '*' else (' thread %s'% t)
-        else:
-            th = gdb.selected_thread()
-            thread = '' if th is None else ' thread %d'% th.num
-        rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("break {:s}".format(escaped_addr) + thread + rest)
-class go(command):
-    COMMAND, COMPLETE = gdb.COMMAND_RUNNING, gdb.COMPLETE_LOCATION
-    def invoke(self, s, from_tty):
-        args = gdb.string_to_argv(s)
-        if not args:
-            return gdb.execute("run" if gdb.selected_thread() is None else "continue")
-        addr = args.pop(0)
-        if addr.startswith('0x'):
-            escaped_addr = "*({})".format(addr)
-        else:   # not sure if this is the right way to escape a symbol in gdb-speak
-            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
-            quoted_addr = "\"{:s}\"".format(escaped)
-            escaped_addr = "'{:s}'".format(quoted_addr)
-        if len(args) > 0 and args[0].startswith('~'):
-            t=args.pop(0)[1:]
-            thread = '' if t == '*' else (' thread %s'% t)
-        else:
-            th = gdb.selected_thread()
-            thread = '' if th is None else ' thread %d'% th.num
-        rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("tbreak {:s}".format(escaped_addr) + thread + rest)
-        gdb.execute("run" if gdb.selected_thread() is None else "continue")
-        gdb.execute("here")
 
-bc(),bd(),be(),ba(),bp(),go()
+        # not sure if this is the right way to escape a symbol in gdb-speak
+        else:
+            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
+            quoted_addr = "\"{:s}\"".format(escaped)
+            escaped_addr = "'{:s}'".format(quoted_addr)
+        return escaped_addr
+
+class breakpoints(uses_an_address):
+    commands = set()
+
+    @commands.add
+    class bc(command):
+        COMMAND = gdb.COMMAND_BREAKPOINTS
+        def invoke(self, s, from_tty):
+            if s == '*':
+                gdb.execute("delete breakpoints")
+                return
+            gdb.execute("delete breakpoints " + s)
+
+    @commands.add
+    class bd(command):
+        COMMAND = gdb.COMMAND_BREAKPOINTS
+        def invoke(self, s, from_tty):
+            if s == '*':
+                gdb.execute("disable breakpoints")
+                return
+            gdb.execute("disable breakpoints " + s)
+
+    @commands.add
+    class be(command):
+        COMMAND = gdb.COMMAND_BREAKPOINTS
+        def invoke(self, s, from_tty):
+            if s == '*':
+                gdb.execute("enable breakpoints")
+                return
+            gdb.execute("enable breakpoints " + s)
+
+    @commands.add
+    class ba(command):
+        COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_EXPRESSION
+        def invoke(self, s, from_tty):
+            args = gdb.string_to_argv(s)
+            addr = args.pop(0)
+            escaped_addr = self.workspace.escape_address(addr)
+            if len(args) > 0 and args[0].startswith('~'):
+                t=args.pop(0)[1:]
+                thread = '' if t == '*' else (' thread %s'% t)
+            else:
+                th = gdb.selected_thread()
+                thread = '' if th is None else ' thread %d'% th.num
+            rest = (' if '+' '.join(args)) if len(args) > 0 else ''
+            gdb.execute("hbreak {:s}".format(escaped_addr) + thread + rest)
+
+    @commands.add
+    class bp(command):
+        COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
+        def invoke(self, s, from_tty):
+            args = gdb.string_to_argv(s)
+            addr = args.pop(0)
+            escaped_addr = self.workspace.escape_address(addr)
+            if len(args) > 0 and args[0].startswith('~'):
+                t=args.pop(0)[1:]
+                thread = '' if t == '*' else (' thread %s'% t)
+            else:
+                th = gdb.selected_thread()
+                thread = '' if th is None else ' thread %d'% th.num
+            rest = (' if '+' '.join(args)) if len(args) > 0 else ''
+            gdb.execute("break {:s}".format(escaped_addr) + thread + rest)
+    EXPORTS = commands
+
+class running(uses_an_address):
+    class go(command):
+        COMMAND, COMPLETE = gdb.COMMAND_RUNNING, gdb.COMPLETE_LOCATION
+        def invoke(self, s, from_tty):
+            args = gdb.string_to_argv(s)
+            if not args:
+                return gdb.execute("run" if gdb.selected_thread() is None else "continue")
+            addr = args.pop(0)
+            if addr.startswith('0x'):
+                escaped_addr = "*({})".format(addr)
+            else:   # not sure if this is the right way to escape a symbol in gdb-speak
+                escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
+                quoted_addr = "\"{:s}\"".format(escaped)
+                escaped_addr = "'{:s}'".format(quoted_addr)
+            if len(args) > 0 and args[0].startswith('~'):
+                t=args.pop(0)[1:]
+                thread = '' if t == '*' else (' thread %s'% t)
+            else:
+                th = gdb.selected_thread()
+                thread = '' if th is None else ' thread %d'% th.num
+            rest = (' if '+' '.join(args)) if len(args) > 0 else ''
+            gdb.execute("tbreak {:s}".format(escaped_addr) + thread + rest)
+            gdb.execute("run" if gdb.selected_thread() is None else "continue")
+            gdb.execute("here")
+    EXPORTS = [go]
+
+uses_an_address.register(), breakpoints.register(), running.register()
 end
 
 ### defaults
