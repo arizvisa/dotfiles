@@ -2,15 +2,68 @@ python import operator,itertools,functools,subprocess
 
 ### python helpers
 python
-import re,string
 class function(gdb.Function):
-    def __init__(self):
-        return super(function, self).__init__(self.__class__.__name__)
+    def __init__(self, *group):
+        cls = self.__class__
+        if group:
+            [space] = group
+            if not issubclass(space, workspace):
+                raise AssertionError("Received an unsupported workspace type (`{:s}`) during construction of `{:s}`.".format('.'.join(filter(None, [space.__module__, space.__name__])), '.'.join(filter(None, [cls.__module__, cls.__name__]))))
+            self.__space__ = space
+        keyword = getattr(self, 'KEYWORD', cls.__name__)
+        return super(function, self).__init__(keyword)
+    @property
+    def WORKSPACE(self):
+        if hasattr(self, '__space__'):
+            return self.__space__
+        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'WORKSPACE'))
+
 class command(gdb.Command):
-    def __init__(self):
-        return super(command, self).__init__(self.__class__.__name__, getattr(self,'COMMAND',0))
+    def __init__(self, *group):
+        cls = self.__class__
+        if group:
+            [space] = group
+            if not issubclass(space, workspace):
+                raise AssertionError("Received an unsupported workspace type (`{:s}`) during construction of `{:s}`.".format('.'.join(filter(None, [space.__module__, space.__name__])), '.'.join(filter(None, [cls.__module__, cls.__name__]))))
+            self.__space__ = space
+        keyword = getattr(self, 'KEYWORD', cls.__name__)
+        return super(command, self).__init__(keyword, getattr(self,'COMMAND',0))
     def complete(self, arguments_string, last):
         return getattr(self,'COMPLETE',gdb.COMPLETE_NONE)
+    @property
+    def WORKSPACE(self):
+        if hasattr(self, '__space__'):
+            return self.__space__
+        raise AttributeError("{!r} object has no attribute {!r}.".format(self.__class__.__name__, 'WORKSPACE'))
+
+class workspace(object):
+    __slots__, system = (), __import__('sys')
+    @classmethod
+    def register(cls):
+        available = {klass for klass in getattr(cls, 'EXPORTS', ())}
+        invalid = {klass for klass in available if not issubclass(klass, (gdb.Command, gdb.Function))}
+
+        if available:
+            [ klass(cls) for klass in available - invalid ]
+        else:
+            gdb.write("Skipping registration of workspace `{:s}` due to no exports being defined.".format('.'.join(filter(None, [cls.__module__, cls.__name__]))))
+
+        for klass in invalid:
+            gdb.write("Refusing to register class `{:s}` from workspace `{:s}` due to inheriting of an unsupported type.\n".format('.'.join(filter(None, [klass.__module__, klass.__name__])), '.'.join(filter(None, [cls.__module__, cls.__name__]))))
+        return
+    @classmethod
+    def depth(cls):
+        current = cls.system._getframe()
+        frame = current.f_back
+        while frame:
+            yield frame
+            frame = frame.f_back
+        return
+    def __init__(self):
+        cls = self.__class__
+        raise SystemError("Unable to instantiate an object of type `{:s}`.".format('.'.join(filter(None, [cls.__module__, cls.__name__]))))
+
+import re,string
 class execute(command):
     def invoke(self, string, from_tty):
         gdb.execute(gdb.parse_and_eval(string).string())
