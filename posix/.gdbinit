@@ -818,8 +818,12 @@ class ba(command):
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-         if not addr.startswith('*'):
-             addr = "*({})".format(addr)
+        if addr.startswith('0x'):
+            escaped_addr = "*({})".format(addr)
+        else:   # not sure if this is the right way to escape a symbol in gdb-speak
+            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
+            quoted_addr = "\"{:s}\"".format(escaped)
+            escaped_addr = "'{:s}'".format(quoted_addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -827,14 +831,18 @@ class ba(command):
             th = gdb.selected_thread()
             thread = '' if th is None else ' thread %d'% th.num
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("hbreak " + addr + thread + rest)
+        gdb.execute("hbreak {:s}".format(escaped_addr) + thread + rest)
 class bp(command):
     COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
         addr = args.pop(0)
-         if not addr.startswith('*'):
-             addr = "*({})".format(addr)
+        if addr.startswith('0x'):
+            escaped_addr = "*({})".format(addr)
+        else:   # not sure if this is the right way to escape a symbol in gdb-speak
+            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
+            quoted_addr = "\"{:s}\"".format(escaped)
+            escaped_addr = "'{:s}'".format(quoted_addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -842,14 +850,20 @@ class bp(command):
             th = gdb.selected_thread()
             thread = '' if th is None else ' thread %d'% th.num
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("break " + addr + thread + rest)
+        gdb.execute("break {:s}".format(escaped_addr) + thread + rest)
 class go(command):
     COMMAND, COMPLETE = gdb.COMMAND_RUNNING, gdb.COMPLETE_LOCATION
     def invoke(self, s, from_tty):
         args = gdb.string_to_argv(s)
+        if not args:
+            return gdb.execute("run" if gdb.selected_thread() is None else "continue")
         addr = args.pop(0)
-        if not addr.startswith('*'):
-            addr = "*({})".format(addr)
+        if addr.startswith('0x'):
+            escaped_addr = "*({})".format(addr)
+        else:   # not sure if this is the right way to escape a symbol in gdb-speak
+            escaped = addr.replace('\\', '\\\\').replace("\"", "{:s}\"".format('\\'))
+            quoted_addr = "\"{:s}\"".format(escaped)
+            escaped_addr = "'{:s}'".format(quoted_addr)
         if len(args) > 0 and args[0].startswith('~'):
             t=args.pop(0)[1:]
             thread = '' if t == '*' else (' thread %s'% t)
@@ -857,7 +871,7 @@ class go(command):
             th = gdb.selected_thread()
             thread = '' if th is None else ' thread %d'% th.num
         rest = (' if '+' '.join(args)) if len(args) > 0 else ''
-        gdb.execute("tbreak " + addr + thread + rest)
+        gdb.execute("tbreak {:s}".format(escaped_addr) + thread + rest)
         gdb.execute("run" if gdb.selected_thread() is None else "continue")
         gdb.execute("here")
 
