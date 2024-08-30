@@ -467,7 +467,7 @@ class wat(command):
 wat()
 
 class process_mappings(workspace):
-    commands = set()
+    commands = functions = set()
 
     @classmethod
     def filter_by_glob(cls, glob, fnmatch=__import__('fnmatch')):
@@ -528,7 +528,105 @@ class process_mappings(workspace):
             columns = self.workspace.columns(results)
             [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
             return
-    EXPORTS = commands
+
+    import os.path
+
+    @functions.add
+    class baseaddress(function):
+        def by_path(self, path):
+            objfiles, mappings, fp = {}, self.workspace.mappings(), self.workspace.os.path.normpath(path[1:] if path.startswith(2 * self.workspace.os.path.sep) else path)
+            [objfiles.setdefault(item.get('objfile', ''), []).append(int(item['Start Addr'], 16)) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
+            candidates = {ea for ea in objfiles[fp]}
+            if len(candidates) > 1:
+                gdb.write("WARNING: More than one base address was found for path: {:s}\n".format(fp))
+                [gdb.write("WARNING: Path at {:s} is mapped at {:#x}\n.".format(fp, ea)) for ea in sorted(candidates)]
+                return next(iter(candidates))
+            return next(iter(candidates)) if candidates else -1
+
+        def by_module(self, module):
+            objfiles, mappings, path = {}, self.workspace.mappings(), self.workspace.os.path
+            [objfiles.setdefault(item.get('objfile', ''), []).append(item) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
+            iterable = (name for name in objfiles if path.split(name)[-1] == module)
+            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
+            if not candidates:
+                # FIXME: need to return a failure or emptiness of some sort
+                return gdb.Value(-1)
+            if len(candidates) > 1:
+                gdb.write("WARNING: More than one base address was found for module: {:s}\n".format(module))
+                [gdb.write("WARNING: Path at {:s} is mapped at {:#x}.\n".format(fp, ea)) for fp, ea in sorted(candidates)]
+                candidates = [next(iter(candidates))]
+            [(_, ea)] = candidates
+            return ea
+
+        def by_subpath(self, subpath):
+            mappings, path = self.workspace.mappings(), self.workspace.os.path
+            objfiles, components = {}, path.normpath(subpath).split(path.sep)
+            for index, item in enumerate(mappings):
+                if int(item['Offset'], 16) != 0:
+                    continue
+                split = item.get('objfile', '').split(path.sep)
+                sliced = split[-len(components):] if components else split
+                objfiles.setdefault(path.join(*sliced), []).append(item)
+            iterable = (name for name in objfiles if name == subpath)
+            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
+            if not candidates:
+                # FIXME: need to return a failure or emptiness of some sort
+                return gdb.Value(-1)
+            if len(candidates) > 1:
+                gdb.write("WARNING: More than one base address was found for sub-path: {:s}\n".format(module))
+                [gdb.write("WARNING: Path at {:s} is mapped at {:#x}.\n".format(fp, ea)) for fp, ea in sorted(candidates)]
+                candidates = [next(iter(candidates))]
+            [(_, ea)] = candidates
+            return ea
+
+        def by_string(self, string):
+            path = self.workspace.os.path
+            if path.sep not in string:
+                return self.by_module(string)
+            elif path.isabs(string):
+                return self.by_path(string)
+            return self.by_subpath(string)
+
+        def by_reference(self, ref):
+            address = parameter.address
+            return self.by_address(int(address))
+
+        def by_address(self, ea):
+            mappings, path = self.workspace.mappings(), self.workspace.os.path
+
+            # FIXME: this is pretty inefficient, but we can't improve it unless we actively
+            #        track when addresses are mapped/unmapped inside the address space.
+            results, objfiles = {}, {}
+            for index, item in enumerate(mappings):
+                left, right = (int(item[field], 16) for field in ['Start Addr', 'End Addr'])
+                name = item.get('objfile', '')
+                if left <= ea < right:
+                    results.setdefault(name, set()).add((left, right))
+                if int(item['Offset'], 16) != 0:
+                    continue
+                objfiles.setdefault(name, []).append(item)
+
+            iterable = itertools.chain(*(objfiles[name] for name in results))
+            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in iterable}
+            if not candidates:
+                # FIXME: need to return a failure or emptiness of some sort
+                return gdb.Value(-1)
+            if len(candidates) > 1:
+                gdb.write("WARNING: More than one base address was found for address: {:#x}\n".format(ea))
+                [gdb.write("WARNING: Path at {:s} is mapped at {:#x}.\n".format(fp, ea)) for fp, ea in sorted(candidates)]
+                candidates = [next(iter(candidates))]
+            [(_, ea)] = candidates
+            return ea
+
+        def invoke(self, parameter):
+            integerish = {gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_INT}
+            if parameter.type.is_string_like:
+                return self.by_string(parameter.string())
+            elif parameter.type.is_scalar and parameter.type.code in integerish:
+                return self.by_address(int(parameter))
+            return self.by_reference(parameter)
+
+    EXPORTS = {item for item in itertools.chain(commands, functions)}
 
 process_mappings.register()
 end
