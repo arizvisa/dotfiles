@@ -7,7 +7,7 @@ LOGNAME=`basename "$ARG0"`
 
 # configuration
 GTAGSLABEL=default
-GTAGSPARAMETERS=( --accept-dotfiles --verbose --warning )
+GTAGSPARAMETERS=( --accept-dotfiles --explain --verbose --warning )
 CSCOPEPARAMETERS=( -b -q -v )
 
 # default file names
