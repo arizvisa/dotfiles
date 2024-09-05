@@ -1,14 +1,197 @@
 #!/usr/bin/env bash
-ARG0=`basename "$0"`
+ARG0=`realpath "$0"`
+GTAGS=`type -P gtags`
+GLOBAL=`type -P global`
+LOGNAME=`basename "$ARG0"`
+
+# configuration
+GTAGSLABEL=default
+GTAGSPARAMETERS=( --accept-dotfiles --verbose --warning )
+
+# default file names
+GTAGSCONF=.global.conf
+GTAGSFILE=.global.files
+GTAGSLOG=.global.log
+GTAGSRC=.globalrc
+
 usage()
 {
-    printf "usage: %s [-h] [-?] [-l] [[-f language filter1]...] [[-x filter1]...] directory1...\n" "$1"
+    printf "usage: %s [-h] [-?] [-l] [-o output_directory] [[-f language pattern]...] [[-x pattern]...] directory1...\n" "$1"
     printf "builds a cscope database in each directory specified at the commandline.\n"
     printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
 }
 
+### general utilities
+log()
+{
+    local fmt="$LOGNAME: $1"
+    shift
+    printf "$fmt" "$@" 1>&2
+}
+
+warn()
+{
+    log "$@"
+}
+
+get_system_directory()
+{
+    prefix=`dirname "$GTAGS" | xargs -I {} realpath {}/..`
+    case "$1" in
+        prefix)
+            printf '%s\n' "$prefix"
+            return 0
+        ;;
+        bindir)
+            dirname "$GTAGS"
+            return 0
+        ;;
+        includedir) suffix='/include' ;;
+        datadir)    suffix='/share' ;;
+        libexecdir) suffix='/libexec' ;;
+        docdir)     suffix='/share/doc' ;;
+        infodir)    suffix='/share/info' ;;
+        localedir)  suffix='/share/locale' ;;
+        localstatedir)
+            realpath /var
+            return 0
+            ;;
+        runstatedir)
+            realpath /var/run
+            return 0
+            ;;
+        sysconfdir) suffix='/etc' ;;
+        *)
+            warn 'unknown system directory type: %s\n' "$1" 1>&2
+            exit 1
+        ;;
+    esac
+
+    realpath -m "$prefix$suffix"
+}
+
+get_configuration_directory()
+{
+    case "$1" in
+        libexecdir|datadir|runstatedir|docdir)
+            directory=`get_system_directory "$@"`
+        ;;
+        *)
+            get_system_directory "$@"
+            return $?
+        ;;
+    esac
+
+    for path in /gtags /global; do
+        if [ -d "$directory/$path" ]; then
+            realpath -m "$directory/$path"
+            return 0
+        fi
+    done
+
+    warn 'unable to locate %s directory in the determined path: %s\n' "$1" "$directory" 1>&2
+    exit 1
+}
+
+build_language_index_from_filters()
+{
+    local -n language_map="$1"
+    shift
+
+    let index=0
+    for filter in "$@"; do
+        IFS=' ' read language filter <<<"$filter"
+        language_map["$language"]+=":$index"
+        let index++
+    done
+}
+
+format_language_index_for_builder()
+{
+    local -n language_map="$1"
+    local -a options=( "$@" )
+    for language in "${!language_map[@]}"; do
+        IFS=: read _ rest <<<"${language_map[$language]}"
+        IFS=: read -a indices <<<"$rest"
+
+        local -a filters=()
+        for index in "${indices[@]}"; do
+            IFS=' ' read _ filter <<<"${options[$index]}"
+            filters+=( "$filter" )
+        done
+
+        printf '%s\n' "$language"
+        printf "%s\n" "${filters[@]}"
+        printf '\0'
+    done
+}
+
+extract_patterns_from_language_index()
+{
+    local -n language_map="$1"
+    local -a options=( "$@" )
+    for language in "${!language_map[@]}"; do
+        IFS=: read _ rest <<<"${language_map[$language]}"
+        IFS=: read -a indices <<<"$rest"
+        local -a filters=()
+        for index in "${indices[@]}"; do
+            IFS=' ' read _ filter <<<"${options[$index]}"
+            filters+=( "$filter" )
+        done
+        printf '%s\0' "${filters[@]}"
+    done
+}
+
 ### command-specific utilities
+global_configuration_file()
+{
+    get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath
+}
+
+# remove comments and strip spaces from a configuration in stdin
+global_configuration_squeeze()
+{
+    gawk '!/^[[:blank:]]*#/' | perl -pe 's/\s*\\\n//g' | perl -pe 's/:[[:space:]]:/::/g'
+}
+
+# return all of the available labels from a configuration in stdin
+global_configuration_labels()
+{
+    global_configuration_squeeze | cut -d':' -f1 | cut -d'|' -f1 | gawk NF
+}
+
+# extract a specific variable from a configuration in stdin
+global_configuration_extract()
+{
+    variable="$1"
+    read definition < <( printf '%s=' "$variable" )
+    #global_configuration_squeeze | perl -pe 's/(?<!\\):/:\n/g' | grep -e "^$definition" | sed "s/$definition/\n$definition/g"
+    global_configuration_squeeze | perl -pe 's/(?<!\\):/:\n/g' | perl -pe "s/\<$definition\>/\n$definition/g"
+}
+
+# process a configuration as stdin and filter out all the "langmap" languages
+global_configuration_langmap_languages()
+{
+    global_configuration_extract 'langmap' \
+        | grep -e '^langmap=' \
+        | sed 's/,/\n/g' \
+        | gawk -F '\\\\:' 'NF {print $1}' \
+        | sed 's/^langmap=//' \
+        | sort -u
+}
+
+# process a configuration as stdin and filter out all the "gtags_parser" languages
+global_configuration_plugin_languages()
+{
+    global_configuration_extract 'gtags_parser' \
+        | grep -e '^gtags_parser=' \
+        | sed 's/^gtags_parser=//' \
+        | gawk -F '\\\\:' 'NF {print $1}' \
+        | sort -u
+}
+
+# read language map from default configuration
 global_langmap()
 {
     "$csprog" --config=langmap | while read -d, item; do
@@ -17,6 +200,7 @@ global_langmap()
     done
 }
 
+# read skip patterns from default configuration
 global_skip()
 {
     "$csprog" --config=skip | while read -d, item; do
@@ -123,12 +307,23 @@ tc_build_langmap_defaults()
 }
 
 # XXX: i think i was testing adding support for arbitrary languages here
-global_build_test()
+global_build_gtagsconf()
 {
     number="$1"
+    shift
+    excluded="$@"
 
-    tc_build_label "default" "tc=general" "tc=exclude" "tc=include"
-    tc_build_skip "exclude" "GPATH" "GRTAGS" "GTAGS"
+    # figure out all of the definition entries and convert them to labels.
+    # if $HOME/$GTAGSRC exists, then ensure that file also gets included.
+    declare -a entries=( general exclude include )
+    if [ ! -z "${HOME}" ] && [ -e "${HOME}/${GTAGSRC}" ]; then entries+=( "${GTAGSLABEL}"@"~/${GTAGSRC}" ); fi
+    declare -a labels=()
+    for entry in "${entries[@]}"; do labels+=( "tc=$entry" ); done
+
+    # output all of the labels that we determined.
+    tc_build_label "${GTAGSLABEL}" "${labels[@]}"
+    tc_build_skip "exclude" "GPATH" "GRTAGS" "GTAGS" "${excluded[@]}"
+
     #printf "%s\0" '*.cc' '*.cpp' '*.x' '' 1>&3
     #tc_build_langmap "include" 'cpp' $'*.c\0*.cc\0*.cc' #'php' $'*.php\n*.php3' "c\n*.c\n*.h\n'
 
@@ -151,6 +346,23 @@ global_build_test()
     fi
 }
 
+get_find_expressions_for_patterns()
+{
+    local -a parameters=()
+    while read -d $'\0' pattern; do
+        parameters+=( '-o' -type "f" -name "${pattern}" )
+    done
+
+    local -a results=()
+    let stop=( "${#parameters[@]}" - 1 )
+
+    for index in `seq 1 $stop`; do
+        results+=( "${parameters[$index]}" )
+    done
+
+    [ "${#results[@]}" -gt 0 ] && printf '%s\0' "${results[@]}"
+}
+
 ### command-detection utilities
 choose_command()
 {
@@ -164,7 +376,7 @@ choose_command()
         symbol="global"
         ;;
     *)
-        printf '%s: unsupported tag program was specified : %s\n' "$ARG0" "$path" 1>&2
+        warn 'unsupported tag program was specified : %s\n' "$path" 1>&2
         exit 1
     esac
     echo "$symbol"
@@ -189,20 +401,20 @@ global_list_languages()
 
 cscope_list_languages()
 {
-    printf '%s: unable to list languages for the detected program (%s)\n' "$ARG0" "$description"
+    warn 'unable to list languages for the detected program (%s)\n' "$description"
     exit 1
 }
 
 ## build the database for each tag program type
 global_build_database()
 {
-    printf '%s: using gtags to build database\n' "$ARG0"
+    log 'using gtags to build database\n'
     generic_build_database "$csprog --accept-dotfiles --explain -c -v -f-" "$@"
 }
 
 cscope_build_database()
 {
-    printf '%s: using cscope to build database\n' "$ARG0"
+    log 'using cscope to build database\n'
     generic_build_database "$csprog -b -v -i-" "$@"
 }
 
@@ -212,13 +424,13 @@ generic_build_database()
     command="$1"
     shift 1
 
-    printf 'processing directory: %s\n' "$@"
-    printf 'running with: "%s"\n' "$command"
+    log 'processing directory: %s\n' "$@"
+    log 'running with: "%s"\n' "$command"
     exit 1
 
     # if we were given no directories, then we start with the invocation directory.
     if [ "$#" -eq 0 ]; then
-        printf '%s: building %s database : %s\n' "$ARG0" "$description" "${filter[*]}"
+        log 'building %s database : %s\n' "$description" "${filter[*]}"
         for glob in "${filter[@]}"; do
             find ./ -type f -a -name "$glob"
         done | $command
@@ -228,10 +440,10 @@ generic_build_database()
     # otherwise we iterate through our parameters adding them one-by-one.
     for path in "$@"; do
         if [ ! -d "$path" ]; then
-            printf '%s: skipping invalid path : %s\n' "$ARG0" "$path"
+            log 'skipping invalid path : %s\n' "$path"
             continue
         fi
-        printf '%s: building %s database : %s\n' "$ARG0" "$description" "$path"
+        log 'building %s database : %s\n' "$description" "$path"
         ( cd -- "$path" && for glob in "${filter[@]}"; do
             find ./ -type f -a -name "$glob"
         done | $command )
@@ -255,20 +467,28 @@ description=`eval $cmd\_description`
 ## now we can process our command line parameters
 declare -a opt_filters
 declare -a opt_exclude
+declare -a opt_output
 #operation=build_database
-operation=build_test
 
-while getopts hlf:x: opt; do
+rp=`realpath "$ARG0"`
+operation=build_gtagsconf
+
+while getopts hlf:x:o: opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
             exit 0
             ;;
+        o)
+            opt_output="$OPTARG"
+            ;;
+
         l)
             operation=list_languages
             ;;
         x)
             opt_exclude+=( "$OPTARG" )
+            log 'excluding pattern : %s\n' "$OPTARG"
             ;;
         f)
             language="$OPTARG"
@@ -276,64 +496,68 @@ while getopts hlf:x: opt; do
                 filter=${!OPTIND}
                 let OPTIND++
             else
-                printf '%s: missing filter for language parameter : -f %s\n' "$ARG0" "$language"
+                log 'missing filter for language parameter : -f %s\n' "$language"
                 exit 1
             fi
-            printf '%s: adding filter : %s : %s\n' "$ARG0" "$language" "$filter"
+            log 'adding language filter : %s : %s\n' "$language" "$filter"
             opt_filters+=( "$language $filter" )
             ;;
     esac
 done
 shift `expr "$OPTIND" - 1`
 
-# build an index for each language referencing the opt_filter
-declare -A language_filter
-index=0
-for flt in "${opt_filters[@]}"; do
-    IFS=' ' read language filter <<<"$flt"
-    language_filter["$language"]+=":$index"
-    let index++
-done
-
-# now we need to feed them to our langmap builder.
-number="${#language_filter[@]}"
-for language in "${!language_filter[@]}"; do
-    IFS=: read _ rest <<<"${language_filter[$language]}"
-    IFS=: read -a indices <<<"$rest"
-    filters=()
-    for index in "${indices[@]}"; do
-        IFS=' ' read _ filter <<<"${opt_filters[$index]}"
-        filters+=("$filter")
-    done
-    printf '%s\n' "$language"
-    printf "%s\n" "${filters[@]}"
-    printf '\0'
-done | global_build_test "$number"
-
-
-exit 1  # XXX
-
-### we're dead after this
-## default filter to use when processing things
-if [ "$filter" = "" ]; then
-    filter=(*.c *.h *.cc *.cpp *.hpp)
-    printf '%s: using filter : %s\n' "$ARG0" "${filter[*]}"
+# assign the variables we're going to use.
+if [ -z "${opt_output}" ]; then
+    output=`realpath -qe .`
+else
+    output=`realpath -qe "${opt_output}"`
+fi
+if [ -z "${output}" ] || [ ! -d "${output}" ]; then
+    read target < <( [ -z "${output}" ] && echo . || echo "${output}" )
+    warn 'the requested output directory does not exist: %s\n' "${target}"
+    exit 1
+else
+    log 'writing databases to path : %s\n' "${output}"
 fi
 
-## let the invoker know how we're going to build their database
-case "$csprog" in
-cscope|cscope.*)
-    description="cscope"
-    ;;
-gtags|gtags.*)
-    description="gnu global"
-    printf '%s: using gtags to build database\n' "$ARG0"
-    command="$csprog --accept-dotfiles --explain -c -v -f-"
-    ;;
-*)
-    printf '%s: unsupported tag program was specified : %s\n' "$ARG0" "$CSPROG"
-    exit 1
-esac
+declare -a directories
+if [ "$#" -gt 0 ]; then
+    directories=( "$@" )
+else
+    directories=( '.' )
+fi
+log 'using files within the following paths: %s\n' "${directories[*]}"
 
-#global_langmap
-#exit 1
+log 'performing operation: %s\n' "${operation}"
+
+# build an index for each language referencing the opt_filter
+declare -A language_filter
+build_language_index_from_filters language_filter "${opt_filters[@]}"
+
+# now we need to feed each language and pattern to
+# our langmap builder for the gtags configuration.
+number="${#language_filter[@]}"
+format_language_index_for_builder language_filter "${opt_filters[@]}" \
+    | global_build_gtagsconf "$number" "${opt_exclude[@]}" \
+    > "${output}/$GTAGSCONF"
+
+# use find(1) to determine all of the matching paths
+# for the specified filters.
+extract_patterns_from_language_index language_filter "${opt_filters[@]}" \
+    | get_find_expressions_for_patterns \
+    | xargs -0 find "${directories[@]}" \
+    > "${output}/$GTAGSFILE"
+
+# TODO: main shit
+#       1. generate and write configuration file
+#       2. find all input files
+#       3. run gtags with GTAGSPARAMETERS to build stuff
+
+# TODO: list_languages
+#       1. locate global configuration file (global_configuration_file)
+#       2. grab all available labels (global_configuration_labels)
+#       3. use gtags with --config, --gtagsconf, and --gtagslabel
+#       4. grab all map languages (global_configuration_langmap_languages)
+#       5. grab all gtags_parser languages (global_configuration_plugin_languages)
+
+exit 1  # we're dead after this
