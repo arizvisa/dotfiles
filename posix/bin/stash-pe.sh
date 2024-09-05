@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 PYTHON=`which python`
 [ -z "$SYRINGE" ] && SYRINGE=`python -c 'print(__import__("os").path.abspath(__import__("os").path.join(__import__("os").path.split(__import__("pecoff").__file__)[0], "..", "..")))'`
 

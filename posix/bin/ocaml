@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 posix=`basename "$0"`
 windows="$SYSTEMDRIVE/OCaml/bin/$posix.exe"
 args=()

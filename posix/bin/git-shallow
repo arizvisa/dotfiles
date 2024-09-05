@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 dashless=$(basename "$0" | sed -e 's/-/ /')
 
 USAGE=
