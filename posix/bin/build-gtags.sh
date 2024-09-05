@@ -2,6 +2,7 @@
 ARG0=`realpath "$0"`
 GTAGS=`type -P gtags`
 GLOBAL=`type -P global`
+CSCOPE=`type -P cscope`
 LOGNAME=`basename "$ARG0"`
 
 # configuration
@@ -194,16 +195,24 @@ global_configuration_plugin_languages()
 # read language map from default configuration
 global_langmap()
 {
-    "$csprog" --config=langmap | while read -d, item; do
+    "$csprog" --config=langmap "$@" | while read -d, item; do
         IFS=: read language extensions <<< "$item"
         printf '%s\t%s\n' "$language" "$extensions"
+    done
+}
+
+global_gtags_parser()
+{
+    "$csprog" --config=gtags_parser "$@" | while read -d, item; do
+        IFS=: read language parser_library <<< "$item"
+        printf '%s\t%s\n' "$language" "$parser_library"
     done
 }
 
 # read skip patterns from default configuration
 global_skip()
 {
-    "$csprog" --config=skip | while read -d, item; do
+    "$csprog" --config=skip "$@" | while read -d, item; do
         printf '%s\n' "$item"
     done
 }
@@ -379,16 +388,16 @@ choose_command()
         warn 'unsupported tag program was specified : %s\n' "$path" 1>&2
         exit 1
     esac
-    echo "$symbol"
+    printf '%s\n' "$symbol"
 }
 
 cscope_description()
 {
-    echo "cscope"
+    printf '%s\n' "cscope"
 }
 global_description()
 {
-    echo "gnu global"
+    printf '%s\n' "gnu global"
 }
 
 ### define explicit commands that the user can use via the parameters
@@ -408,21 +417,42 @@ cscope_list_languages()
 ## build the database for each tag program type
 global_build_database()
 {
-    log 'using gtags to build database\n'
-    generic_build_database "$csprog --accept-dotfiles --explain -c -v -f-" "$@"
+    local output="$1"
+    local -n opt_filters="$2"
+    local -n opt_exclude="$3"
+
+    log 'using %s to build database\n' gtags
+
+    # build an index for each language referencing the opt_filter
+    declare -A language_filter
+    build_language_index_from_filters language_filter "${opt_filters[@]}"
+
+    # now we need to feed each language and pattern to
+    # our langmap builder for the gtags configuration.
+    number="${#language_filter[@]}"
+    format_language_index_for_builder language_filter "${opt_filters[@]}" \
+        | global_build_gtagsconf "$number" "${opt_exclude[@]}" \
+        > "${output}/$GTAGSCONF"
+
+    # use find(1) to determine all of the matching paths
+    # for the specified filters.
+    extract_patterns_from_language_index language_filter "${opt_filters[@]}" \
+        | get_find_expressions_for_patterns \
+        | xargs -0 find "${directories[@]}" \
+        > "${output}/$GTAGSFILE"
+
+    #generic_build_database "$csprog --accept-dotfiles --explain -c -v -f-" "$@"
 }
 
 cscope_build_database()
 {
-    log 'using cscope to build database\n'
-    generic_build_database "$csprog -b -v -i-" "$@"
-}
+    local output="$1"
+    local -n opt_filters="$2"
+    local -n opt_exclude="$3"
 
-# generic function to build the database for both tag programs
-generic_build_database()
-{
-    command="$1"
-    shift 1
+    local -a parameters=( -b -v -i- )
+
+    log 'using %s to build database\n' cscope
 
     log 'processing directory: %s\n' "$@"
     log 'running with: "%s"\n' "$command"
@@ -455,7 +485,7 @@ generic_build_database()
 
 ## first we need to figure out which program we need to use for making tags
 if [ -z "$CSPROG" ]; then
-    CSPROG=`type -P gtags || type -P cscope`
+    CSPROG=`type -P "$GTAGS" || type -P "$CSCOPE"`
 fi
 csprog=`basename "$CSPROG"`
 cmd=`choose_command "$csprog" "$CSPROG"`
