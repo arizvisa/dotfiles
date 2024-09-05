@@ -8,12 +8,16 @@ LOGNAME=`basename "$ARG0"`
 # configuration
 GTAGSLABEL=default
 GTAGSPARAMETERS=( --accept-dotfiles --verbose --warning )
+CSCOPEPARAMETERS=( -b -q -v )
 
 # default file names
 GTAGSCONF=.global.conf
 GTAGSFILE=.global.files
 GTAGSLOG=.global.log
 GTAGSRC=.globalrc
+
+CSCOPEFILE=cscope.files
+CSCOPEOUT=cscope.out
 
 usage()
 {
