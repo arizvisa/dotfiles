@@ -490,30 +490,44 @@ cscope_list_languages()
 global_build_database()
 {
     local output="$1"
-    local -n opt_filters="$2"
-    local -n opt_exclude="$3"
+    local -n filters="$2"
+    local -n exclude="$3"
+    shift 3
 
-    log 'using %s to build database\n' gtags
+    log 'using %s to build database\n' "$description"
 
     # build an index for each language referencing the opt_filter
     declare -A language_filter
-    build_language_index_from_filters language_filter "${opt_filters[@]}"
+    build_language_index_from_filters language_filter "${filters[@]}"
 
     # now we need to feed each language and pattern to
     # our langmap builder for the gtags configuration.
     number="${#language_filter[@]}"
-    format_language_index_for_builder language_filter "${opt_filters[@]}" \
-        | global_build_gtagsconf "$number" "${opt_exclude[@]}" \
+    format_language_index_for_builder language_filter "${filters[@]}" \
+        | global_build_gtagsconf "$number" "${exclude[@]}" \
         > "${output}/$GTAGSCONF"
+    log 'wrote configuration to file name: %s\n' "${output}/$GTAGSCONF"
 
     # use find(1) to determine all of the matching paths
     # for the specified filters.
-    extract_patterns_from_language_index language_filter "${opt_filters[@]}" \
+    extract_patterns_from_language_index language_filter "${filters[@]}" \
         | get_find_expressions_for_patterns \
         | xargs -0 find "${directories[@]}" \
         > "${output}/$GTAGSFILE"
 
-    #generic_build_database "$csprog --accept-dotfiles --explain -c -v -f-" "$@"
+    read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
+    log 'wrote %d paths to file name: %s\n' "$count" "${output}/$GTAGSFILE"
+
+    # collect our desired parameters.
+    local -a parameters=()
+    parameters+=( --gtagsconf "${output}/$GTAGSCONF" )
+    parameters+=( --gtagslabel "$GTAGSLABEL" )
+    parameters+=( --directory "${output}" )
+    parameters+=( --file "${output}/$GTAGSFILE" )
+
+    # now we just need to use cscope to build the database.
+    log 'building %s database with: %s\n' "$description" "\"${GTAGS}\" ${GTAGSPARAMETERS[*]} ${parameters[*]} $*"
+    "${GTAGS}" "${GTAGSPARAMETERS[@]}" "${parameters[@]}" "$@"
 }
 
 cscope_build_database()
