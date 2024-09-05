@@ -378,6 +378,11 @@ get_find_expressions_for_patterns()
     [ "${#results[@]}" -gt 0 ] && printf '%s\0' "${results[@]}"
 }
 
+cscope_escape()
+{
+    sed 's/\(["\\]\)/\\\1/g'
+}
+
 ### command-detection utilities
 choose_command()
 {
@@ -533,37 +538,35 @@ global_build_database()
 cscope_build_database()
 {
     local output="$1"
-    local -n opt_filters="$2"
-    local -n opt_exclude="$3"
+    local -n filters="$2"
+    local -n exclude="$3"
+    shift 3
 
-    local -a parameters=( -b -v -i- )
+    log 'using %s to build database.\n' "$description"
 
-    log 'using %s to build database\n' cscope
+    # build an index for each language referencing the opt_filter
+    declare -A language_filter
+    build_language_index_from_filters language_filter "${filters[@]}"
 
-    log 'processing directory: %s\n' "$@"
-    log 'running with: "%s"\n' "$command"
-    exit 1
+    # go through and find all the files that were requested.
+    extract_patterns_from_language_index language_filter "${filters[@]}" \
+        | get_find_expressions_for_patterns \
+        | xargs -0 find "${directories[@]}" \
+        | while read filename; do
 
-    # if we were given no directories, then we start with the invocation directory.
-    if [ "$#" -eq 0 ]; then
-        log 'building %s database : %s\n' "$description" "${filter[*]}"
-        for glob in "${filter[@]}"; do
-            find ./ -type f -a -name "$glob"
-        done | $command
-        exit $?
-    fi
-
-    # otherwise we iterate through our parameters adding them one-by-one.
-    for path in "$@"; do
-        if [ ! -d "$path" ]; then
-            log 'skipping invalid path : %s\n' "$path"
-            continue
+        # if there's spaces, then we need to quote and escape the filename.
+        if grep -qoe '[[:space:]]' <<< "$filename"; then
+            printf '%s\0' "$filename" | cscope_escape | xargs -0 printf '"%s"\n'
+        else
+            printf '%s\n' "$filename"
         fi
-        log 'building %s database : %s\n' "$description" "$path"
-        ( cd -- "$path" && for glob in "${filter[@]}"; do
-            find ./ -type f -a -name "$glob"
-        done | $command )
-    done
+    done > "${output}/$CSCOPEFILE"
+    read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
+    log 'wrote %d paths to file name %s\n' "$count" "${output}/$CSCOPEFILE"
+
+    # now we just need to use cscope to build the database.
+    log 'building %s database with: %s\n' "$description" "\"${CSCOPE}\" -f \"${output}/$CSCOPEOUT\" -i \"${output}/$CSCOPEFILE\" ${CSCOPEPARAMETERS[*]} $*"
+    "${CSCOPE}" -f "${output}/$CSCOPEOUT" -i "${output}/$CSCOPEFILE" "${CSCOPEPARAMETERS[@]}" "$@"
 }
 
 ### now we can begin the actual logic of the script that figures out what
