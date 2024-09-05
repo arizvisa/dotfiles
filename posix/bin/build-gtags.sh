@@ -408,6 +408,72 @@ global_list_languages()
     global_langmap "$@"
 }
 
+global_list_languages1()
+{
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    configuration_parameters=( --gtagsconf "${configuration}" )
+
+    global_configuration_labels <"${configuration}" | while read label; do
+        "${GTAGS}" --config "${configuration_parameters[@]}" --gtagslabel="$label" | global_configuration_langmap_languages
+        "${GTAGS}" --config "${configuration_parameters[@]}" --gtagslabel="$label" | global_configuration_plugin_languages
+    done | sort -u
+}
+
+global_list_languages2()
+{
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    configuration_parameters=( --gtagsconf "${configuration}" )
+
+    global_configuration_labels <"${configuration}" | while read label; do
+        global_langmap "${configuration_parameters[@]}" --gtagslabel="$label"
+        global_gtags_parser "${configuration_parameters[@]}" --gtagslabel="$label"
+    done | expand -t 24,70 | sort -u
+
+    #${GTAGS} --gtagsconf "${configuration}" "${configuration_parameters[@]}"
+    #global_configuration_langmap_languages
+    #global_configuration_plugin_languages
+}
+
+global_list_languages3()
+{
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    configuration_parameters=( --gtagsconf "${configuration}" )
+
+    declare -A languages
+    while read label; do
+
+        # add languages and patterns to our associative array.
+        # FIXME: we should probably do a better job of removing duplicates.
+        while read language pattern; do
+            if [ "${languages[$language]+exists}" != 'exists' ]; then
+                languages["$language"]="$pattern"
+
+            # if the pattern is different from what was stored in our associative
+            # array, then go ahead and append the pattern to our current value.
+            elif [ "${languages[$language]}" != "$pattern" ]; then
+                local old="${languages[$language]}"
+                languages["$language"]="$old,$pattern"
+
+            # otherwise, this pattern was already added to the specified language.
+            else
+                local old="${languages[$language]}"
+                [ "$pattern" == "$old" ]
+            fi
+        done < <( global_langmap "${configuration_parameters[@]}" --gtagslabel="$label" )
+
+        # now we add all the languages listed by the parsers
+        while read language library; do
+            if [ "${languages[$language]+exists}" != 'exists' ]; then
+                languages["$language"]+="($library)"
+            fi
+        done < <( global_gtags_parser "${configuration_parameters[@]}" --gtagslabel="$label" )
+    done < <(global_configuration_labels <"${configuration}")
+
+    for language in "${!languages[@]}"; do
+        printf '%s\t%s\n' "$language" "${languages[$language]}"
+    done | sort -u | expand -t 24,70
+}
+
 cscope_list_languages()
 {
     warn 'unable to list languages for the detected program (%s)\n' "$description"
