@@ -111,6 +111,7 @@ build_language_index_from_filters()
 format_language_index_for_builder()
 {
     local -n language_map="$1"
+    shift
     local -a options=( "$@" )
     for language in "${!language_map[@]}"; do
         IFS=: read _ rest <<<"${language_map[$language]}"
@@ -131,6 +132,7 @@ format_language_index_for_builder()
 extract_patterns_from_language_index()
 {
     local -n language_map="$1"
+    shift
     local -a options=( "$@" )
     for language in "${!language_map[@]}"; do
         IFS=: read _ rest <<<"${language_map[$language]}"
