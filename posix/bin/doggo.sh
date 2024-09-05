@@ -64,9 +64,36 @@ barrier()
     awk -v "horz=$horizontal" -v "corn=$corner" -v "prefix=$prefix" -v "width=$width" 'function rep(count, char, agg) { while (0 < count--) { agg = agg char } return agg } BEGIN { prefixlen = prefix - length(corn) } { print corn rep(prefixlen, horz) $0 rep(width - length($0) - prefixlen, horz) corn }'
 }
 
+checkelf()
+{
+    dd 2>/dev/null ibs=1 count=4 if="$1" | grep -qU -e $'\x7FELF'
+}
+
+checkmz()
+{
+    dd 2>/dev/null ibs=1 count=2 if="$1" | grep -qU -e 'MZ' -e 'ZM'
+}
+
+checkpe()
+{
+    if checkmz "$1"; then
+        read e_lfanew < <(dd 2>/dev/null ibs=1 count=4 skip=60 if="$1" | od --endian=little -An -w4 -td4)
+        dd 2>/dev/null ibs=1 count=4 skip="$e_lfanew" if="$1" | grep -qU -e $'PE\0\0'
+    else
+        false
+    fi
+}
+
+checksig()
+{
+    checkelf "$1" && return
+    checkmz "$1" && checkpe "$1" && return
+    checkmz "$1" && return
+    false
+}
 
 printf '%s\n' "$@" | nl | sed 1d | while read index item; do grep -qe "^$item$" <<<"$available" && continue || printf 'Error: parameter %d: unknown decompiler %s\n' "$index" "$item" && exit 1; done || exit 1
-dd 2>/dev/null ibs=1 if="$1" | grep -qU $'\x7FELF' || (printf 'Error: %s needs an ELF as its first parameter\n' "$0" && exit 1) || exit 1
+checksig "$1" || (printf 'Error: %s needs an ELF, MZ/PECOFF, or MZ as its first parameter\n' "$0" && exit 1) || exit 1
 
 read -d '\n' id download decompilation < <(curl -F "file=@$1" "$url" | jq -r '.id, .download_url, .decompilations_url')
 shift
