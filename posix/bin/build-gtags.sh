@@ -375,7 +375,7 @@ get_find_expressions_for_patterns()
         results+=( "${parameters[$index]}" )
     done
 
-    [ "${#results[@]}" -gt 0 ] && printf '%s\0' "${results[@]}"
+    [ "${#results[@]}" -gt 0 ] && printf '%s\0' '(' "${results[@]}" ')'
 }
 
 cscope_escape()
@@ -578,7 +578,10 @@ if [ -z "$CSPROG" ]; then
 fi
 csprog=`basename "$CSPROG"`
 cmd=`choose_command "$csprog" "$CSPROG"`
-[ "$?" -gt 0 ] && exit "$?"
+if [ "$?" -gt 0 ]; then
+    warn 'unable to find a valid command (%s) for building index\n' 'cscope or gnu global'
+    exit 2
+fi
 
 # assign some variables to help with emitting error and status messages
 description=`eval $cmd\_description`
@@ -587,10 +590,9 @@ description=`eval $cmd\_description`
 declare -a opt_filters
 declare -a opt_exclude
 declare -a opt_output
-#operation=build_database
 
 rp=`realpath "$ARG0"`
-operation=build_gtagsconf
+operation=build_database
 
 while getopts hlf:x:o: opt; do
     case "$opt" in
@@ -636,7 +638,7 @@ if [ -z "${output}" ] || [ ! -d "${output}" ]; then
     warn 'the requested output directory does not exist: %s\n' "${target}"
     exit 1
 else
-    log 'writing databases to path : %s\n' "${output}"
+    log 'writing database to path : %s\n' "${output}"
 fi
 
 declare -a directories
@@ -647,36 +649,9 @@ else
 fi
 log 'using files within the following paths: %s\n' "${directories[*]}"
 
-log 'performing operation: %s\n' "${operation}"
+full_operation="${cmd}_${operation}"
+log 'performing operation: %s\n' "${full_operation}"
 
-# build an index for each language referencing the opt_filter
-declare -A language_filter
-build_language_index_from_filters language_filter "${opt_filters[@]}"
-
-# now we need to feed each language and pattern to
-# our langmap builder for the gtags configuration.
-number="${#language_filter[@]}"
-format_language_index_for_builder language_filter "${opt_filters[@]}" \
-    | global_build_gtagsconf "$number" "${opt_exclude[@]}" \
-    > "${output}/$GTAGSCONF"
-
-# use find(1) to determine all of the matching paths
-# for the specified filters.
-extract_patterns_from_language_index language_filter "${opt_filters[@]}" \
-    | get_find_expressions_for_patterns \
-    | xargs -0 find "${directories[@]}" \
-    > "${output}/$GTAGSFILE"
-
-# TODO: main shit
-#       1. generate and write configuration file
-#       2. find all input files
-#       3. run gtags with GTAGSPARAMETERS to build stuff
-
-# TODO: list_languages
-#       1. locate global configuration file (global_configuration_file)
-#       2. grab all available labels (global_configuration_labels)
-#       3. use gtags with --config, --gtagsconf, and --gtagslabel
-#       4. grab all map languages (global_configuration_langmap_languages)
-#       5. grab all gtags_parser languages (global_configuration_plugin_languages)
-
-exit 1  # we're dead after this
+export output opt_filters opt_exclude
+"${cmd}_${operation}" "${output}" opt_filters opt_exclude
+exit $?
