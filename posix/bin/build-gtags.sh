@@ -416,37 +416,6 @@ global_description()
 ## list the available languages that the user is allowed to map globs to
 global_list_languages()
 {
-    global_langmap "$@"
-}
-
-global_list_languages1()
-{
-    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
-    configuration_parameters=( --gtagsconf "${configuration}" )
-
-    global_configuration_labels <"${configuration}" | while read label; do
-        "${GTAGS}" --config "${configuration_parameters[@]}" --gtagslabel="$label" | global_configuration_langmap_languages
-        "${GTAGS}" --config "${configuration_parameters[@]}" --gtagslabel="$label" | global_configuration_plugin_languages
-    done | sort -u
-}
-
-global_list_languages2()
-{
-    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
-    configuration_parameters=( --gtagsconf "${configuration}" )
-
-    global_configuration_labels <"${configuration}" | while read label; do
-        global_langmap "${configuration_parameters[@]}" --gtagslabel="$label"
-        global_gtags_parser "${configuration_parameters[@]}" --gtagslabel="$label"
-    done | expand -t 24,70 | sort -u
-
-    #${GTAGS} --gtagsconf "${configuration}" "${configuration_parameters[@]}"
-    #global_configuration_langmap_languages
-    #global_configuration_plugin_languages
-}
-
-global_list_languages3()
-{
     read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
