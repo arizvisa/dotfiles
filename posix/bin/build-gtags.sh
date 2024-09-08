@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# FIXME: This still needs some work to do.
+# 1. There needs to be some way to include the "gtags_parser" languages in the
+#    generated configuration.
+# 1a. There's multiple libraries for parsing the same language. So, there needs
+#     to be a way to prioritize which parser (universal-ctags, exuberant-ctags,
+#     and pygments) to use for a specific language.
+# 1b. There needs to be a way to list the language and supported parsers.
+# 2. The "-o" option needs to correct the paths written to ${GTAGSFILE}. This
+#    way the files being parsed are relative to the database output.
+# 2a. Perhaps the "-C" (directory) option for ${GTAGS} can be used to switch
+#     to an anchor path where each directory parameter is relative to.
+# 3. Should the language case matter, or should we make the effort to normalize
+#    the case when checking? Peraonlly, I dont think the case should matter...
 ARG0=`realpath "$0"`
 GTAGS=`type -P gtags`
 GLOBAL=`type -P global`
@@ -454,6 +467,32 @@ global_list_languages()
     done | sort -u | expand -t 24,70
 }
 
+global_list_parsers()
+{
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    configuration_parameters=( --gtagsconf "${configuration}" )
+
+    declare -A languages
+    while read label; do
+
+        # add all the languages listed by the parsers
+        while read language library; do
+            if [ "${languages[$language]+exists}" != 'exists' ]; then
+                languages["$language"]="$library"
+            else
+                log 'duplicate language library for %s: %s\n' "$language" "$library"
+                languages["$language"]+=":$library"
+            fi
+        done < <( global_gtags_parser "${configuration_parameters[@]}" --gtagslabel="$label" )
+    done < <(global_configuration_labels <"${configuration}")
+
+    # output every parser that we collected and trim off the trailing ':'.
+    for language in "${!languages[@]}"; do
+        read unique < <( tr ':\n' '\0' <<< "${languages[$language]}" | xargs -0 printf '%s\n' | sort -u | tr '\n' ':' | sed 's/:$//' )
+        printf '%s\t%s\n' "$language" "$unique"
+    done | sort -u | expand -t 24,70
+}
+
 cscope_list_languages()
 {
     # we hardcode cscope's supported languages.
@@ -564,7 +603,7 @@ declare -a opt_output
 rp=`realpath "$ARG0"`
 operation=build_database
 
-while getopts hlf:x:o: opt; do
+while getopts hglf:x:o: opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
@@ -573,7 +612,9 @@ while getopts hlf:x:o: opt; do
         o)
             opt_output="$OPTARG"
             ;;
-
+        g)
+            operation=list_parsers
+            ;;
         l)
             operation=list_languages
             ;;
