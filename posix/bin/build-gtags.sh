@@ -456,8 +456,9 @@ global_list_languages()
 
 cscope_list_languages()
 {
-    warn 'unable to list languages for the detected program (%s)\n' "$description"
-    exit 1
+    # we hardcode cscope's supported languages.
+    printf '%s\t%s\n' C .c.h Flex .l YACC .y \
+        | sort -u | expand -t 24,70
 }
 
 ## build the database for each tag program type
