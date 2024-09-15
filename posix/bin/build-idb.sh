@@ -266,21 +266,23 @@ ext=`echo "$filename" | sed 's/.*\.//'`
 if [ "$ext" = "log" ]; then
     output=`basename "$filename" ".$ext"`
     if [ -f "$outpath/$output.$idaext" ]; then
-        command="updating"
+        command="updating database"
     else
-        command="writing to"
+        command="writing database to"
     fi
-    printf "[%s] user wishes to log to \"%s\". %s \"%s\".\n" "`currentdate`" "$outpath/$output.log" "$command" "$outpath/$output.$idaext"
+    printf "[%s] user desires to log output to \"%s\".\n" "`currentdate`" "$outpath/$output.log"
+    printf "[%s] %s \"%s\".\n" "`currentdate`" "$command" "$outpath/$output.$idaext"
     ext="$idaext"
 
 elif [ "$ext" = "$idaext" ]; then
     output=`basename "$filename" ".$ext"`
     if [ -f "$outpath/$output.$idaext" ]; then
-        command="update"
+        command="update database"
     else
-        command="write to"
+        command="write database to"
     fi
-    printf "[%s] user wishes to %s \"%s\". logging to \"%s\".\n" "`currentdate`" "$command" "$outpath/$output.$idaext" "$outpath/$output.log"
+    printf "[%s] user desires to %s \"%s\".\n" "`currentdate`" "$command" "$outpath/$output.$idaext"
+    printf "[%s] logging output to \"%s\".\n" "`currentdate`" "$outpath/$output.log"
 
 else
     printf "[%s] writing database to \"%s\".\n" "`currentdate`" "$outpath/$output.$idaext"
