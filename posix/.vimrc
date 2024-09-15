@@ -113,12 +113,41 @@ if has("eval")
 endif
 
 "" default plugin options
-if has("eval")
 
-    " for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
+" for the multiplesearch plugin [ http://www.vim.org/script.php?script_id=479 ]
+if has("eval")
     let g:MultipleSearchMaxColors=16
     let w:PHStatusLine = ''
+endif
 
+" netrw plugin configuration
+if has("eval")
+    let g:netrw_nogx = v:true
+    let g:netrw_banner = 0
+    let g:netrw_keepj = 'keepj'
+    let g:netrw_liststyle = 3
+    let g:netrw_browse_split = 3
+    let g:netrw_dirhistmax = 4
+
+    let g:netrw_browsex_viewer = '-'
+    let g:netrw_browsex_support_remote = v:false
+
+    """ netrw-noload
+    "let g:loaded_netrw = 1
+    "let g:loaded_netrwPlugin = 1
+
+    let g:netrw_compress = 'xz'
+    let g:netrw_compress = 'zstd'
+    let g:netrw_decompress = {
+    \   '.gz'  : 'gunzip' ,
+    \   '.bz2' : 'bunzip2' ,
+    \   '.zip' : 'unzip' ,
+    \   '.tar' : 'tar -xvf',
+    \   '.xz' : 'xz -d',
+    \   '.zst' : 'zstd -d', '.z' : 'zstd -d',
+    \   '.lzma' : 'lzma -d',
+    \   '.7z' : '7z -x',
+    \ }
 endif
 
 """ useful key mappings
