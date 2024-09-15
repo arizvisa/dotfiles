@@ -99,5 +99,5 @@ if __name__ == '__main__':
     seasoning, ingredients = dict(seasoning), unionedstream(sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer)
     soup = lxml.etree.iterparse(ingredients, tag=sys.argv[1], events=('start',), dtd_validation=False, load_dtd=False, no_network=True, compact=False, resolve_entities=True, huge_tree=True, recover=True, html=sys.argv[0].startswith('html-') if len(sys.argv[0]) else True, encoding=ingredients.encoding)
     for spoonful in cook(soup, **seasoning):
-        six.print_(lxml.etree.tostring(spoonful, encoding='unicode'), file=sys.stdout)
+        six.print_(lxml.etree.tostring(spoonful, encoding='unicode').translate({character: '' for character in bytearray(b'\r\n')}), file=sys.stdout)
     sys.exit(0)
