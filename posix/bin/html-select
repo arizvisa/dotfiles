@@ -19,7 +19,7 @@ def finditer(soup, **attributes):
 
 class unionedstream(object):
     def __init__(self, infile):
-        self.file, self.offset = infile, 0
+        self.file, self.offset = infile, infile.tell() if infile.seekable() else 0
         self.__encoding__, consumed = self.__detect__(infile)
         self.__consumed__, self.__length__ = consumed, sum(length for length, _ in consumed)
 
@@ -36,11 +36,10 @@ class unionedstream(object):
     def encoding(self):
         return self.__encoding__
 
-    @staticmethod
-    def __detect__(infile):
+    def __detect__(self, infile):
         detector, consumed = universal.UniversalDetector(), []
         try:
-            position = infile.tell()
+            position = self.offset
             while not detector.done:
                 data = next(infile)
                 detector.feed(data)
@@ -72,7 +71,7 @@ class unionedstream(object):
         else:
             length, item = self.__consumed__[0] if len(self.__consumed__) > 0 else 0, b''
             result = type(item).join(bytes for _, bytes in self.__consumed__)[self.offset:] + self.file.read()
-        self.offset = self.file.tell()
+        self.offset = self.file.tell() if self.file.seekable() else self.offset + len(result)
         return result
 
     def seek(self, *args):
