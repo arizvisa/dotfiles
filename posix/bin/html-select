@@ -30,7 +30,7 @@ class unionedstream(object):
             cls = type(item)
         else:
             cls = bytes
-        return bytes().join(self.__consumed__)
+        return cls().join(bytes for _, bytes in self.__consumed__)
 
     @property
     def encoding(self):
@@ -70,7 +70,8 @@ class unionedstream(object):
         if size:
             result = self.__read(*size)
         else:
-            result = self.__consumed__[self.offset:] + self.file.read()
+            length, item = self.__consumed__[0] if len(self.__consumed__) > 0 else 0, b''
+            result = type(item).join(bytes for _, bytes in self.__consumed__)[self.offset:] + self.file.read()
         self.offset = self.file.tell()
         return result
 
