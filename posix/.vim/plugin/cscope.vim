@@ -111,6 +111,15 @@ if has("cscope")
         endif
     endfunction
 
+    " re-trigger autocmd events for the current buffer
+    function! s:trigger_buffer_events(path)
+        let l:argpath=isdirectory(a:path)? join([a:path, s:csdatabase], s:pathsep) : a:path
+        let l:directory=fnamemodify(s:basedirectory(l:argpath), ":p")
+        let l:path=fnamemodify(l:argpath, printf(":p:gs?%s?/?", s:pathsep))
+        let l:base=fnamemodify(l:directory, printf(":p:gs?%s?/?", s:pathsep))
+        exec printf("doautocmd cscope BufEnter %s**", l:base)
+    endfunction
+
     """ cscope-related utilities
     function! s:add_cscope(path)
         " check if we were given a directory or just a straight-up path
@@ -151,6 +160,8 @@ if has("cscope")
             exec printf("autocmd BufEnter,BufRead,BufNewFile %s** call cscope#map() | if filereadable(\"%s%s\") | source %s%s | endif", l:base, l:base, s:rcfilename, l:base, s:rcfilename)
             exec printf("autocmd BufDelete %s** call cscope#unmap()", l:base)
         augroup end
+
+        call s:trigger_buffer_events(a:path)
     endfunction
 
     " create a command that calls add_cscope directly
