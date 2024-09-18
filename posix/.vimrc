@@ -4,7 +4,7 @@ set encoding=utf-8
 set fileencoding=utf-8
 set fileformat=unix
 set fileformats=unix,dos
-set formatoptions=
+set formatoptions=j
 
 "" specify the default temp directory for swap files (overwritten when +eval)
 set directory=$TMP,$TMPDIR
@@ -148,6 +148,16 @@ if has("eval")
     \   '.lzma' : 'lzma -d',
     \   '.7z' : '7z -x',
     \ }
+endif
+
+" enable the Man command from the man.vim filetype plugin
+if exists(':Man') != 2 && !exists('g:loaded_man') && &filetype !=? 'man'
+    runtime ftplugin/man.vim
+endif
+
+" copied from diff-original-file
+if exists(':DiffOrig') != 2
+    command DiffOrig vert new | set bt=nofile | r ++edit # | 0d_ | diffthis | wincmd p | diffthis
 endif
 
 """ useful key mappings
