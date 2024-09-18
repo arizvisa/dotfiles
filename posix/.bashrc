@@ -50,9 +50,20 @@ set -o ignoreeof
 set -o vi
 set -o nounset
 
-## aliases and complete
-unalias -a
+shopt -s extglob
+shopt -s globstar
+shopt -s shift_verbose
+
+shopt -s failglob
+#shopt -s nullglob           # only useful during scripting
+
+# command completion (nope)
+shopt -u progcomp
+shopt -u progcomp_alias
 complete -r
+
+# command aliases
+unalias -a
 
 # modify core utility parameters to improve their safety
 alias rm='rm -i'
