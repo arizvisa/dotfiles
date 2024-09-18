@@ -308,11 +308,11 @@ tc_build_langmap_footer()
 
 global_langmap_extensions()
 {
-    declare -A default_langmap
+    local -A default_langmap
     while read language extensions; do
         default_langmap[$language]+="$extensions"
     done < <( global_langmap )
-    declare -p default_langmap
+    local -p default_langmap
 }
 
 tc_build_langmap_defaults()
@@ -339,13 +339,13 @@ global_build_gtagsconf()
 {
     number="$1"
     shift
-    excluded="$@"
+    local -a excluded=( "$@" )
 
     # figure out all of the definition entries and convert them to labels.
     # if $HOME/$GTAGSRC exists, then ensure that file also gets included.
-    declare -a entries=( general exclude include )
+    local -a entries=( general exclude include )
     if [ ! -z "${HOME}" ] && [ -e "${HOME}/${GTAGSRC}" ]; then entries+=( "${GTAGSLABEL}"@"~/${GTAGSRC}" ); fi
-    declare -a labels=()
+    local -a labels=()
     for entry in "${entries[@]}"; do labels+=( "tc=$entry" ); done
 
     # output all of the labels that we determined.
@@ -432,7 +432,7 @@ global_list_languages()
     read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
-    declare -A languages
+    local -A languages
     while read label; do
 
         # add languages and patterns to our associative array.
@@ -472,7 +472,7 @@ global_list_parsers()
     read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
-    declare -A languages
+    local -A languages
     while read label; do
 
         # add all the languages listed by the parsers
@@ -511,7 +511,7 @@ global_build_database()
     log 'using %s to build database\n' "$description"
 
     # build an index for each language referencing the opt_filter
-    declare -A language_filter
+    local -A language_filter
     build_language_index_from_filters language_filter "${filters[@]}"
 
     # now we need to feed each language and pattern to
@@ -554,7 +554,7 @@ cscope_build_database()
     log 'using %s to build database.\n' "$description"
 
     # build an index for each language referencing the opt_filter
-    declare -A language_filter
+    local -A language_filter
     build_language_index_from_filters language_filter "${filters[@]}"
 
     # go through and find all the files that were requested.
