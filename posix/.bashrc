@@ -48,6 +48,7 @@ export PS1
 set -o noclobber
 set -o ignoreeof
 set -o vi
+set -o nounset
 
 ## aliases and complete
 unalias -a
@@ -65,6 +66,7 @@ alias strings="`type -P stringsext || type -P strings`"
 alias strace="`type -P strace` -vitttTs 131072"
 alias netstat="`type -P netstat` -W"
 alias z="`type -P zstd`"
+alias clip="`type -P xclip` -sel clip"
 
 which_pager="`type -P less || type -P more`"
 case "${which_pager}" in
@@ -100,24 +102,35 @@ alias jdate='date +"%Y-%m-%d %H:%M:%S"'
 
 # aliases for common utilities that add default parameters
 alias readelf="readelf -W"
-alias pstree="pstree -cagplt"
 case "$platform" in
     msys|cygwin)    alias ps='ps -af'       ;;
-    *)              alias ps="ps -ww -lj"   ;;
+    *)              alias ps="ps -wwlj"   ;;
 esac
 alias split="split -d -a3"
 
 ## platform-specific fixes
-# darwin
-if [ "$platform" == "Darwin" ]; then
-    readlink() { greadlink "$@"; }
-    export -f readlink
-fi
+case "$platform" in
 
-if [ "$platform" == "linux-gnu" ]; then
-    alias tar='tar --force-local'
-    alias ip='ip -color=never'      # system tools using colors by default is pretty fucking stupid.
-fi
+    Darwin)
+        readlink() { greadlink "$@"; }
+        export -f readlink
+    ;;
+
+    linux-gnu)
+        alias tar='tar --force-local'
+        alias ip='ip -color=never'      # system tools using colors by default is pretty fucking stupid.
+        alias pstree="pstree -cagplt"
+
+        # make pkill(1) not silent, and pgrep(1) not ma
+        alias pgrep='pgrep -a'
+        alias pkill='pkill -e'
+    ;;
+
+    freebsd*)
+        alias pgrep='pgrep -l'
+        alias pgrep='pkill -l'
+    ;;
+esac
 
 # posix
 if [ "$os" == "posix" ]; then
