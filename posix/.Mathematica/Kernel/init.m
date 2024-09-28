@@ -2,9 +2,18 @@
 
 Begin["UserInitializationFile`"]
 
- (* Remove default directory created in user documents *)
- With[{directory=$UserDocumentsDirectory <> "/Wolfram Mathematica"},
-  If[DirectoryQ[directory], DeleteDirectory[directory]]
+ (* Remove default directories created in user documents *)
+ With[
+  {
+   documents = $UserDocumentsDirectory,
+   directories = {"Wolfram Mathematica", "Wolfram"}
+  },
+  Do[
+   With[{path = FileNameJoin[documents, directory]},
+    If[DirectoryQ[path], DeleteDirectory[path]]
+   ],
+   {directory, directories}
+  ]
  ]
 
  (** General navigational utilities **)
@@ -38,7 +47,6 @@ Begin["UserInitializationFile`"]
    ],
    key
   ]
-
 
  (** List of cuddle-related items to append to menu **)
  AvailableCuddleMenuItems = {
