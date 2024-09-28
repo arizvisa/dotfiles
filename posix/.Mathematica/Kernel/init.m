@@ -242,7 +242,7 @@ BeginPackage["System`"];
  ];
 
  (** Ripped from https://community.wolfram.com/groups/-/m/t/1678540 **)
- vshape[width_][xy_, vertexname_, wh_] := Inset[
+ VertexShapeCustom[width_][xy_, vertexname_, wh_] := Inset[
   Framed[
    Pane[Style[vertexname, TextAlignment -> Center], width],
    Background -> RandomColor[],    (* FIXME: It would be better to generate a list of pale colors that we cycle through *)
