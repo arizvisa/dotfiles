@@ -287,6 +287,132 @@ BeginPackage["System`"];
   Return[function[expr]]
  ];
 
+ (** Copied from ResourceFunction["PersistResourceFunction"]. **)
+ (** This is copied since the original implementation is not entirely compatible with 14.x and uses the Global` context by default.  **)
+ Options[PersistResourceFunction] := {
+  "PersistenceLocation" :> $PersistenceBase,
+  (*
+   For possible future use. It would be ideal to store all installed resource
+   functions in their own context to avoid conflicts, but I don't know of a
+   way to automatically load such a context into $ContextPath at kernel start.
+   ($InitializationContexts sounds like such a feature but it's not.)
+  *)
+  "Context" -> "System`"
+ };
+
+ (* Pattern for a list *)
+ PersistResourceFunction[list : {(_ResourceFunction | _String) ...}, rest___, opts : OptionsPattern[]] := PersistResourceFunction[#, rest, opts] & /@ list;
+
+ (* Pattern for installation *)
+ PersistResourceFunction /: PersistResourceFunction[action : ("Install" | "Uninstall"), opts : OptionsPattern[]][expr_] := PersistResourceFunction[expr, action, opts];
+
+ (* Pattern for failure due to unknown function *)
+ PersistResourceFunction[ funcName_String?(FreeQ[ "Install" | "Uninstall" | "List" | "UninstallAll"]), rest___, opts : OptionsPattern[]] := Check[
+  PersistResourceFunction[ResourceFunction[funcName], rest, opts],
+  Failure[ "ResourceFunctionNotFound",
+   <|
+    "MessageTemplate" :> "The ResourceFunction \"`func`\" could not be found.",
+    "MessageParameters" -> <|"func" -> funcName|>
+   |>
+  ], {ResourceAcquire::apierr}
+ ];
+
+ (* Pattern for uninstalling all persisted functions *)
+ PersistResourceFunction["UninstallAll", opts : OptionsPattern[]] := PersistResourceFunction["Uninstall"][PersistResourceFunction["List"]];
+
+ (* Pattern for installation given a string *)
+ PersistResourceFunction[func_ResourceFunction, opts : OptionsPattern[]] := PersistResourceFunction[func, "Install", opts];
+
+ (* List all persisted resource functions *)
+ (* FIXME: Using `Extract` with parts {1,1,1} and {1,1} is unreliable and can change between versions *)
+ PersistResourceFunction["List", opts : OptionsPattern[]] := With[
+  {context = OptionValue["Context"], persistenceLocation = OptionValue["PersistenceLocation"]},
+  Extract[#["HeldValue"], {1, 1, 1}]& /@
+   Select[
+    InitializationObjects[Evaluate[context <> "*"], persistenceLocation],
+    Head@Extract[#["HeldValue"], {1, 1}] === ResourceFunction &
+   ]
+  // Sort
+ ];
+
+ (* Install or update a resource function by name *)
+ PersistResourceFunction[func_ResourceFunction, "Install" | "Update", OptionsPattern[]] := Module[
+  {
+     resourceObj = ResourceObject@func,
+     persistenceLocation = OptionValue["PersistenceLocation"],
+     shortName,
+     result
+  },
+  shortName = ResourceFunction[resourceObj, "ShortName"];
+  result = Check[
+   With[
+    {
+     symbolString = OptionValue["Context"] <> shortName,
+     $persistenceLocation = persistenceLocation
+    },
+    Quiet@Remove@symbolString;
+    Block[{ResourceFunction}, InitializationValue[symbolString, $persistenceLocation] = ResourceFunction[func, "Function"]];
+    Initialize[symbolString, {$persistenceLocation}]
+   ], $Failed
+  ];
+  If[ ! FailureQ@result,
+   Success["InstalledResourceFunction",
+    <|"MessageTemplate" :>
+     "Successfully stored `symName` as an initialization symbol.",
+     "MessageParameters" -> <|"symName" -> shortName|>,
+     "PersistenceLocation" -> Replace[s_String :> PersistenceLocation[s]]@persistenceLocation|>
+   ], Failure["InstallationFailure",
+    <| "MessageTemplate" :>
+     "A failure occurred in attempting to store `symName` as an initialization symbol.",
+     "MessageParameters" -> <|"symName" -> shortName|>
+    |>
+   ]
+  ]
+ ];
+
+ (* Uninstall a resource function by name *)
+ PersistResourceFunction[func_ResourceFunction, "Uninstall", OptionsPattern[]] := Module[
+  {
+   resourceObj = ResourceObject@func,
+   persistenceLocation = OptionValue["PersistenceLocation"],
+   shortName,
+   result
+  },
+  shortName = ResourceFunction[resourceObj, "ShortName"];
+  If[ ! NameQ[shortName] || Length[InitializationObjects[ Evaluate[OptionValue["Context"] <> shortName], persistenceLocation]] === 0,
+   Return@ Failure["InitializationValueDoesNotExist",
+    <|
+     "MessageTemplate" :> "No initialization symbol definition for `symName` could be removed because no such definition exists.",
+     "MessageParameters" -> <|"symName" -> shortName|>
+    |>
+   ]
+  ];
+  result = Check[
+   With[
+    {
+     symbolString = OptionValue["Context"] <> shortName,
+     $persistenceLocation = persistenceLocation
+    },
+    Remove@InitializationValue[symbolString, $persistenceLocation];
+    Quiet@Remove@symbolString;
+   ], $Failed
+  ];
+  If[ ! FailureQ@result,
+   Success["UninstalledResourceFunction",
+    <|
+     "MessageTemplate" :> "Successfully removed the initialization symbol definition for `symName`.",
+     "MessageParameters" -> <|"symName" -> shortName|>,
+     "PersistenceLocation" -> Replace[s_String :> PersistenceLocation[s]]@persistenceLocation
+    |>
+   ], Failure[ "UninstallationFailure",
+    <|
+     "MessageTemplate" :> "A failure occurred in attempting to remove the initialization symbol definition for `symName`.",
+     "MessageParameters" -> <|"symName" -> shortName|>
+    |>
+   ]
+  ]
+ ];
+
 EndPackage[];
 
 (** Default global options **)
