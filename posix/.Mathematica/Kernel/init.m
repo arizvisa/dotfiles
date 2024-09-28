@@ -413,6 +413,9 @@ BeginPackage["System`"];
   ]
  ];
 
+ (** Useful resource functions **)
+ PersistResourceFunction /@ {"TraceView", "TraceTree", "TraceGraph", "TraceInteractive"};
+
 EndPackage[];
 
 (** Default global options **)
