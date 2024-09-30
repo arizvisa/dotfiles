@@ -29,8 +29,16 @@ set visualbell
 
 "" overall appearance
 set laststatus=2
-set ruler
 set number
+
+if has('statusline') && has('byte_offset')
+    set statusline=%<%f\ %h%w%m%r%=%-0.(%l,%c%V\ (0x%O)%)\ %P
+elseif has('byte_offset')
+    set ruler
+    set rulerformat=%24(%=%.(%l,%c%V\ (0x%O)\ %P%)%)
+else
+    set ruler
+endif
 
 set list
 set listchars=tab:▷⋅,trail:·
