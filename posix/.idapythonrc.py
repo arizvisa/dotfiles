@@ -1534,8 +1534,12 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
 
     elif item.op == ida_hexrays.cot_obj:
         obj_ea = item.obj_ea
-        assert(db.t.struc.has(obj_ea)), db.get.type(obj_ea)
-        st = db.t.struc(obj_ea)
+        if not db.t.struc.has(obj_ea):
+            ti = db.t(obj_ea)
+            assert(struc.has(ti)), (hex(obj_ea), 'not a structure (cot_obj)', "{!r}".format("{!s}".format(ti)))
+            st = struc.by(ti)
+        else:
+            st = db.t.struc(obj_ea)
         ti = db.types.by(st)
 
     elif item.op == ida_hexrays.cot_var:
@@ -1569,6 +1573,9 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         print("Detected a cot_ptr with type: {!s}".format(ti))
 
     st = struc.by(ti)
+    if not res or not st.has(res[-1][1]):
+        raise AssertionError('badly implemented op ({:s})'.format(item.opname), item.op, "{!s}".format(ti), st, [x[-1] for x in res[::-1]])
+
     for _, moffset in res[::-1]:
         if not st.has(moffset):
             break
@@ -1622,7 +1629,7 @@ hook.hx.add(ida_hexrays.hxe_create_hint, on_hint_address)
 def hexrays_by_default(plugin):
     if plugin.name == 'Hex-Rays Decompiler':
         import hexrays
-        sys.modules['__main__'].hexrays = hexrays
+        sys.modules['__main__'].hexrays = sys.modules['__main__'].hx = hexrays
     return
 hook.ui.add('plugin_loaded', hexrays_by_default)
 
@@ -1659,7 +1666,7 @@ def type_formatter(storage, t, delta=4):
 
     if not t.is_ptr():
         if mask < totalmask:
-            formats = ['%#010p', "%#0{:d}x".format(2+storage.size)]
+            formats = ['%#010p', "%#0{:d}x".format(2+2*storage.size)]
             vals = ["{:s}&~{:#x}".format(loc, mask)]
             vals.append("{:s}&{:#x}".format(loc, mask))
             return '|'.join(formats), vals
@@ -1686,3 +1693,114 @@ def dbg_prototype(ea, delta=4):
     pc = "@{:s}".format(arch.promote(ins.reg.ip, db.information.bits()) if delta < db.information.size() else arch.promote(ins.reg.sp, db.information.bits()))
     pcloc = pc if delta < db.information.size() else "poi({:s}{:+x})".format(pc, delta - db.information.size())
     return ".printf\"(%p) {:s}\",{:s}{:s};g".format(app.windbg.escape(message + '\n'), pcloc, ",{:s}".format(','.join(itertools.chain(*avals))) if avals else '')
+
+def regs_written(ea):
+    iterable = ichain(*map(fcompose(fthrough(lambda ea: [ea] * ins.ops_count(ea), ins.ops, ins.ops_access), utils.funpack(zip)), func.iterate()))
+    iterable = ((ea, op) for ea, op, ax in iterable if isinstance(op, register_t) and 'w' in ax)
+    for ea_op in iterable:
+        yield ea_op
+    return
+
+def fuck(k, *ea):
+    axs = tuple(internal.interface.instruction.access(*ea if ea else [ui.current.address()]))
+    print('access', axs)
+    x = ins.ops_register(*ea, **{k:True})
+    print('true', x)
+    x = ins.ops_register(*ea, **{k:False})
+    print('false', x)
+
+def findtypes(ti, *types):
+    collection = internal.interface.typematch(types)
+    for index, (k,v) in enumerate(collection.items()):
+        print('Collection[{:d}]:'.format(1+index), k, [x for x in map("{!s}".format, v)])
+    for index, (type, candidates) in enumerate(internal.interface.typematch.iterate(collection, ti)):
+        print("Candidate[{:d}] : {!r} has the following {:d} candidate{:s}: {!r}".format(1 + index, "{!s}".format(type), len(candidates), '' if len(candidates) == 1 else 's', ["{!s}".format(item) for item in candidates]))
+    return internal.interface.typematch.use(collection, ti)
+
+def selectmembers(**boolean):
+    boolean = {key : {item for item in value} if isinstance(value, internal.types.unordered) else {value} for key, value in boolean.items()}
+    if not boolean:
+        for st in struc.iterate():
+            for m in st.members.iterate():
+                contents = internal.tags.member.get(m)
+                if contents: yield m, contents
+            continue
+        return
+
+    included, required = ({item for item in itertools.chain(*(boolean.get(B, []) for B in Bs))} for Bs in [['include', 'included', 'includes', 'Or'], ['require', 'required', 'requires', 'And']])
+    for st in struc.iterate():
+        for m in st.members.iterate():
+            contents = internal.tags.member.get(m)
+            if not contents:
+                continue
+
+            collected, names = {item for item in []}, {tag for tag in contents}
+            collected.update(included & names)
+
+            if required:
+                if required & names == required:
+                    collected.update(required)
+                else: continue
+
+            if collected:
+                yield m, {tag : contents[tag] for tag in collected}
+            continue
+        continue
+    return
+
+def genvftable():
+    bnds = db.a.bounds()
+    start, _ =  bnds
+    assert(db.unmangled(start).startswith('const ') and "`vftable'" in db.unmangled(start))
+    argh = db.get.array(bnds)
+
+    for i, ea in enumerate(argh):
+     if 'method.type' in fn.tag(ea) and fn.tag(ea, 'method.type') == 'purecall':
+      n = "purecall_{:x}".format(i * 8)
+     else:
+      n = fn.tag(ea, 'prototype.name')
+     ti = db.types.pointer(fn.t(ea))
+     p("{:s};".format(idaapi.print_tinfo('', 0, 0, 0, ti, n, '')))
+
+def genvftable():
+    bnds = db.a.bounds()
+    start, _ =  bnds
+    assert(db.unmangled(start).startswith('const ') and "`vftable'" in db.unmangled(start)), 'are you sure this is a vftable?'
+    argh = db.get.array(bnds)
+
+    res1, res2={},{}
+    for ea, f in zip(db.a(bnds), db.get.array(bnds)):
+     n = func.name(f) if '__name__' in fn.tag(f) else fn.tag(f, 'prototype.name') if 'prototype.name' in fn.tag(f) else func.name(f)
+     res1.setdefault(n, []).append(ea)
+     res2[f] = n
+
+    for ea, f in zip(db.a(bnds), db.get.array(bnds)):
+     n = res2[f]
+     n = "{:s}_{:x}".format(n, ea - start) if len(res1[n]) > 1 else n
+     ti = db.types.pointer(fn.t(f))
+     p("{:s};".format(idaapi.print_tinfo('', 0, 0, 0, ti, n, '')))
+
+def fixprototypes():
+    candidates = [x for x in func.up(a[0]) if '&' in x and db.unmangled(x)]
+    assert(len(candidates) == 1)
+    start, = candidates
+    assert(db.unmangled(start).startswith('const ') and "`vftable'" in db.unmangled(start))
+    stop = db.a.nextlabel(start)
+    argh = db.get.array(bounds_t(*map(int,[start, stop])))
+
+    ok = True
+    for ea in argh:
+     parmesan = fn.tag(ea, 'prototype.parameters')
+     gene = fn.args(ea)
+     if len(parmesan)+ 1 != len(gene):
+      ok = False
+      print(hex(ea), len(gene), len(parmesan))
+
+    assert(ok)
+
+    for ea in argh:
+     p('from', "{!s}".format(fn.type(ea)))
+     fn.result(ea, fn.tag(ea, 'prototype.result'))
+     [fn.arg(ea, 1 + i, item) for i, item in enumerate(fn.tag(ea,'prototype.parameters'))]
+     p('to', "{!s}".format(fn.type(ea)))
+     p()
