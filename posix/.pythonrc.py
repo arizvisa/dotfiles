@@ -49,7 +49,7 @@ fdefault = lambda default: lambda object: object or default
 # return the first, second, or third item of a box.
 first, second, third, last = operator.itemgetter(0), operator.itemgetter(1), operator.itemgetter(2), operator.itemgetter(-1)
 # return a closure that executes a list of functions one after another from left-to-right.
-fcompose = lambda *Fa: functools.reduce(lambda F1, F2: lambda *a: F1(F2(*a)), builtins.reversed(Fa))
+fcompose = (lambda functools, builtins: lambda *Fa: functools.reduce(lambda F1, F2: lambda *a: F1(F2(*a)), builtins.reversed(Fa)))(functools, builtins)
 # return a closure that executes function `F` whilst discarding any arguments passed to it.
 fdiscard = lambda F, *a, **k: lambda *ap, **kp: F(*a, **k)
 # return a closure using the functions in `critiques` with its parameters to return the result of the matching `truths` if any are successful or the last `truths` if not.
