@@ -112,11 +112,11 @@ if has("eval")
 
     "" regular vim-specific settings
     else
-        try
-            colorscheme distinguished
-        catch /^Vim\%((\a\+)\)\=:E185/
-            colorscheme elflord
-        endtry
+        let s:colorschemes = [has('nvim')? 'default' : 'distinguished', 'habamax', 'slate', 'lunaperche']
+        for s:colorscheme in s:colorschemes
+            try | execute printf('colorscheme %s', s:colorscheme) | break
+            catch /^Vim\%((\a\+)\)\=:E185/ | endtry
+        endfor
     endif
 endif
 
