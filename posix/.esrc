@@ -1,0 +1,17 @@
+let (cd = $fn-cd) fn cd {
+    $cd $*;
+    let (w = `pwd) {
+        if {~ $^w $home^*} {
+            w = '~'^<={~~ $^w $home^*}
+        }
+        let (bel = \007; ht = \011; lf = \012; vt = \013; ff = \014; cr = \015; esc = \033) {
+            prompt = $esc[1\;37m[!]$esc[0m' '$esc[1\;32m^`{whoami}^'@'^`{hostname}^$esc[0m^' '^$esc[0m^$w^'; '^$esc^K
+        }
+    }
+}
+
+# when we start, we should 'cd .' to set the colourful prompt
+fn %prompt {
+    cd .
+    fn %prompt # now lose the prompt function
+}
