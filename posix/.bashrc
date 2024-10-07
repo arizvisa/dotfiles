@@ -10,28 +10,28 @@ PS1=''
 case "$TERM" in
     # putty
     xterm*)
-        PS1+='\[\033]0;\u@\H\007\]'                 # set the window title to the user and the full hostname
-        PS1+='\[\033[01;37m\][\!]\[\033[0m\] '      # command number in white
-        PS1+='\[\033[01;32m\]\u@\h\[\033[0m\] '     # user@host in green
-        PS1+='\[\033[0m\]\w\$ '                     # directory and prompt in default
-        PS1+='\[\033K\]'                            # clear out everything till the end of line
+        PS1+='\[''\033]0;''\]''\u@\H''\[''\007''\]'             # set the window title to the user and the full hostname
+        PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
+        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
+        PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
 
     # tmux and gnu screen
     screen*)
-        PS1+='\[\033]0;\H\007\]'                    # set the window title to the full hostname
-        PS1+='\[\033[01;37m\][\!]\[\033[0m\] '      # command number in white
-        PS1+='\[\033[01;32m\]\u@\h\[\033[0m\] '     # user@host in green
-        PS1+='\[\033[0m\]\w\$ '                     # directory and prompt in default
-        PS1+='\[\033K\]'                            # clear out everything till the end of line
+        PS1+='\[''\033]0;''\]''\H''\[''\007''\]'                # set the window title to the full hostname
+        PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
+        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
+        PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
 
     # native terminals
     ansi|linux)
-        PS1+='\[\033[01;37m\][\!]\[\033[0m\] '      # command number in white
-        PS1+='\[\033[01;32m\]\u@\h\[\033[0m\] '     # user@host in green
-        PS1+='\[\033[0m\]\w\$ '                     # directory and prompt in default
-        PS1+='\[\033K\]'                            # clear out everything till the end of line
+        PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in white
+        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in green
+        PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
+        PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
 
     # unknown
