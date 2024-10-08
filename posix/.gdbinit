@@ -145,7 +145,7 @@ class sizeof(function):
 class sprintf(function):
     def invoke(self, *args):
         res,formatter,args = '',string.Formatter(),iter(args)
-        fmt = re.sub('%(\d+\.?\d+f|0?\d*[\w^\d]|\d*[\w^\d]|-0?\d*[\w^\d]|-\d*[\w^\d])', lambda m:'{:'+m.groups(1)[0]+'}', next(args).string())
+        fmt = re.sub(r'%(\d+\.?\d+f|0?\d*[\w^\d]|\d*[\w^\d]|-0?\d*[\w^\d]|-\d*[\w^\d])', lambda m:'{:'+m.groups(1)[0]+'}', next(args).string())
         for text,_,typestr,_ in formatter.parse(fmt):
             res += text
             if typestr is None: continue
@@ -1076,9 +1076,9 @@ class running(uses_an_address):
             gdb.execute("tbreak {:s}".format(escaped_addr) + thread + rest)
             gdb.execute("run" if gdb.selected_thread() is None else "continue")
             gdb.execute("here")
-    EXPORTS = [go]
+    EXPORTS = {go}
 
-uses_an_address.register(), breakpoints.register(), running.register()
+breakpoints.register(), running.register()
 end
 
 ### defaults
