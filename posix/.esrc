@@ -1,11 +1,116 @@
 let (cd = $fn-cd) fn cd {
     $cd $*;
     let (w = `pwd) {
-        if {~ $^w $home^*} {
-            w = '~'^<={~~ $^w $home^*}
+        if {~ $w $home^*} {
+            w = '~'^<={~~ $w $home^*}
         }
         let (bel = \007; ht = \011; lf = \012; vt = \013; ff = \014; cr = \015; esc = \033) {
             prompt = $esc[1\;37m[!]$esc[0m' '$esc[1\;32m^`{whoami}^'@'^`{hostname}^$esc[0m^' '^$esc[0m^$w^'; '^$esc^K
+        }
+    }
+}
+
+fn joinpath {
+
+    # process the first arg separately from the rest so that we can
+    # cull or replace any forward slashes that are repeated.
+    let (arg-1 = $*(1); args = $*(2 ...); result = $(1)) {
+
+        # split the first arg by the path separator, and then count the
+        # number of empty spaces which represent the path separators.
+        let (index = 1; components = <={ %fsplit '/' $arg-1 }) {
+            for (arg = $components) {
+                if { !~ $arg '' } {
+                    break
+                }
+                index=`{ expr $index + 1 }
+            }
+
+            # if our index was untouched, then there were no slashes. if we
+            # consumed all the components, then they were all slashes and
+            # we need to consolidate them to a single slash. otherwise, we
+            # found some slashes and need to include it in our result.
+            if {[ $index -le 1 ]} {
+                result = ()
+            } {[ $index -gt $#components ]} {
+                result = ('/')
+            } {
+                result = ('')
+            }
+
+            # filter the rest of the components, and add them to our result.
+            for (arg = $components( $index ... )) {
+                if { !~ $arg '' } {
+                    result = ( $result $arg )
+                }
+            }
+        }
+
+        # if our result is a slash and we have more work to do, then
+        # empty it to ensure that it is prefixed with only one slash.
+        if {~ $result '/' && [ $#args -gt 0 ]} {
+            result = ('')
+        }
+
+        # filter the rest of the components and add them too.
+        for (arg = $args) {
+            for (item = <={ %fsplit '/' $arg }) {
+                if { !~ $item '' } {
+                    result = ( $result $item )
+                }
+            }
+        }
+
+        # now we can join our result with path separators and return it.
+        return <={%flatten '/' $result}
+    }
+}
+
+fn abspath path {
+    let ( joined = <={ joinpath $path } ) {
+        match $joined (
+            '/' { return '/' }
+            *   { return '/' ^ `{realpath --canonicalize-missing --no-symlinks --relative-base=/ $joined} }
+        )
+    }
+}
+
+fn resolvepath cwd path {
+
+    # convert the current working directory to an absolute path. if it's not
+    # the root path, then suffix it with a '/' to append the path parameter.
+    let (wd = <={abspath $cwd}) {
+        match $wd (
+            / { base = '/' }
+            * { base = $wd ^ '/' }
+        )
+
+        # now we can use the fixed base path to generate a full path for our
+        # parameters. if it is absolute, then we can trust the result from
+        # `realpath(1)`. if relative, though, the result needs the base path.
+        let (fullpath = $base ^ $path) {
+            match $path (
+                (/*)    { rp = `{realpath --canonicalize-missing --no-symlinks --relative-base=$wd $fullpath} }
+                *       { rp = $base ^ `{realpath --canonicalize-missing --no-symlinks --relative-base=$wd $fullpath} }
+            )
+        }
+
+        # last thing to do is to trip the working directory from the real
+        # path. if it is absolute or forced to be absolute and contains the
+        # base, then strip it. if it is the same as the base, then return the
+        # '.' symbol. otherwise, we return the forced absolute path untouched.
+        let (forcedabsolute = '/' ^ $rp) {
+            if {~ $rp /*} {
+                return <={ ~~ $rp $base^* }
+            } {~ $forcedabsolute^'/' $base} {
+                return '.'
+            } {~ $forcedabsolute $base^*} {
+                return <={~~ $forcedabsolute $base^*}
+            } {~ $forcedabsolute '/.'} {
+                return <={~~ $forcedabsolute *.}
+            } {
+                return $forcedabsolute
+            }
         }
     }
 }
