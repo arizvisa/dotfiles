@@ -2,6 +2,586 @@
 # Local-user rc file for the extensible shell es(1).
 #
 
+### property lists for symbols ripped from examples/freidman/lib/plist.es
+### this is a dependency for the list utilities which follow it.
+
+fn get   sym prop \
+{
+  let (plist = $(plist-$sym)
+       result =)
+    {
+      if { ~ $plist $prop } \
+           {
+             while { ! ~ $plist () } \
+               {
+                 if { ~ $plist(1) $prop } \
+                      {
+                        result = <={ $plist(2) }
+                        plist =
+                      }
+                 plist = $plist(3 ...)
+               }
+           }
+      result $result
+    }
+}
+
+fn put   sym prop val \
+{
+  # box-plist-value's definition is quoted to avoid creating an extra closure.
+  # (There's no real harm in this except that it consumes space.
+  let (box-plist-value = '@ { result { result $* } }'
+       plist = $(plist-$sym)
+       value =
+       new-plist =)
+    {
+      value = <={ $box-plist-value $val }
+      if { ~ $plist $prop } \
+           {
+             while { ! ~ $plist () } \
+               {
+                 if { ~ $plist(1) $prop } \
+                      {
+                        new-plist = $new-plist $plist(1) $value $plist(3 ...)
+                        plist =
+                      } \
+                    {
+                      new-plist = $new-plist $plist(... 2)
+                      plist = $plist(3 ...)
+                    }
+               }
+           } \
+         { new-plist = $prop $value $plist }
+
+      plist-^$sym = $new-plist
+    }
+}
+
+fn symbol-plist { result $(plist-$1) }
+
+fn symbol-property-names \
+{
+  * = <={ symbol-plist $1 }
+  let (res =)
+    {
+      while { ! ~ $* () } \
+        {
+          res = $res $1
+          * = $*(3 ...)
+        }
+      result $res
+    }
+}
+
+fn symbol-property-values \
+{
+  * = <={ symbol-plist $1 }
+  let (res =)
+    {
+      while { ! ~ $* () } \
+        {
+          res = $res $2
+          * = $*(3 ...)
+        }
+      result $res
+    }
+}
+
+### general list utilities ripped from examples/friedman/lib/list.el
+### based on Scheme Reference Manual for MIT Scheme 7.1.3
+
+fn cons   car cdr \
+{
+  result { result @ { result $$1 } @ s v { $s = $v } }
+}
+
+fn pair? { ~ $1 '%closure(car='*';cdr='*'{'* }
+
+fn-cons? = 'pair?'
+
+fn null? { ~ $1 () }
+
+put 'eq?'    'pair?' 'pair-eq?'
+put 'eqv?'   'pair?' 'pair-eqv?'
+put 'equal?' 'pair?' 'pair-equal?'
+
+fn pair-eq? \
+{
+  let (old-car = <={ car $1 }
+       eq =)
+    {
+      unwind-protect \
+          {
+            set-car! $1 $old-car fnord
+            eq = <={ pair-equal? $1 $2 }
+          } \
+        {
+          set-car! $1 $old-car
+        }
+      result $eq
+    }
+}
+
+fn-pair-eqv? = 'pair-equal?'
+fn pair-equal? { ~ $1 $2 }
+
+let (fn-cons-op = @ caller cons method op arg {
+    if { null? $cons } \
+        { result () } \
+    { pair? $cons } \
+        {
+          cons = <={ $cons }
+          $cons($method) $op $arg
+        } \
+    { throw error $0 $caller: 'pair?,' $cons }
+}) {
+    fn car { $fn-cons-op $0 $1 1 $0 }
+
+    fn cdr { $fn-cons-op $0 $1 1 $0 }
+
+    fn set-car! { $fn-cons-op $0 $1 2 car $*(2 ...) }
+
+    fn set-cdr! { $fn-cons-op $0 $1 2 cdr $*(2 ...) }
+}
+
+fn general-car-cdr   object path \
+{
+  let (new-path =)
+    {
+      path = <={ %fsplit '' $path }
+      if { ! ~ $path(1) a d } \
+           { path = $path(2 ...) }
+
+      for (i = $path)
+        new-path = $i $new-path
+      path = $new-path
+
+      if { ! ~ $path(1) a d } \
+           { path = $path(2 ...) }
+    }
+
+  let (a = car; d = cdr; op = $path(1))
+    while { ~ $op a d } \
+      {
+        object = <={ $$op $object }
+        path = $path(2 ...)
+        op = $path(1)
+      }
+
+  result $object
+}
+
+fn caar   { general-car-cdr $1 $0 }
+fn cadr   { general-car-cdr $1 $0 }
+fn cdar   { general-car-cdr $1 $0 }
+fn cddr   { general-car-cdr $1 $0 }
+fn caaar  { general-car-cdr $1 $0 }
+fn caadr  { general-car-cdr $1 $0 }
+fn cadar  { general-car-cdr $1 $0 }
+fn caddr  { general-car-cdr $1 $0 }
+fn cdaar  { general-car-cdr $1 $0 }
+fn cdadr  { general-car-cdr $1 $0 }
+fn cddar  { general-car-cdr $1 $0 }
+fn cdddr  { general-car-cdr $1 $0 }
+fn caaaar { general-car-cdr $1 $0 }
+fn caaadr { general-car-cdr $1 $0 }
+fn caadar { general-car-cdr $1 $0 }
+fn caaddr { general-car-cdr $1 $0 }
+fn cadaar { general-car-cdr $1 $0 }
+fn cadadr { general-car-cdr $1 $0 }
+fn caddar { general-car-cdr $1 $0 }
+fn cadddr { general-car-cdr $1 $0 }
+fn cdaaar { general-car-cdr $1 $0 }
+fn cdaadr { general-car-cdr $1 $0 }
+fn cdadar { general-car-cdr $1 $0 }
+fn cdaddr { general-car-cdr $1 $0 }
+fn cddaar { general-car-cdr $1 $0 }
+fn cddadr { general-car-cdr $1 $0 }
+fn cdddar { general-car-cdr $1 $0 }
+fn cddddr { general-car-cdr $1 $0 }
+
+fn list? \
+{
+  if { ~ $* 0 } \
+       { * = 1 }
+
+  while { ! ~ $* 0 1 } \
+    {
+      if { null? $* } \
+           { * = 0 } \
+         { pair? $* } \
+           { * = <={ cdr $* } } \
+         { * = 1 }
+    }
+
+  result $*
+}
+
+fn make-list  k init \
+{
+  let (count =; new-list =; p =)
+    {
+      while { ! ~ $#count $k } \
+        {
+          count = $count ''
+
+          p = <={cons}
+          set-car! $p $init
+          set-cdr! $p $new-list
+
+          new-list = $p
+        }
+      result $new-list
+    }
+}
+
+fn list \
+{
+  # This algorithm is O(2N).
+  let (revlist =; result =)
+    {
+      for (i = $*)
+        revlist = $i $revlist
+      for (i = $revlist)
+        result = <={ cons $i $result }
+      result $result
+    }
+}
+
+fn cons* \
+{
+  let (revlist =; result =)
+    {
+      for (i = $*)
+        revlist = $i $revlist
+
+      result = <={ cons $revlist(2) $revlist(1) }
+      revlist = $revlist(3 ...)
+
+      for (i = $revlist)
+        result = <={ cons $i $result }
+
+      result $result
+    }
+}
+
+fn list-copy { %flatten ' ' $* }
+fn-tree-copy = list-copy
+
+fn list-length \
+{
+  let (i =)
+    {
+      while { pair? $1 } \
+        {
+          * = <={cdr $1}
+          i = $i ''
+        }
+      result $#i
+    }
+}
+
+fn-length = list-length
+
+fn sublist     list start end \
+{
+  list = <={ list-copy $list }
+  let (count =
+       ptr =)
+    {
+      while { ! ~ $#count $start } \
+        {
+          count = $count ''
+          list = <={ cdr $list }
+        }
+
+      ptr = $list
+      while { ! ~ $#count $end } \
+        {
+          count = $count ''
+          ptr = <={ cdr $ptr }
+        }
+      if { pair? $ptr } \
+           { set-cdr! $ptr }
+
+      result $list
+    }
+}
+
+fn list-head     list k \
+{
+  sublist $list 0 $k
+}
+
+fn list-tail     list k \
+{
+  let (count =)
+    while { ! ~ $#count $k } \
+      {
+        count = $count ''
+        list = <={ cdr $list }
+      }
+  result $list
+}
+
+fn list-ref     list k \
+{
+  car <={ list-tail $list $k }
+}
+
+fn first   { list-ref $1 0 }
+fn second  { list-ref $1 1 }
+fn third   { list-ref $1 2 }
+fn fourth  { list-ref $1 3 }
+fn fifth   { list-ref $1 4 }
+fn sixth   { list-ref $1 5 }
+fn seventh { list-ref $1 6 }
+fn eighth  { list-ref $1 7 }
+fn ninth   { list-ref $1 8 }
+fn tenth   { list-ref $1 9 }
+
+fn last-pair \
+{
+  let (p = $1; q =)
+    {
+      while { pair? $p } \
+        {
+          q = $p
+          p = <={ cdr $p }
+        }
+      result $q
+    }
+}
+
+fn except-last-pair { $0^! <={ list-copy $1 } }
+
+fn except-last-pair! \
+{
+  let (p = $1
+       q = <={ cdr $1 }
+       r =)
+    {
+      r = <={ cdr $q }
+      while { pair? $r } \
+        {
+          p = $q
+          q = <={ cdr $q }
+          r = <={ cdr $q }
+        }
+      set-cdr! $p
+    }
+  result $1
+}
+
+fn append \
+{
+  let (lists =)
+    {
+      # Last list is not copied
+      while { ! ~ $#* 0 1 } \
+        {
+          lists = $lists <={ list-copy $1 }
+          * = $*(2 ...)
+        }
+      $0^! $lists $1
+    }
+}
+
+fn append! \
+{
+  let (result = $1)
+    {
+      while { ! ~ $#* 1 0 } \
+        {
+          set-cdr! <={ last-pair $1 } $2
+          * = $*(2 ...)
+        }
+      result $result
+    }
+}
+
+fn reverse { $0^! <={ list-copy $* } }
+
+fn reverse!    list \
+{
+  let (p = $list
+       q = <={ cdr $list }
+       r =)
+    {
+      set-cdr! $p
+      while {} \
+        {
+          r = <={ cdr $q }
+          set-cdr! $q $p
+          p = $q
+          if { ~ $r () } \
+               { break } \
+             { q = $r }
+        }
+      result $q
+    }
+}
+
+fn 'list->vector'    list \
+{
+  let (result =)
+    {
+      while { ! null? $list } \
+        {
+          if { pair? $list } \
+               {
+                 result = $result <={ car $list }
+                 list = <={ cdr $list }
+               } \
+             {
+               result = $result $list
+               list =
+             }
+        }
+      result $result
+    }
+}
+
+'fn-vector->list' = list
+
+fn 'subvector->list' \
+{
+  let (vector = $*(... <={ %count $*(3 ...) })
+       start  = $*(<={ %count $*(2 ...) })
+       end    = $*($#*))
+    {
+      list $vector($start ... $end)
+    }
+}
+
+fn 'list->string' { %flatten '' <={ 'list->vector' $* } }
+fn 'string->list' { list <={ %fsplit '' $* } }
+
+fn 'substring->list'    string start end \
+{
+  string = <={ %fsplit '' $string }
+  list $string($start ... $end)
+}
+
+fn delete-member-procedure    deletor predicate \
+{
+  result @ elt list \
+    {
+      <={$deletor @ { $predicate $* $elt } } $list
+    }
+}
+
+fn list-deletor      predicate \
+{
+  result @ list \
+    {
+      list-predicate-delete! <={ list-copy $list } $predicate
+    }
+}
+
+fn list-deletor!     predicate \
+{
+  result @ list \
+    {
+      list-predicate-delete! $list $predicate
+    }
+}
+
+fn list-predicate-delete!    list predicate \
+{
+  while { $predicate <={ car $list } } \
+    { list = <={ cdr $list } }
+
+  let (head = $list
+       p = $list
+       q = <={ cdr $list })
+    {
+      while { ! null? $q } \
+        {
+          if { $predicate <={ car $q } } \
+               {
+                 set-cdr! $p <={ cdr $q }
+                 q = <={ cdr $p }
+               } \
+             {
+               p = $q
+               q = <={ cdr $p }
+             }
+        }
+      result $head
+    }
+}
+
+
+fn-delete  = <={ delete-member-procedure list-deletor equal? }
+fn-delq    = <={ delete-member-procedure list-deletor eq? }
+fn-delv    = delete
+fn-delete! = <={ delete-member-procedure list-deletor! equal? }
+fn-delq!   = <={ delete-member-procedure list-deletor! eq? }
+fn-delv!   = delete!
+
+#fn list-transform-positive \
+#{
+#}
+#
+#fn list-transform-negative \
+#{
+#}
+
+fn map \
+{
+  let (Fn = $1
+       arglist = $*(2 ...)
+       carlist =
+       cdrlist =
+       result =
+       maplist =)
+    {
+      while { ! ~ $arglist () } \
+        {
+          carlist =
+          cdrlist =
+          for (a = $arglist)
+            {
+              carlist = $carlist <={car $a}
+              cdrlist = $cdrlist <={cdr $a}
+            }
+          arglist = $cdrlist
+          maplist = <={ cons '' $maplist }
+          result = <={$Fn $carlist}
+          set-car! $maplist $result
+        }
+      result $maplist
+    }
+}
+
+fn for-each \
+{
+  let (Fn = $1
+       arglist = $*(2 ...)
+       carlist =
+       cdrlist =)
+    {
+      while { ! ~ $arglist () } \
+        {
+          carlist =
+          cdrlist =
+          for (a = $arglist)
+            {
+              carlist = $carlist <={car $a}
+              cdrlist = $cdrlist <={cdr $a}
+            }
+          arglist = $cdrlist
+          $Fn $carlist
+        }
+    }
+}
+
+fn list-sort \
+{
+  throw error $0 $0: list sorting not yet implemented.
+}
+
 ### general path utilities
 
 fn join-path {
