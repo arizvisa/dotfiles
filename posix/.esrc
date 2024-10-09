@@ -10,7 +10,7 @@ let (cd = $fn-cd) fn cd {
     }
 }
 
-fn joinpath {
+fn join-path {
 
     # process the first arg separately from the rest so that we can
     # cull or replace any forward slashes that are repeated.
@@ -66,8 +66,8 @@ fn joinpath {
     }
 }
 
-fn abspath path {
-    let ( joined = <={ joinpath $path } ) {
+fn absolute-path path {
+    let ( joined = <={ join-path $path } ) {
         match $joined (
             '/' { return '/' }
             *   { return '/' ^ `{realpath --canonicalize-missing --no-symlinks --relative-base=/ $joined} }
@@ -75,11 +75,42 @@ fn abspath path {
     }
 }
 
-fn resolvepath cwd path {
+fn expand-path path {
+    let ( user = `whoami; suffix = $path ) {
+        match $path (
+            ~   { return $home }
+            ~/* { return <={ join-path $home <={~~ $path ~/*} } }
+            ~*/ {
+                components = <={ %fsplit '/' $path }
+                user = <={~~ $components(1) ~*}
+                suffix = <={~~ $path ~$user^*}
+            }
+            ~*/*    {
+                components = <={ %fsplit '/' $path }
+                user = <={~~ $components(1) ~*}
+                suffix = <={ %flatten '/' ('' $components(2 ...)) }
+            }
+            ~*  {
+                user = <={~~ $path ~*}
+                suffix = ()
+            }
+            *   { return $path }
+        )
+        if {[ $#user -eq 0 ]} { return $path }
+
+        entry = `` \n {getent passwd $user}
+        if {[ $#entry -eq 0 ]} { throw error expand-path 'expand-path: ' ^ $path ^ ': No such file or directory' }
+
+        row = <={%fsplit ':' $entry}
+        return <={ %flatten '' ($row(6) $suffix)}
+    }
+}
+
+fn resolve-path cwd path {
 
     # convert the current working directory to an absolute path. if it's not
     # the root path, then suffix it with a '/' to append the path parameter.
-    let (wd = <={abspath $cwd}) {
+    let (wd = <={absolute-path $cwd}) {
         match $wd (
             / { base = '/' }
             * { base = $wd ^ '/' }
@@ -112,6 +143,33 @@ fn resolvepath cwd path {
                 return $forcedabsolute
             }
         }
+    }
+}
+
+fn cd-absolute path {
+    let (rp = <={ absolute-path $path }) {
+        if {[ ! -d $path ]} {
+            throw error cd-absolute 'cd-absolute: '^$path^': No such file or directory'
+        }
+        cd $rp
+    }
+}
+
+let (old-directory = `pwd) {
+    fn cd-preserve path {
+        cwd = `pwd
+        match $path (
+            -   {
+                cd-absolute $old-directory
+                old-directory = $cwd
+            }
+            *   {
+                let (rp = <={ expand-path $path }) {
+                    cd-absolute $rp
+                    old-directory = $cwd
+                }
+            }
+        )
     }
 }
 
