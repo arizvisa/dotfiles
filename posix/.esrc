@@ -148,7 +148,7 @@ fn resolve-path cwd path {
 
 fn cd-absolute path {
     let (rp = <={ absolute-path $path }) {
-        if {[ ! -d $path ]} {
+        if {!access -d $path} {
             throw error cd-absolute 'cd-absolute: '^$path^': No such file or directory'
         }
         cd $rp
@@ -172,6 +172,138 @@ let (old-directory = `pwd) {
         )
     }
 }
+
+let (working-directory-stack = (/etc /tmp)) {
+    fn get-directory-stack {
+        let (wd = `pwd) {
+            match $wd (
+                $home^* { wd = '~' ^ <={~~ $wd $home^*} }
+            )
+            let (current-directory-stack = ($wd $working-directory-stack)) {
+                echo <={%flatten ' ' $current-directory-stack}
+            }
+        }
+    }
+
+    fn push-directory-stack directory {
+        # get the current directory, and expand our directory
+        # parameter to an absolute path.
+        let (
+            cwd = `pwd;
+            expanded = <={expand-path $directory};
+        ) {
+            fp = <={absolute-path $expanded}
+
+            # resolve the parameter path to one that is relative to
+            # our home directory so we can add it to the stack.
+            let (rp = <={resolve-path ~ $fp}) {
+                match $rp (
+                    /*      { target = $fp }
+                    .       { target = '~' }
+                    *       { target = '~/'^$rp }
+                )
+            }
+
+            # now we can switch to the parameter directory, and then
+            # update our stack with the previous working directory.
+            cd-preserve $target
+            working-directory-stack = ($cwd $working-directory-stack)
+
+            # only thing left to do is to output the current directories.
+            # we present the target working directory in its '~' form.
+            match $target (
+                $home^* { target = '~' ^ <={~~ $target $home^*} }
+            )
+            let (current-directory-stack = ($target $working-directory-stack)) {
+                echo <={%flatten ' ' $current-directory-stack}
+            }
+        }
+    }
+
+    fn pop-directory-stack {
+        if {[ $#working-directory-stack -lt 1 ]} {
+            let (count = `{expr $#working-directory-stack + 1}) {
+                throw error pop-directory-stack 'unable to pop from an empty directory stack ('^$count^' entry).'
+            }
+        }
+
+        # start by popping the head of the directory stack, and
+        # then updating the stack with the elements that are left.
+        let (
+            head = <={ expand-path $working-directory-stack(1) };
+            rest = $working-directory-stack(2 ...);
+        ) {
+            working-directory-stack = $rest
+
+            # now we can switch to the directory that we removed.
+            cd-preserve $head
+
+            # last thing to do is to output the current directory stack.
+            # we include the target directory we popped in its '~' form.
+            match $head (
+                $home^* { head = '~' ^ <={~~ $head $home^*} }
+            )
+            let (current-directory-stack = ($head $working-directory-stack)) {
+                echo <={%flatten ' ' $current-directory-stack}
+            }
+        }
+    }
+
+    fn rotate-directory-stack direction {
+        if {[ $#working-directory-stack -lt 1 ] && [ $direction -ne 0 ]} {
+            let (count = `{expr $#working-directory-stack + 1}) {
+                throw error rotate-directory-stack 'unable to rotate directory stack containing '^$count^' entries.'
+            }
+        }
+
+        # quick optimization for the number of possible rotations
+        let (count-with-current-directory = `{expr $#working-directory-stack + 1}) {
+            direction = `{ expr $direction % $count-with-current-directory }
+        }
+
+        # add the current working directory to our new directory stack.
+        let (new-directory-stack = (`pwd $working-directory-stack)) {
+
+            # now we can rotate the new stack with whatever the caller gave us.
+            while {[ $direction -ne 0 ]} {
+                if {[ $direction -gt 0 ]} {
+                    let (
+                        first = $new-directory-stack(1);
+                        rest = $new-directory-stack(2 ...);
+                    ) {
+                        new-directory-stack = ( $rest $first )
+                    }
+                    direction = `{ expr $direction - 1 }
+
+                } {[ $direction -lt 0 ]} {
+                    let (
+                        last = $new-directory-stack($#new-directory-stack);
+                        head = $new-directory-stack(... `{expr $#new-directory-stack - 1});
+                    ) {
+                        new-directory-stack = ( $last $head )
+                    }
+                    direction = `{ expr $direction + 1 }
+                }
+            }
+
+            # now we need to remove the head of the rotated stack, change
+            # to its directory, and update the final stack with the rest.
+            let (
+                head = $new-directory-stack(1);
+                rest = $new-directory-stack(2 ...);
+            ) {
+                working-directory-stack = $rest
+                cd-preserve $head
+            }
+            echo <={%flatten ' ' $new-directory-stack}
+        }
+    }
+}
+
+# assign some aliases for the directory stack functions.
+fn-dirs = @{ get-directory-stack $* }
+fn-pushd = @{ push-directory-stack $* }
+fn-popd = @{ pop-directory-stack $* }
 
 # when we start, we should 'cd .' to set the colourful prompt
 fn %prompt {
