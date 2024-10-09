@@ -1,6 +1,14 @@
+" Vim syntax file
+" Language:     Extensible-Shell
+" Filenames:    *.es .esrc
+"
+" This syntax is very preliminary as it only supports keywords
+" and regex matching. As such, it barely matches anything in its
+" current state, and really should be updated to include regions.
+
 if version < 600
     syntax clear
-elseif exists('b:current_syntax')
+elseif exists('b:current_syntax') && b:current_syntax == 'es'
     finish
 endif
 
@@ -10,7 +18,9 @@ set cpoptions&vim
 syn case match
 setlocal iskeyword&vim
 
-let &l:iskeyword='@,48-57,192-255,#,%,-'
+let &l:iskeyword='@,48-57,%,-,_,192-255'
+let s:variable_car = ["a-z", "A-Z", "%", "*", "-", "_"]
+let s:variable_cdr = s:variable_car + ["0-9"]
 
 syntax keyword extensibleKeyword let if for while fn
 syntax keyword extensibleBuiltin break cd eval exec match
@@ -81,5 +91,6 @@ highlight link extensibleSpecial2 Special
 highlight link extensibleSpecial3 Operator
 highlight link extensibleSpecial4 Special
 
+let b:current_syntax = 'es'
 let &cpoptions = s:cpoptions_save
 unlet s:cpoptions_save
