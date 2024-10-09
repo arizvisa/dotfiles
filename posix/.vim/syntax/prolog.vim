@@ -140,7 +140,7 @@ function! s:slice_dict(dict, keys)
     return result
 endfunction
 
-""" <mustafa-voice>it starts...</mustafa-voice>
+""" <mufasa-voice>it starts...</mufasa-voice>
 syntax keyword prologBuiltin_ contained true false repeat phrase call_dcg op catch throw catch_with_backtrace
 syntax keyword prologBuiltin_ contained bagof findall findnsols setof forall dynamic compile_predicates
 syntax keyword prologBuiltin_ contained current_format_predicate format format_predicate swritef writef
