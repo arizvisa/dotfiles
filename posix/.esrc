@@ -1,14 +1,8 @@
-let (cd = $fn-cd) fn cd {
-    $cd $*;
-    let (w = `pwd) {
-        if {~ $w $home^*} {
-            w = '~'^<={~~ $w $home^*}
-        }
-        let (bel = \007; ht = \011; lf = \012; vt = \013; ff = \014; cr = \015; esc = \033) {
-            prompt = $esc[1\;37m[!]$esc[0m' '$esc[1\;32m^`{whoami}^'@'^`{hostname}^$esc[0m^' '^$esc[0m^$w^'; '^$esc^K
-        }
-    }
-}
+#
+# Local-user rc file for the extensible shell es(1).
+#
+
+### general path utilities
 
 fn join-path {
 
@@ -146,33 +140,7 @@ fn resolve-path cwd path {
     }
 }
 
-fn cd-absolute path {
-    let (rp = <={ absolute-path $path }) {
-        if {!access -d $path} {
-            throw error cd-absolute 'cd-absolute: '^$path^': No such file or directory'
-        }
-        cd $rp
-    }
-}
-
-let (old-directory = `pwd) {
-    fn cd-preserve path {
-        cwd = `pwd
-        match $path (
-            -   {
-                cd-absolute $old-directory
-                old-directory = $cwd
-            }
-            *   {
-                let (rp = <={ expand-path $path }) {
-                    cd-absolute $rp
-                    old-directory = $cwd
-                }
-            }
-        )
-    }
-}
-
+### scope of directory stack related functions.
 let (working-directory-stack = (/etc /tmp)) {
     fn get-directory-stack {
         let (wd = `pwd) {
@@ -304,6 +272,61 @@ let (working-directory-stack = (/etc /tmp)) {
 fn-dirs = @{ get-directory-stack $* }
 fn-pushd = @{ push-directory-stack $* }
 fn-popd = @{ pop-directory-stack $* }
+
+### new implementations of hooks or already-existing functions.
+
+# reimplement the `cd` command so that it always acts on an
+# absolute path, completely ignoring the current directory.
+let (cd = $fn-cd) {
+    fn cd-absolute path {
+        let (rp = <={ absolute-path $path }) {
+            if {!access -d $path} {
+                throw error cd-absolute 'cd-absolute: '^$path^': No such file or directory'
+            }
+            $cd $rp
+        }
+    }
+}
+
+# reimplement the `cd` command so that it preserves the previous working
+# directory and allows using the '-' parameter (as 'cd -') to get to it.
+let (old-directory = `pwd) {
+    fn cd-preserve path {
+        cwd = `pwd
+        match $path (
+            -   {
+                cd-absolute $old-directory
+                old-directory = $cwd
+            }
+            *   {
+                let (rp = <={ expand-path $path }) {
+                    cd-absolute $rp
+                    old-directory = $cwd
+                }
+            }
+        )
+    }
+}
+
+# now we can re-assign the `cd` command to reference our new one.
+let (old-cd = $fn-cd) fn cd {
+    cd-preserve $*
+}
+
+# use the `cd` command to get the current working directory
+# for setting the prompt. this works because of an assumption
+# that only the `cd` command can be used to switch the directory.
+let (cd = $fn-cd) fn cd {
+    $cd $*;
+    let (w = `pwd) {
+        if {~ $w $home^*} {
+            w = '~'^<={~~ $w $home^*}
+        }
+        let (bel = \007; ht = \011; lf = \012; vt = \013; ff = \014; cr = \015; esc = \033) {
+            prompt = $esc[1\;37m[!]$esc[0m' '$esc[1\;32m^`{whoami}^'@'^`{hostname}^$esc[0m^' '^$esc[0m^$w^'; '^$esc^K
+        }
+    }
+}
 
 # when we start, we should 'cd .' to set the colourful prompt
 fn %prompt {
