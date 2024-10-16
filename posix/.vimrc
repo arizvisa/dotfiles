@@ -5,6 +5,7 @@ set fileencoding=utf-8
 set fileformat=unix
 set fileformats=unix,dos
 set formatoptions=j
+set display=lastline,uhex
 
 "" specify the default temp directory for swap files (overwritten when +eval)
 set directory=$TMP,$TMPDIR
@@ -42,6 +43,18 @@ endif
 
 set list
 set listchars=tab:▷⋅,trail:·
+
+" smoothscroll
+if v:version >= 901
+    set smoothscroll
+endif
+
+" number formats
+if has('nvim')
+    set nrformats=hex,octal,bin
+else
+    set nrformats=hex,octal,bin,blank
+endif
 
 "" get rid of any c indentation
 set nocindent
