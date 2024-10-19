@@ -136,13 +136,14 @@ case "$platform" in
         alias pgrep='pgrep -a'
         alias pkill='pkill -e'
 
-        # XXX: xinitrc-common on linux is pretty stupid, so we need to
-        # disable the nounset option if we're being executed from it.
-        let last=-1+${#BASH_SOURCE[@]}
-        if [ "$platform" == 'linux-gnu' ] && [ "${BASH_SOURCE[$last]}" == 'xinitrc-common' ]; then
+        # XXX: Xsession and xinitrc (via xinitrc-common) on linux is pretty stupid,
+        #      so we need to disable nounset if we are being executed from it.
+        let last="-1 + ${#BASH_SOURCE[@]}"
+        script=`basename "${BASH_SOURCE[$last]}"`
+        if [ "$script" == 'Xsession' ] || [ "$script" == 'xinitrc' ]; then
             set +o nounset
         fi
-        unset last
+        unset last script
     ;;
 
     freebsd*)
