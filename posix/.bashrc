@@ -8,9 +8,10 @@
 # set a sane prompt (based on $TERM)
 PS1=''
 case "$TERM" in
-    # putty
+    # putty (xterm)
     xterm*)
-        PS1+='\[''\033]0;''\]''\u@\H''\[''\007''\]'             # set the window title to the user and the full hostname
+        PS1+='\[''\033]2;''\u@\H''\007''\]'                     # set the window title to the user and the full hostname
+        PS1+='\[''\033]1;''\u''\007''\]'                        # set the window icon to the user
         PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
         PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
         PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
@@ -19,7 +20,7 @@ case "$TERM" in
 
     # tmux and gnu screen
     screen*)
-        PS1+='\[''\033]0;''\]''\H''\[''\007''\]'                # set the window title to the full hostname
+        PS1+='\[''\033]2;''\H''\007''\]'                        # set the window title to the full hostname
         PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
         PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
         PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
