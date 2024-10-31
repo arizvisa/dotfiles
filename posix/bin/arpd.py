@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 ###
 ###
 ### TODO:
@@ -98,7 +98,7 @@ class arp_enforce(object):
 
     def info(self, v, level=1):
         if level <= self.verbose:
-            print v
+            print(v)
 
     def idle(self):
         ''' our idle loop where everything starts'''
@@ -292,7 +292,8 @@ class ether_parse(lexer):
         for k,v in self.elements:
             try:
                 l.append( (k, socket.gethostbyname(v)) )
-            except socket.gaierror,(err, msg):
+            except socket.gaierror as E:
+                err, msg = E.args
                 if err == 8:
                     raise ValueError("unable to resolve host '%s'"% v)
                 raise
@@ -319,7 +320,8 @@ class ether_parse(lexer):
             try:
                 r = self.lex(s)
                 tokens = list(r)
-            except ValueError, (msg):
+            except ValueError as E:
+                msg, = E.args
                 raise ValueError(msg, n, s)
 
             if not tokens:
@@ -388,25 +390,25 @@ class main:
     def read_ethers(self):
         ethers = self._get_ethers(self.conf['ethers_file'])
 
-        print '[arp table]'
+        print('[arp table]')
         for k in ethers:
-            print '<%s> %s'% (k, ethers[k])
-        print '-'*7
+            print('<%s> %s'% (k, ethers[k]))
+        print('-'*7)
 
         self.arp.ethers = ethers
 
     def _get_ethers(self, filename):
-        f = file(filename)
+        f = open(filename)
         e = ether_parse( ''.join(list(f)) )
         e.parse()
 
-        print 'resolving hosts..'
+        print('resolving hosts..')
         e.resolve()
 
         return dict( [(v,k) for k,v in e.items()] )
 
     def sighup(self, signum, frame):
-        print "rereading '%s'"% self.conf['ethers_file']
+        print("rereading '%s'"% self.conf['ethers_file'])
         self.read_ethers()
 
     def run(self):
@@ -417,6 +419,6 @@ if __name__ == '__main__':
     conf.iface = 'hme0'
 
     _ = main(arpd_conf)
-    print 'reading %s'% arpd_conf['ethers_file']
+    print('reading %s'% arpd_conf['ethers_file'])
     _.read_ethers()
     _.run()

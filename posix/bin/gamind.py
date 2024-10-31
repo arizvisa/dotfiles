@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 import sys, os, signal, select
 import re
 import gamin
@@ -67,7 +67,7 @@ def any(iterable, function):
     return False
 
 def help():
-    print '%s command path regexes...'
+    print('%s command path regexes...'% (sys.argv[0] if sys.argv[0] else __FILE__))
     sys.exit(0)
 
 if __name__ == '__main__':

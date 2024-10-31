@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 ## "fuck perforce"
 ##   -saltine
 
@@ -32,8 +32,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os,sys,time
 import urllib,string
-from urlparse import urlparse,urljoin
-from BeautifulSoup import BeautifulSoup
+from urllib.parse import urlparse,urljoin
+from bs4 import BeautifulSoup
 
 ## perforce page specific stuff
 def getLogViewSubdirs(soup, startwith=u'/depotTreeBrowser.cgi?'):
@@ -153,7 +153,7 @@ if __name__ == '__main__':
         start = sys.argv[1]
 
     except IndexError:
-        print 'try giving me a url to a /depotTreeBrowser.cgi'
+        print('try giving me a url to a /depotTreeBrowser.cgi')
         sys.exit()
 
     log('downloading tree from %s'% start)
