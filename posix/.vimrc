@@ -41,8 +41,13 @@ else
     set ruler
 endif
 
+" set some list characters corresponding to the gui or console
 set list
-set listchars=tab:▷⋅,trail:·
+if has('gui_running')
+    set listchars=tab:˃·,trail:ˍ
+else
+    set listchars=tab:»·,trail:°
+endif
 
 " smoothscroll
 if v:version >= 901
@@ -54,6 +59,11 @@ if has('nvim')
     set nrformats=hex,octal,bin
 else
     set nrformats=hex,octal,bin,blank
+endif
+
+" virtualedit
+if has('virtualedit')
+    set virtualedit=block
 endif
 
 "" get rid of any c indentation
