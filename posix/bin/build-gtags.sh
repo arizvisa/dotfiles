@@ -34,7 +34,7 @@ CSCOPEOUT=cscope.out
 
 usage()
 {
-    printf "usage: %s [-h] [-?] [-l] [-o output_directory] [[-f language pattern]...] [[-x pattern]...] directory1...\n" "$1"
+    printf "usage: %s [-h] [-?] [-l] [-o output_directory] [[-f language pattern]...] [[-X pattern]...] [[-x directory]...] directory1...\n" "$1"
     printf "builds a cscope database in each directory specified at the commandline.\n"
     printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
@@ -55,7 +55,7 @@ warn()
 
 get_system_directory()
 {
-    prefix=`dirname "$GTAGS" | xargs -I {} realpath {}/..`
+    prefix=`dirname "$GTAGS" | xargs -I {} realpath -- {}/..`
     case "$1" in
         prefix)
             printf '%s\n' "$prefix"
@@ -86,7 +86,7 @@ get_system_directory()
         ;;
     esac
 
-    realpath -m "$prefix$suffix"
+    realpath -m -- "$prefix$suffix"
 }
 
 get_configuration_directory()
@@ -103,13 +103,26 @@ get_configuration_directory()
 
     for path in /gtags /global; do
         if [ -d "$directory/$path" ]; then
-            realpath -m "$directory/$path"
+            realpath -m -- "$directory/$path"
             return 0
         fi
     done
 
     warn 'unable to locate %s directory in the determined path: %s\n' "$1" "$directory" 1>&2
     exit 1
+}
+
+# convert the parameter to a relative path
+relative_to()
+{
+    read -d $'\0' rp < <( realpath --zero --canonicalize-missing --relative-to="$output" -- "$@" )
+
+    # if an absolute or relative path, then print it as-is. otherwise, we
+    # need to prefix the "./" in front of the path to force it as relative.
+    case "$rp" in
+        /*|./*) printf '%s\n' "$rp"     ;;
+        *)      printf './%s\n' "$rp"   ;;
+    esac
 }
 
 build_language_index_from_filters()
@@ -339,18 +352,18 @@ global_build_gtagsconf()
 {
     number="$1"
     shift
-    local -a excluded=( "$@" )
+    local -a ignored=( "$@" )
 
     # figure out all of the definition entries and convert them to labels.
     # if $HOME/$GTAGSRC exists, then ensure that file also gets included.
-    local -a entries=( general exclude include )
+    local -a entries=( general ignore include )
     if [ ! -z "${HOME}" ] && [ -e "${HOME}/${GTAGSRC}" ]; then entries+=( "${GTAGSLABEL}"@"~/${GTAGSRC}" ); fi
     local -a labels=()
     for entry in "${entries[@]}"; do labels+=( "tc=$entry" ); done
 
     # output all of the labels that we determined.
     tc_build_label "${GTAGSLABEL}" "${labels[@]}"
-    tc_build_skip "exclude" "GPATH" "GRTAGS" "GTAGS" "${excluded[@]}"
+    tc_build_skip "ignore" "GPATH" "GRTAGS" "GTAGS" "${ignored[@]}"
 
     #printf "%s\0" '*.cc' '*.cpp' '*.x' '' 1>&3
     #tc_build_langmap "include" 'cpp' $'*.c\0*.cc\0*.cc' #'php' $'*.php\n*.php3' "c\n*.c\n*.h\n'
@@ -376,19 +389,53 @@ global_build_gtagsconf()
 
 get_find_expressions_for_patterns()
 {
+    local -n exclude="$1"
+    shift
+
+    local -a exclude_parameters=()
+    for directory in "${exclude[@]}"; do
+        relative=`relative_to "${directory}"`
+        case "${relative}" in
+            */\*)
+                exclude_parameters+=( '-o' -path "${relative}" )
+            ;;
+            *)
+                exclude_parameters+=( '-o' -path "${relative}" )
+                exclude_parameters+=( '-o' -path "${relative}/*" )
+            ;;
+        esac
+    done
+
     local -a parameters=()
     while read -d $'\0' pattern; do
         parameters+=( '-o' -type "f" -name "${pattern}" )
     done
 
-    local -a results=()
+    local -a patterns=()
     let stop=( "${#parameters[@]}" - 1 )
-
     for index in `seq 1 $stop`; do
-        results+=( "${parameters[$index]}" )
+        patterns+=( "${parameters[$index]}" )
     done
 
-    [ "${#results[@]}" -gt 0 ] && printf '%s\0' '(' "${results[@]}" ')'
+    local -a exclusions=()
+    let stop=( "${#exclude_parameters[@]}" - 1 )
+    for index in `seq 1 $stop`; do
+        exclusions+=( "${exclude_parameters[$index]}" )
+    done
+
+    [ "$#" -gt 0 ] && printf '%s\0' "$@"
+    if [ "${#exclusions[@]}" -gt 0 ]; then
+        printf '%s\0' \( \! \( "${exclusions[@]}" \) \)
+    else
+        printf '%s\0' '-true'
+    fi
+
+    printf '%s\0' '-a'
+    if [ "${#patterns[@]}" -gt 0 ]; then
+        printf '%s\0' '(' "${patterns[@]}" ')'
+    else
+        printf '%s\0' '-true'
+    fi
 }
 
 cscope_escape()
@@ -505,8 +552,9 @@ global_build_database()
 {
     local output="$1"
     local -n filters="$2"
-    local -n exclude="$3"
-    shift 3
+    local -n excluded="$3"
+    local -n ignored="$4"
+    shift 4
 
     log 'using %s to build database\n' "$description"
 
@@ -518,14 +566,14 @@ global_build_database()
     # our langmap builder for the gtags configuration.
     number="${#language_filter[@]}"
     format_language_index_for_builder language_filter "${filters[@]}" \
-        | global_build_gtagsconf "$number" "${exclude[@]}" \
+        | global_build_gtagsconf "$number" "${ignored[@]}" \
         > "${output}/$GTAGSCONF"
     log 'wrote configuration to file name: %s\n' "${output}/$GTAGSCONF"
 
     # use find(1) to determine all of the matching paths
     # for the specified filters.
     extract_patterns_from_language_index language_filter "${filters[@]}" \
-        | get_find_expressions_for_patterns \
+        | get_find_expressions_for_patterns excluded \
         | xargs -0 find "${directories[@]}" \
         > "${output}/$GTAGSFILE"
 
@@ -548,8 +596,9 @@ cscope_build_database()
 {
     local output="$1"
     local -n filters="$2"
-    local -n exclude="$3"
-    shift 3
+    local -n excluded="$3"
+    local -n ignored="$4"
+    shift 4
 
     log 'using %s to build database.\n' "$description"
 
@@ -559,7 +608,7 @@ cscope_build_database()
 
     # go through and find all the files that were requested.
     extract_patterns_from_language_index language_filter "${filters[@]}" \
-        | get_find_expressions_for_patterns \
+        | get_find_expressions_for_patterns excluded \
         | xargs -0 find "${directories[@]}" \
         | while read filename; do
 
@@ -572,6 +621,8 @@ cscope_build_database()
     done > "${output}/$CSCOPEFILE"
     read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
     log 'wrote %d paths to file name %s\n' "$count" "${output}/$CSCOPEFILE"
+
+    # FIXME: need to use the ignored parameter to filter the list of files
 
     # now we just need to use cscope to build the database.
     log 'building %s database with: %s\n' "$description" "\"${CSCOPE}\" -f \"${output}/$CSCOPEOUT\" -i \"${output}/$CSCOPEFILE\" ${CSCOPEPARAMETERS[*]} $*"
@@ -597,13 +648,14 @@ description=`eval $cmd\_description`
 
 ## now we can process our command line parameters
 declare -a opt_filters
+declare -a opt_ignore
 declare -a opt_exclude
 declare -a opt_output
 
 rp=`realpath "$ARG0"`
 operation=build_database
 
-while getopts hglf:x:o: opt; do
+while getopts hglf:X:x:o: opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
@@ -620,7 +672,11 @@ while getopts hglf:x:o: opt; do
             ;;
         x)
             opt_exclude+=( "$OPTARG" )
-            log 'excluding pattern : %s\n' "$OPTARG"
+            log 'excluding directory : %s\n' "$OPTARG"
+            ;;
+        X)
+            opt_ignore+=( "$OPTARG" )
+            log 'ignoring pattern : %s\n' "$OPTARG"
             ;;
         f)
             language="$OPTARG"
@@ -663,6 +719,6 @@ log 'using files within the following paths: %s\n' "${directories[*]}"
 full_operation="${cmd}_${operation}"
 log 'performing operation: %s\n' "${full_operation}"
 
-export output opt_filters opt_exclude
-"${cmd}_${operation}" "${output}" opt_filters opt_exclude
+export output opt_filters opt_ignore
+"${cmd}_${operation}" "${output}" opt_filters opt_exclude opt_ignore
 exit $?
