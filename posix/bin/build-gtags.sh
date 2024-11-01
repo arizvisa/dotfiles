@@ -5,13 +5,9 @@
 # 1a. There's multiple libraries for parsing the same language. So, there needs
 #     to be a way to prioritize which parser (universal-ctags, exuberant-ctags,
 #     and pygments) to use for a specific language.
-# 1b. There needs to be a way to list the language and supported parsers.
-# 2. The "-o" option needs to correct the paths written to ${GTAGSFILE}. This
-#    way the files being parsed are relative to the database output.
-# 2a. Perhaps the "-C" (directory) option for ${GTAGS} can be used to switch
-#     to an anchor path where each directory parameter is relative to.
-# 3. Should the language case matter, or should we make the effort to normalize
-#    the case when checking? Peraonlly, I dont think the case should matter...
+# 1b. There needs to be a way to list the language _and_ the supported parsers.
+# 2. Should the language case matter, or should we make the effort to normalize
+#    the case when checking? Personally, I dont think the case should matter...
 ARG0=`realpath "$0"`
 GTAGS=`type -P gtags`
 GLOBAL=`type -P global`
@@ -57,7 +53,7 @@ warn()
 
 get_system_directory()
 {
-    prefix=`dirname "$GTAGS" | xargs -I {} realpath -- {}/..`
+    prefix=`dirname "$GTAGS" | xargs -I {} realpath --quiet -- {}/..`
     case "$1" in
         prefix)
             printf '%s\n' "$prefix"
@@ -74,11 +70,11 @@ get_system_directory()
         infodir)    suffix='/share/info' ;;
         localedir)  suffix='/share/locale' ;;
         localstatedir)
-            realpath /var
+            realpath --quiet /var
             return 0
             ;;
         runstatedir)
-            realpath /var/run
+            realpath --quiet /var/run
             return 0
             ;;
         sysconfdir) suffix='/etc' ;;
@@ -88,7 +84,7 @@ get_system_directory()
         ;;
     esac
 
-    realpath -m -- "$prefix$suffix"
+    realpath --quiet --canonicalize-missing -- "$prefix$suffix"
 }
 
 get_configuration_directory()
@@ -105,7 +101,7 @@ get_configuration_directory()
 
     for path in /gtags /global; do
         if [ -d "$directory/$path" ]; then
-            realpath -m -- "$directory/$path"
+            join_path_absolute "$directory" "$path"
             return 0
         fi
     done
@@ -117,14 +113,24 @@ get_configuration_directory()
 # convert the parameter to a relative path
 relative_to()
 {
-    read -d $'\0' rp < <( realpath --zero --canonicalize-missing --relative-to="$output" -- "$@" )
+    realpath --zero --quiet --canonicalize-missing --relative-to="$output" -- "$@" | while read -d $'\0' rp; do
+        # if an absolute or relative path, then print it as-is. otherwise, we
+        # need to prefix the "./" in front of the path to force it as relative.
+        case "$rp" in
+            /*|./*) printf '%s\n' "$rp"     ;;
+            *)      printf './%s\n' "$rp"   ;;
+        esac
+    done
+}
 
-    # if an absolute or relative path, then print it as-is. otherwise, we
-    # need to prefix the "./" in front of the path to force it as relative.
-    case "$rp" in
-        /*|./*) printf '%s\n' "$rp"     ;;
-        *)      printf './%s\n' "$rp"   ;;
-    esac
+join_path_absolute()
+{
+    joined="$1"
+    shift
+    for component in "$@"; do
+        joined+="/$component"
+    done
+    realpath --quiet --canonicalize-missing -- "$joined"
 }
 
 build_language_index_from_filters()
@@ -181,7 +187,7 @@ extract_patterns_from_language_index()
 ### command-specific utilities
 global_configuration_file()
 {
-    get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath
+    get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath --
 }
 
 # remove comments and strip spaces from a configuration in stdin
@@ -425,19 +431,23 @@ get_find_expressions_for_patterns()
         exclusions+=( "${exclude_parameters[$index]}" )
     done
 
-    [ "$#" -gt 0 ] && printf '%s\0' "$@"
+    # output parameters for excluding directories (really, paths)
     if [ "${#exclusions[@]}" -gt 0 ]; then
         printf '%s\0' \( \! \( "${exclusions[@]}" \) \)
     else
         printf '%s\0' '-true'
     fi
 
+    # now we include all of our patterns
     printf '%s\0' '-a'
     if [ "${#patterns[@]}" -gt 0 ]; then
         printf '%s\0' '(' "${patterns[@]}" ')'
     else
         printf '%s\0' '-true'
     fi
+
+    # then we can include any extra parameters (actions)
+    printf '%s\0' "$@"
 }
 
 cscope_escape()
@@ -478,7 +488,7 @@ global_description()
 ## list the available languages that the user is allowed to map globs to
 global_list_languages()
 {
-    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath -- )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
     local -A languages
@@ -518,7 +528,7 @@ global_list_languages()
 
 global_list_parsers()
 {
-    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath )
+    read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath -- )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
     local -A languages
@@ -575,7 +585,7 @@ global_build_database()
     # use find(1) to determine all of the matching paths
     # for the specified filters.
     extract_patterns_from_language_index language_filter "${filters[@]}" \
-        | get_find_expressions_for_patterns excluded \
+        | get_find_expressions_for_patterns excluded -print \
         | xargs -0 find "${directories[@]}" \
         > "${output}/$GTAGSFILE"
 
@@ -586,7 +596,7 @@ global_build_database()
     local -a parameters=()
     parameters+=( --gtagsconf "${output}/$GTAGSCONF" )
     parameters+=( --gtagslabel "$GTAGSLABEL" )
-    parameters+=( --directory "${output}" )
+    parameters+=( --objdir "${output}" )
     parameters+=( --file "${output}/$GTAGSFILE" )
 
     # now we just need to use cscope to build the database.
@@ -669,6 +679,8 @@ while getopts hglf:X:x:o:q opt; do
             ;;
         o)
             opt_output="$OPTARG"
+            GTAGSFILE="${GTAGSFILE#.}"
+            GTAGSCONF="${GTAGSCONF#.}"
             ;;
         g)
             operation=list_parsers
@@ -711,7 +723,9 @@ if [ -z "${output}" ] || [ ! -d "${output}" ]; then
     warn 'the requested output directory does not exist: %s\n' "${target}"
     exit 1
 else
-    log 'writing database to path : %s\n' "${output}"
+    log 'writing database to directory : %s\n' "${output}"
+    log 'using file list in : %s\n' `join_path_absolute "${output}" "$GTAGSFILE"`
+    log 'using configuration file at path : %s\n' `join_path_absolute "${output}" "$GTAGSCONF"`
 fi
 
 declare -a directories
