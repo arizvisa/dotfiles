@@ -55,6 +55,14 @@ warn()
     log "$@"
 }
 
+fatal()
+{
+    ec=$1
+    shift
+    warn "$@"
+    exit $ec
+}
+
 get_system_directory()
 {
     prefix=`dirname "$GTAGS" | xargs -I {} realpath --quiet -- {}/..`
@@ -83,8 +91,7 @@ get_system_directory()
             ;;
         sysconfdir) suffix='/etc' ;;
         *)
-            warn 'unknown system directory type: %s\n' "$1" 1>&2
-            exit 1
+            fatal 22 'unknown system directory type: %s\n' "$1" 1>&2
         ;;
     esac
 
@@ -110,8 +117,7 @@ get_configuration_directory()
         fi
     done
 
-    warn 'unable to locate %s directory in the determined path: %s\n' "$1" "$directory" 1>&2
-    exit 1
+    fatal 2 'unable to locate %s directory in the determined path: %s\n' "$1" "$directory" 1>&2
 }
 
 # convert the parameter to a relative path
@@ -585,7 +591,12 @@ global_build_database()
         format_language_index_for_builder language_filter "${filters[@]}" \
             | global_build_gtagsconf "$number" "${ignored[@]}" \
         >| "${output}/$GTAGSCONF"
-        log 'wrote configuration file: %s\n' "${output}/$GTAGSCONF"
+
+        if [ "$?" -eq 0 ]; then
+            log 'wrote configuration file: %s\n' "${output}/$GTAGSCONF"
+        else
+            fatal 13 'unable to write configuration file: %s\n' "${output}/$GTAGSCONF"
+        fi
     else
         log 'reusing configuration file: %s\n' "${output}/$GTAGSCONF"
     fi
@@ -598,8 +609,12 @@ global_build_database()
             | xargs -0 find "${directories[@]}" \
         >| "${output}/$GTAGSFILE"
 
-        read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
-        log 'wrote %d names to file listing: %s\n' "$count" "${output}/$GTAGSFILE"
+        if [ "$?" -eq 0 ]; then
+            read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
+            log 'wrote %d names to file listing: %s\n' "$count" "${output}/$GTAGSFILE"
+        else
+            fatal 13 'unable to write to file listing: %s\n' "${output}/$GTAGSFILE"
+        fi
     else
         read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
         log 'reusing %d names from file listing: %s\n' "$count" "${output}/$GTAGSFILE"
@@ -674,8 +689,7 @@ fi
 csprog=`basename "$CSPROG"`
 cmd=`choose_command "$csprog" "$CSPROG"`
 if [ "$?" -gt 0 ]; then
-    warn 'unable to find a valid command (%s) for building index\n' 'cscope or gnu global'
-    exit 2
+    fatal 2 'unable to find a valid command (%s) for building index\n' 'cscope or gnu global'
 fi
 
 # assign some variables to help with emitting error and status messages
@@ -733,8 +747,7 @@ while getopts hglf:X:x:o:qO: opt; do
                 filter=${!OPTIND}
                 let OPTIND++
             else
-                log 'missing filter for language parameter : -f %s\n' "$language"
-                exit 1
+                fatal 22 'missing filter for language parameter : -f %s\n' "$language"
             fi
             log 'adding language filter : %s : %s\n' "$language" "$filter"
             opt_filters+=( "$language $filter" )
@@ -745,14 +758,12 @@ shift `expr "$OPTIND" - 1`
 
 # assign the variables we're going to use.
 if [ -z "${opt_output:-}" ]; then
-    output=`realpath -qe .`
+    output=`realpath --quiet --canonicalize-existing .`
 else
-    output=`realpath -qe "${opt_output}"`
+    output=`realpath --quiet --canonicalize-missing "${opt_output}"`
 fi
-if [ -z "${output}" ] || [ ! -d "${output}" ]; then
-    read target < <( [ -z "${output}" ] && echo . || echo "${output}" )
-    warn 'the requested output directory does not exist: %s\n' "${target}"
-    exit 1
+if [ ! -d "${output}" ]; then
+    fatal 2 'the requested output directory does not exist: %s\n' "${output}"
 else
     log 'writing database to directory : %s\n' "${output}"
 fi
