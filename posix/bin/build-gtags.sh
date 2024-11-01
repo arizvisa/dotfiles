@@ -9,6 +9,10 @@
 # 2. Should the language case matter, or should we make the effort to normalize
 #    the case when checking? Personally, I dont think the case should matter...
 ARG0=`realpath "$0"`
+
+set -o nounset
+set -o noclobber
+
 GTAGS=`type -P gtags`
 GLOBAL=`type -P global`
 CSCOPE=`type -P cscope`
@@ -32,7 +36,7 @@ CSCOPEOUT=cscope.out
 
 usage()
 {
-    printf "usage: %s [-h] [-?] [-l] [-q] [-o output_directory] [[-f language pattern]...] [[-X pattern]...] [[-x directory]...] directory1...\n" "$1"
+    printf "usage: %s [-h] [-?] [-l] [-q] [-n] [-{o,O} output] [[-f language pattern]...] [[-X pattern]...] [[-x directory]...] directory1...\n" "$1"
     printf "builds a cscope database in each directory specified at the commandline.\n"
     printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
@@ -576,21 +580,30 @@ global_build_database()
 
     # now we need to feed each language and pattern to
     # our langmap builder for the gtags configuration.
-    number="${#language_filter[@]}"
-    format_language_index_for_builder language_filter "${filters[@]}" \
-        | global_build_gtagsconf "$number" "${ignored[@]}" \
-        > "${output}/$GTAGSCONF"
-    log 'wrote configuration to file name: %s\n' "${output}/$GTAGSCONF"
+    if [ ! -e "${output}/$GTAGSCONF" ] || [ "${opt_clobber}" -gt 0 ]; then
+        number="${#language_filter[@]}"
+        format_language_index_for_builder language_filter "${filters[@]}" \
+            | global_build_gtagsconf "$number" "${ignored[@]}" \
+        >| "${output}/$GTAGSCONF"
+        log 'wrote configuration file: %s\n' "${output}/$GTAGSCONF"
+    else
+        log 'reusing configuration file: %s\n' "${output}/$GTAGSCONF"
+    fi
 
     # use find(1) to determine all of the matching paths
     # for the specified filters.
-    extract_patterns_from_language_index language_filter "${filters[@]}" \
-        | get_find_expressions_for_patterns excluded -print \
-        | xargs -0 find "${directories[@]}" \
-        > "${output}/$GTAGSFILE"
+    if [ ! -e "${output}/$GTAGSFILE" ] || [ "${opt_clobber}" -gt 0 ]; then
+        extract_patterns_from_language_index language_filter "${filters[@]}" \
+            | get_find_expressions_for_patterns excluded -print \
+            | xargs -0 find "${directories[@]}" \
+        >| "${output}/$GTAGSFILE"
 
-    read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
-    log 'wrote %d paths to file name: %s\n' "$count" "${output}/$GTAGSFILE"
+        read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
+        log 'wrote %d names to file listing: %s\n' "$count" "${output}/$GTAGSFILE"
+    else
+        read -d' ' count < <( wc -l "${output}/$GTAGSFILE" )
+        log 'reusing %d names from file listing: %s\n' "$count" "${output}/$GTAGSFILE"
+    fi
 
     # collect our desired parameters.
     local -a parameters=()
@@ -619,20 +632,30 @@ cscope_build_database()
     build_language_index_from_filters language_filter "${filters[@]}"
 
     # go through and find all the files that were requested.
-    extract_patterns_from_language_index language_filter "${filters[@]}" \
-        | get_find_expressions_for_patterns excluded \
-        | xargs -0 find "${directories[@]}" \
-        | while read filename; do
+    if [ ! -e "${output}/$CSCOPEFILE" ] || [ "${opt_clobber}" -gt 0 ]; then
+        extract_patterns_from_language_index language_filter "${filters[@]}" \
+            | get_find_expressions_for_patterns excluded -print \
+            | xargs -0 find "${directories[@]}" \
+            | while read filename; do
 
-        # if there's spaces, then we need to quote and escape the filename.
-        if grep -qoe '[[:space:]]' <<< "$filename"; then
-            printf '%s\0' "$filename" | cscope_escape | xargs -0 printf '"%s"\n'
+            # if there's spaces, then we need to quote and escape the filename.
+            if grep -qoe '[[:space:]]' <<< "$filename"; then
+                printf '%s\0' "$filename" | cscope_escape | xargs -0 printf '"%s"\n'
+            else
+                printf '%s\n' "$filename"
+            fi
+        done >| "${output}/$CSCOPEFILE"
+
+        if [ "$?" -eq 0 ]; then
+            read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
+            log 'wrote %d names to file listing: %s\n' "$count" "${output}/$CSCOPEFILE"
         else
-            printf '%s\n' "$filename"
+            fatal 13 'unable to write to file listing: %s\n' "${output}/$CSCOPEFILE"
         fi
-    done > "${output}/$CSCOPEFILE"
-    read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
-    log 'wrote %d paths to file name %s\n' "$count" "${output}/$CSCOPEFILE"
+    else
+        read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
+        log 'reusing %d names from file listing: %s\n' "$count" "${output}/$CSCOPEFILE"
+    fi
 
     # FIXME: need to use the ignored parameter to filter the list of files
 
@@ -645,7 +668,7 @@ cscope_build_database()
 ### the user is trying to do and how we'll need to do it.
 
 ## first we need to figure out which program we need to use for making tags
-if [ -z "$CSPROG" ]; then
+if [ -z "${CSPROG:-}" ]; then
     CSPROG=`type -P "$GTAGS" || type -P "$CSCOPE"`
 fi
 csprog=`basename "$CSPROG"`
@@ -663,11 +686,12 @@ declare -a opt_filters
 declare -a opt_ignore
 declare -a opt_exclude
 declare -a opt_output
+declare -i opt_clobber=1
 
 rp=`realpath "$ARG0"`
 operation=build_database
 
-while getopts hglf:X:x:o:q opt; do
+while getopts hglf:X:x:o:qO: opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
@@ -677,10 +701,17 @@ while getopts hglf:X:x:o:q opt; do
             GTAGSPARAMETERS=( ${GTAGSPARAMETERS_QUIET[@]} )
             CSCOPEPARAMETERS=( ${CSCOPEPARAMETERS_QUIET[@]} )
             ;;
+        O)
+            opt_output="$OPTARG"
+            GTAGSFILE="${GTAGSFILE#.}"
+            GTAGSCONF="${GTAGSCONF#.}"
+            let opt_clobber=1
+        ;;
         o)
             opt_output="$OPTARG"
             GTAGSFILE="${GTAGSFILE#.}"
             GTAGSCONF="${GTAGSCONF#.}"
+            let opt_clobber=0
             ;;
         g)
             operation=list_parsers
@@ -713,7 +744,7 @@ done
 shift `expr "$OPTIND" - 1`
 
 # assign the variables we're going to use.
-if [ -z "${opt_output}" ]; then
+if [ -z "${opt_output:-}" ]; then
     output=`realpath -qe .`
 else
     output=`realpath -qe "${opt_output}"`
@@ -724,8 +755,6 @@ if [ -z "${output}" ] || [ ! -d "${output}" ]; then
     exit 1
 else
     log 'writing database to directory : %s\n' "${output}"
-    log 'using file list in : %s\n' `join_path_absolute "${output}" "$GTAGSFILE"`
-    log 'using configuration file at path : %s\n' `join_path_absolute "${output}" "$GTAGSCONF"`
 fi
 
 declare -a directories
@@ -734,11 +763,11 @@ if [ "$#" -gt 0 ]; then
 else
     directories=( '.' )
 fi
-log 'using files within the following paths: %s\n' "${directories[*]}"
+log 'searching under directory: %s\n' "${directories[@]}"
 
 full_operation="${cmd}_${operation}"
 log 'performing operation: %s\n' "${full_operation}"
 
-export output opt_filters opt_ignore
+export output opt_clobber
 "${cmd}_${operation}" "${output}" opt_filters opt_exclude opt_ignore
 exit $?
