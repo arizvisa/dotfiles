@@ -22,6 +22,8 @@ LOGNAME=`basename "$ARG0"`
 GTAGSLABEL=default
 GTAGSPARAMETERS=( --accept-dotfiles --explain --verbose --warning )
 CSCOPEPARAMETERS=( -b -q -v )
+GTAGSPARAMETERS_QUIET=( --accept-dotfiles --warning )
+CSCOPEPARAMETERS_QUIET=( -b -q )
 
 # default file names
 GTAGSCONF=.global.conf
@@ -34,7 +36,7 @@ CSCOPEOUT=cscope.out
 
 usage()
 {
-    printf "usage: %s [-h] [-?] [-l] [-o output_directory] [[-f language pattern]...] [[-X pattern]...] [[-x directory]...] directory1...\n" "$1"
+    printf "usage: %s [-h] [-?] [-l] [-q] [-o output_directory] [[-f language pattern]...] [[-X pattern]...] [[-x directory]...] directory1...\n" "$1"
     printf "builds a cscope database in each directory specified at the commandline.\n"
     printf "if a filter isn't specified, then use \"'*.c' '*.h' '*.cc' '*.cpp' '*.hpp'\".\n"
     printf "if \$CSPROG isn't defined, then use \"%s\" to build database.\n" "cscope -b -v -i-"
@@ -655,11 +657,15 @@ declare -a opt_output
 rp=`realpath "$ARG0"`
 operation=build_database
 
-while getopts hglf:X:x:o: opt; do
+while getopts hglf:X:x:o:q opt; do
     case "$opt" in
         h|\?)
             usage "$ARG0"
             exit 0
+            ;;
+        q)
+            GTAGSPARAMETERS=( ${GTAGSPARAMETERS_QUIET[@]} )
+            CSCOPEPARAMETERS=( ${CSCOPEPARAMETERS_QUIET[@]} )
             ;;
         o)
             opt_output="$OPTARG"
