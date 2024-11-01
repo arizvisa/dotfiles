@@ -651,6 +651,8 @@ cscope_build_database()
     local -n ignored="$4"
     shift 4
 
+    shopt -s extglob    # needed to apply the globs from ${ignored}`
+
     log 'using %s to build database in directory: %s\n' "$description" "${output}"
 
     # build an index for each language referencing the opt_filter
@@ -664,6 +666,16 @@ cscope_build_database()
             | get_find_expressions_for_patterns excluded -print \
             | xargs -0 find "${directories[@]}" \
             | while read filename; do
+
+            # check if the filename should be ignored by linear-matching
+            # it against every available glob in the array.
+            let skip=0
+            for glob in "${ignored[@]}"; do
+                if [[ "$filename" == @($glob) ]]; then
+                    let skip=1
+                fi
+            done
+            [[ "$skip" -gt 0 ]] && continue
 
             # if there's spaces, then we need to quote and escape the filename.
             if grep -qoe '[[:space:]]' <<< "$filename"; then
@@ -683,8 +695,6 @@ cscope_build_database()
         read -d' ' count < <( wc -l "${output}/$CSCOPEFILE" )
         log 'reusing %d names from file listing: %s\n' "$count" "${output}/$CSCOPEFILE"
     fi
-
-    # FIXME: need to use the ignored parameter to filter the list of files
 
     # now we just need to use cscope to build the database.
     log 'building %s database with: %s\n' "$description" "\"${CSCOPE}\" -f \"${output}/$CSCOPEOUT\" -i \"${output}/$CSCOPEFILE\" ${CSCOPEPARAMETERS[*]} $*"
