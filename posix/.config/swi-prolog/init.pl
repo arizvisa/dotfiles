@@ -18,5 +18,9 @@
 %:- use_module(library(dcg_core)).
 :- use_module(library(dcg_progress)).
 
+%- https://github.com/kamahen/edcg
+:- not(prolog_pack:current_pack(edcg)) -> pack_install(edcg); true.
+:- use_module(library(edcg)).
+
 %- https://github.com/jamesnvc/lsp_server
-:- not(prolog_pack:current_pack(lsp_server)) -> pack_install(lsp_server); true.
+%:- not(prolog_pack:current_pack(lsp_server)) -> pack_install(lsp_server); true.
