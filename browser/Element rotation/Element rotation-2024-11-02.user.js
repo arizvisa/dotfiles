@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Element rotation
-// @namespace    http://tampermonkey.net/
 // @version      2024-11-02
-// @description  Add some items to the context menu
-// @author       arizvisa@gmail.com
-// @match        *://*/*
-// @run-at       document_end
+// @description  Add some items to the context menu for rotating a specific element
+// @author       Ali Rizvi-Santiago <arizvisa@gmail.com>
+// @match        http*://*/*
+// @run-at       document-start
 // @grant        GM_info
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
@@ -15,6 +14,12 @@
 
     const GLOBAL = {
         id: GM_info.script.name,
+        timeout: 5.0,
+        highlight: {
+            color: 'red',
+            style: 'solid',
+            width: '1px',
+        },
     };
 
     function Error(message) {
@@ -179,17 +184,72 @@
     };
 
     const ElementRotator = (getter, adjustment, unit) => (ev) => {
-        const el = getter();
-        let [original, rotated] = rotateElement(el, adjustment, unit);
-        logwith(el, `Rotated following element by ${adjustment} ${angle_description[unit]}s: ${original}${unit} -> ${rotated}${unit}`);
+        const element = getter();
+        let [original, rotated] = rotateElement(element, adjustment, unit);
+        logwith(element, `Rotated following element by ${adjustment} ${angle_description[unit]}s: ${original}${unit} -> ${rotated}${unit}`);
+    };
+
+    // FIXME: highlight the bounding box of the selected
+    //        element for just a few seconds or something.
+    const ElementPicker = (getter) => (ev) => {
+        const element = getter();
+        const style = element.style;
+        logwith(element, 'Highlighting the following element:');
+
+        let [has, original] = ['border' in style, style['border']];
+        switch (typeof(GLOBAL.highlight)) {
+            case 'string':
+                has = {'border': 'border' in style};
+                original = {'border': style['border']};
+                style['border'] = GLOBAL.highlight;
+                break;
+
+            case 'object':
+                has = {
+                    'border-style': 'border-style' in style,
+                    'border-color': 'border-color' in style,
+                    'border-width': 'border-width' in style,
+                    'border-collapse': 'border-collapse' in style,
+                };
+                original = {
+                    'border-style': style['border-style'],
+                    'border-color': style['border-color'],
+                    'border-width': style['border-width'],
+                    'border-collapse': style['border-collapse'],
+                }
+
+                style['border-style'] = GLOBAL.highlight.style;
+                style['border-color'] = GLOBAL.highlight.color;
+                style['border-width'] = GLOBAL.highlight.width;
+                style['border-collapse'] = 'separate';
+                break;
+
+            default:
+                throw new Error(`Unsupported type (${typeof(GLOBAL.highlight)}) for border highlight.`);
+        }
+
+        const restoreStyleForElement = (el, has, style) => {
+            logwith(element, 'Restoring style for the following element:');
+            for (let property in has) {
+                if (has[property]) {
+                    el.style[property] = style[property];
+                } else {
+                    el.style.removeProperty(property);
+                }
+            }
+        };
+
+        setTimeout(restoreStyleForElement, 1000.0 * GLOBAL.timeout, element, has, original);
     };
 
     const currentElement = getElementFromContextMenuLazy();
     const menuitems = {
-        //test: GM_registerMenuCommand("Check", Test(currentElement)),
+        pick: GM_registerMenuCommand("Pick", ElementPicker(currentElement)),
         reset: GM_registerMenuCommand("Reset", ElementReset(currentElement, 'deg'), {autoClose: true}),
         rotate_90: GM_registerMenuCommand("Rotate 90", ElementRotator(currentElement, 90, 'deg'), {autoClose: true}),
-        rotate_180: GM_registerMenuCommand("Rotate 180", ElementRotator(currentElement, 180, 'deg'), {autoClose: true}),
         rotate_270: GM_registerMenuCommand("Rotate -90", ElementRotator(currentElement, -90, 'deg'), {autoClose: true}),
+        rotate_180: GM_registerMenuCommand("Rotate 180", ElementRotator(currentElement, 180, 'deg'), {autoClose: true}),
+        rotate_45: GM_registerMenuCommand("Rotate 45", ElementRotator(currentElement, 45, 'deg'), {autoClose: true}),
+        rotate_225: GM_registerMenuCommand("Rotate -45", ElementRotator(currentElement, -45, 'deg'), {autoClose: true}),
     };
 })();
