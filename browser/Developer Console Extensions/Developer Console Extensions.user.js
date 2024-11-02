@@ -76,8 +76,8 @@ function main(items) {
     // res = res.concat(inject_scope(((owner, closure) => console.info(`${owner}: ${toSource(closure)}`)), {toSource: toSource}, GLOBAL.private.name(), item.closure));
     res = res.concat(inject_scope(((owner, closure) => console.info(owner + `: ` + toSource(closure))), {toSource: toSource}, GLOBAL.private.name(), item.closure));
 
-    /// i fucking love how JS linters complain about the dumbest shit (i.e. previous line gets a complaint about potentially confusing semantics).
-    /// it is pretty damned obvious that JS programmers fucking suck at writing code if storing your scope in an object is considered confusing.
+    /// i fucking love how JS linters complain about the dumbest shit (potentially confusing semantics)...
+    /// it is pretty damned obvious that JS programmers fucking suck at writing code if they get confused about scope.
     res = res.concat(setattr_console(item.name, item.closure));
 
     // res = res.concat(inject_closure(((owner, name) => console.info(`${owner}: successfully attached closure to "console.${name}".`)), GLOBAL.private.name(), item.name));
