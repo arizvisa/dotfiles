@@ -104,6 +104,10 @@ nl()
 # bash's time(1) is stupid by default, due to not emitting any resource usage.
 alias time="`type -P time` --verbose"
 
+# just some shortcuts for viewing the head or tail of a file.
+alias xhead='xxd | head'
+alias xtail='xxd | tail'
+
 # remove any distro-specific aliases that have been added for
 # some of our core posix utilities, while adding some sane ones.
 alias ls &>/dev/null && unalias ls
