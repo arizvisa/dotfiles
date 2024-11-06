@@ -52,15 +52,15 @@ set -o vi
 set -o nounset
 
 shopt -s extglob
-shopt -s globstar
 shopt -s shift_verbose
+[ "${BASH_VERSINFO[0]}" -ge 4 ] && shopt -s globstar
 
 shopt -s failglob
 #shopt -s nullglob           # only useful during scripting
 
 # command completion (nope)
 shopt -u progcomp
-shopt -u progcomp_alias
+[ "${BASH_VERSINFO[0]}" -ge 5 ] && shopt -u progcomp_alias
 complete -r
 
 # command aliases
