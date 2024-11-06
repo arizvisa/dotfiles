@@ -1,25 +1,25 @@
 {
-  "settingsVersion": "1.67.7",
+  "settingsVersion": "2.1.2",
   "exclusionRules": [
     {
-      "pattern": "https?://mail.google.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://mail.google.com/*"
     },
     {
-      "pattern": "https?://www.facebook.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://www.facebook.com/*"
     },
     {
-      "pattern": "https?://teams.webex.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://teams.webex.com/*"
     },
     {
-      "pattern": "https?://fuzzfarm.vrt.sourcefire.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://fuzzfarm.vrt.sourcefire.com/*"
     },
     {
-      "pattern": "https?://cisco-my.sharepoint.com/*",
-      "passKeys": ""
+      "passKeys": "",
+      "pattern": "https?://cisco-my.sharepoint.com/*"
     },
     {
       "passKeys": "",
@@ -33,7 +33,7 @@
   "filterLinkHints": false,
   "waitForEnterForFilteredHints": true,
   "hideHud": false,
-  "keyMappings": "unmapAll\n\n# local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap 0 scrollToLeft\nmap $ scrollToRight\n\nmap gf nextFrame\nmap gF mainFrame\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\n\n# modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap e enterVisualLineMode\nmap gi focusInput\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap U LinkHints.activateModeToDownloadLink\n\n# find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\n\n# tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap <c-r> reload\nmap <c-m> toggleMuteTab\n\n# external navigation\nmap yy copyCurrentUrl\nmap P openCopiedUrlInNewTab\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab",
+  "keyMappings": "unmapAll\n\n# local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap 0 scrollToLeft\nmap $ scrollToRight\n\nmap gf nextFrame\nmap gF mainFrame\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\n\n# modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap e enterVisualLineMode\nmap gi focusInput\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap U LinkHints.activateModeToDownloadLink\n\n# find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\n\n# tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap <c-r> reload\nmap <c-m> toggleMuteTab\n\n# external navigation\nmap yy copyCurrentUrl\nmap P openCopiedUrlInNewTab\nmap <c-space> Vomnibar.activate keyword=k\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab",
   "linkHintCharacters": "sadfjklewcmpgh",
   "linkHintNumbers": "!@#$%^&*()_+-=<>?,./;'[]\\{}|",
   "newTabUrl": "about:newtab",
@@ -44,7 +44,7 @@
   "scrollStepSize": 60,
   "smoothScroll": false,
   "grabBackFocus": true,
-  "searchEngines": "define: https://www.google.com/search?q=define:%s Google Dictionary\ng: https://www.google.com/search?q=%s Google\nmaps: https://www.google.com/maps?q=%s Google maps\nscholar: https://scholar.google.com/scholar?%s Google Scholar\n\namazon: https://www.amazon.com/s?field-keywords=%s Amazon Search\nwiki: https://www.wikipedia.org/w/index.php?title=Special:Search&search=%s Wikipedia Search\nw: https://en.wikipedia.org/wiki/%s Wikipedia\n\nddg: https://duckduckgo.com/?q=%s DuckDuckGo\nyt: https://www.youtube.com/results?search_query=%s Youtube\nB: https://www.bing.com/search?q=%s Bing\nQ: https://www.qwant.com/?q=%s Qwant\n\n# More examples.\n#\n# (Vimium supports search completion Wikipedia, as\n# above, and for these.)\n#\n# g: https://www.google.com/search?q=%s Google\n# l: https://www.google.com/search?q=%s&btnI I'm feeling lucky...\n# y: https://www.youtube.com/results?search_query=%s Youtube\n# gm: https://www.google.com/maps?q=%s Google maps\n# b: https://www.bing.com/search?q=%s Bing\n# d: https://duckduckgo.com/?q=%s DuckDuckGo\n# az: https://www.amazon.com/s/?field-keywords=%s Amazon\n# qw: https://www.qwant.com/?q=%s Qwant",
-  "searchUrl": "https://www.google.com/search?q=",
+  "searchEngines": "define: https://www.google.com/search?q=define:%s Google Dictionary\ng: https://www.google.com/search?q=%s Google\nmaps: https://www.google.com/maps?q=%s Google maps\nscholar: https://scholar.google.com/scholar?%s Google Scholar\n\namazon: https://www.amazon.com/s?field-keywords=%s Amazon Search\nwiki: https://www.wikipedia.org/w/index.php?title=Special:Search&search=%s Wikipedia Search\nw: https://en.wikipedia.org/wiki/%s Wikipedia\n\nddg: https://duckduckgo.com/?q=%s DuckDuckGo\nyt: https://www.youtube.com/results?search_query=%s Youtube\nB: https://www.bing.com/search?q=%s Bing\nQ: https://www.qwant.com/?q=%s Qwant\nk: https://kagi.com/search?q=%s Kagi\n\n# More examples.\n#\n# (Vimium supports search completion Wikipedia, as\n# above, and for these.)\n#\n# g: https://www.google.com/search?q=%s Google\n# l: https://www.google.com/search?q=%s&btnI I'm feeling lucky...\n# y: https://www.youtube.com/results?search_query=%s Youtube\n# gm: https://www.google.com/maps?q=%s Google maps\n# b: https://www.bing.com/search?q=%s Bing\n# d: https://duckduckgo.com/?q=%s DuckDuckGo\n# az: https://www.amazon.com/s/?field-keywords=%s Amazon\n# qw: https://www.qwant.com/?q=%s Qwant",
+  "searchUrl": "https://duckduckgo.com/?q=%s",
   "userDefinedLinkHintCss": "div > .vimiumHintMarker {\n  /* linkhint boxes */\n  background:\n   -webkit-gradient(linear, left top, left bottom, color-stop(0%,#FFF785),\n    color-stop(100%,#FFC542))\n  ;\n  border: 1px solid #E3BE23;\n}\n\ndiv > .vimiumHintMarker span {\n  /* linkhint text */\n  color: black;\n  font-weight: bold;\n  font-size: 12px;\n  /*display: none;*/\n}\n\ndiv > .vimiumHintMarker > .matchingCharacter {\n}"
 }
