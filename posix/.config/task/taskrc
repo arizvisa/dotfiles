@@ -1,0 +1,4 @@
+news.version=2.6.0
+data.location=~/.local/share/task
+hooks.location=~/.config/task/hooks
+include no-color.theme
