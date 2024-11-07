@@ -1,3 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 format='%4Y%2m%2d%2H%2M%2S'
-exec date "+${format}" "$@"
+printf "%(${format})T\n"
+#exec date "+${format}" "$@"
