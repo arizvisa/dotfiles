@@ -86,7 +86,7 @@ get_idabinary64()
 
 currentdate()
 {
-    date --rfc-3339=seconds
+    printf '%(%Y-%m-%d %H:%M:%S%z)T\n'
 }
 
 awklength()
