@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
-format='%4Y%2m%2d%2H%2M%2S'
+linux_format='%4Y%2m%2d%2H%2M%2S'
+format='%Y%m%d%H%M%S'
 printf "%(${format})T\n"
 #exec date "+${format}" "$@"
