@@ -20,6 +20,12 @@ fi
 
 [ -z "$prog" ] && echo "Unable to locate binary for program: $posix" 1>&2 && exit 1
 
+if [ "$#" -eq 0 ]; then
+    ARG0=`basename "$0"`
+    echo "Usage: $ARG0 [ffmpeg-arguments] -i input.video output.%d.extension" 1>&2
+    exit 1
+fi
+
 inargs=()
 while [ $# -gt 0 ]; do
     case "$1" in
