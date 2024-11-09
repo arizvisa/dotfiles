@@ -45,7 +45,7 @@ Begin["UserInitializationFile`"]
     FrontEnd`InputNotebook[],
     BoxData@RowBox@{"\[Placeholder]", "[", "\[SelectionPlaceholder]", "]"}
    ],
-   MenuKey["K", Modifiers->{"Control"}]
+   MenuKey["G", Modifiers->{"Control"}]
   ],
   MenuItem[
    "Function[x,\[SelectionPlaceholder]]",
@@ -53,7 +53,7 @@ Begin["UserInitializationFile`"]
     FrontEnd`InputNotebook[],
     BoxData@RowBox@{"\[Placeholder]", "[", "\[SelectionPlaceholder]", ",", "\[Placeholder]", "]"}
    ],
-   MenuKey["K", Modifiers->{"Control", "Shift"}]
+   MenuKey["G", Modifiers->{"Control", "Shift"}]
   ]
  }
 
