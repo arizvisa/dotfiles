@@ -37,7 +37,35 @@ Begin["UserInitializationFile`"]
    ]
  ]
 
- (** Utilities for cuddling menu item handlers *)
+ (** Make selection into a function **)
+ MakeSelectionItems = {
+  MenuItem[
+   "Function[x]",
+   FrontEndExecute@FrontEnd`NotebookApply[
+    FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"\[Placeholder]", "[", "\[SelectionPlaceholder]", "]"}
+   ],
+   MenuKey["K", Modifiers->{"Control"}]
+  ],
+  MenuItem[
+   "Function[x,\[SelectionPlaceholder]]",
+   FrontEndExecute@FrontEnd`NotebookApply[
+    FrontEnd`InputNotebook[],
+    BoxData@RowBox@{"\[Placeholder]", "[", "\[SelectionPlaceholder]", ",", "\[Placeholder]", "]"}
+   ],
+   MenuKey["K", Modifiers->{"Control", "Shift"}]
+  ]
+ }
+
+ If[$Notebooks,
+  FrontEndExecute@
+   AddMenuCommands[
+    "InsertMatchingParentheses",
+    Join[{Delimiter}, MakeSelectionItems, {Delimiter}]
+   ]
+ ]
+
+ (** Utilities for cuddling menu item handlers **)
  CuddleMenuItem[description_String, key_MenuKey, left_String, right_String] :=
   MenuItem[
    description,
