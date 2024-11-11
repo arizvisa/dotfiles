@@ -182,27 +182,28 @@ BeginPackage["System`"];
      SetAttributes[{Rule, RuleDelayed}, HoldFirst];
      Unevaluated[expr] /. rules
    ]
+ WithRules::usage = "WithRules[rules_List, expression] will apply the specified rules to expression before evaluating it."
 
  (** Ripped from https://stackoverflow.com/questions/4198961/what-is-in-your-mathematica-tool-bag **)
  Options[SelectEquivalents] =
     {
-       TagElement->Identity,
-       TransformElement->Identity,
-       TransformResults->(#2&) (*#1=tag,#2 list of elements corresponding to tag*),
-       MapLevel->1,
-       TagPattern->_,
-       FinalFunction->Identity
+       Element->Identity,   (* tag the desired element in #1 *)
+       Transform->Identity, (* transform the tagged element in #1 *)
+       Results->(#2&)       (* #1=tag, #2 list of elements corresponding to tag *),
+       Level->1,            (* apply Map to the specified levelspec *)
+       Pattern->_,          (* only match the specified pattern *)
+       Final->Identity      (* transform the final result *)
     };
 
  SelectEquivalents[x_List,OptionsPattern[]] :=
     With[
        {
-          tagElement=OptionValue@TagElement,
-          transformElement=OptionValue@TransformElement,
-          transformResults=OptionValue@TransformResults,
-          mapLevel=OptionValue@MapLevel,
-          tagPattern=OptionValue@TagPattern,
-          finalFunction=OptionValue@FinalFunction
+          tagElement=OptionValue@Element,
+          transformElement=OptionValue@Transform,
+          transformResults=OptionValue@Results,
+          mapLevel=OptionValue@Level,
+          tagPattern=OptionValue@Pattern,
+          finalFunction=OptionValue@Final
        },
        finalFunction[
           Reap[
@@ -216,6 +217,14 @@ BeginPackage["System`"];
           ][[2]]
        ]
     ];
+ SelectEquivalents::usage =
+  "SelectEquivalents[_List, Element->#1, Transform->#1, Level->_Integer, Pattern->_Pattern, Results->#2, Final->#1]\n" <>
+  "This function will use Element to tag individual elements matching Pattern" <>
+  " at the levelspec Level from the given List, and then transform each tagged" <>
+  " element using the Transform function. Each transformed result will then be" <>
+  " processed by Results using the tagged and original element as the first" <>
+  " and second parameters (respectively). The resulting list will then be" <>
+  " processed by the function specified as Final."
 
  FromBaseForm::usage = "FromBaseForm will return an Integer for a number in BaseForm, a string, or if it is subscripted.";
  FromBaseForm[Subscript[number_, base_Integer]] := FromBaseForm[number // ToString, base];
@@ -279,6 +288,7 @@ BeginPackage["System`"];
   xy
  ];
 
+ CompilableQ::usage = "Compilable[func] returns True if func can be compiled."
  CompilableQ[func_] := MemberQ[Compile`CompilerFunctions[], func];
 
  (*
@@ -286,6 +296,7 @@ BeginPackage["System`"];
      because i couldn't get https://stackoverflow.com/questions/4599241/checking-if-a-symbol-is-defined
        to work on delayed symbols, or closures. we ignore upvalues entirely, of course.
  *)
+ FunctionQ::usage = "FunctionQ[func] returns True if func is potentially a function."
  FunctionQ[expr_] := Module[
   {symbolic, partial, function},
 
