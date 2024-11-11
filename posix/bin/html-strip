@@ -6,4 +6,4 @@ if __name__ == "__main__":
     cook = lambda s, args: ''.join(s.find_all(*args, string=True))
     seasoning, ingredients = sys.argv[1:], sys.stdin if sys.version_info.major < 3 else sys.stdin.buffer
     soup = bs4.BeautifulSoup(ingredients, 'html.parser')
-    six.print_(cook(soup, seasoning))
+    [six.print_(spoon) for spoon in cook(soup, seasoning).split('\n') if spoon]
