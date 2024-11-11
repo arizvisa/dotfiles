@@ -144,6 +144,11 @@ esac
 export EDITOR=`type -P vim || type -P vi`
 ulimit -c unlimited
 
+# because python devers are fucking retarded: https://github.com/python/cpython/issues/118840
+# ...and here's @ambv being a lame dick about it: https://github.com/python/cpython/issues/119034
+# ...and here's some lulz as a result of the rewrite: https://github.com/python/cpython/issues/125140
+export PYTHON_BASIC_REPL=1
+
 ## global limits
 case "$os" in
 posix)
