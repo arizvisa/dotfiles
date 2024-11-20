@@ -29,6 +29,7 @@
     noauthor = rebase --committer-date-is-author-date
     unstage = restore --staged
     untouch = restore --staged --worktree
+    summary = status -uno
 
 [filter "lfs"]
 	required = true
