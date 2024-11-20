@@ -2,5 +2,17 @@ news.version=2.6.0
 data.location=~/.local/share/task
 hooks.location=~/.config/task/hooks
 
+uda.priority.values=H,,L
+
+# options for builtin reports
+#report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
+report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description.count,urgency
+
+# detailed report (includes annotations)
+report.details.filter=status:pending -WAITING limit:page
+report.details.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
+
 #include no-color.theme
 include dark-gray-blue-256.theme
+
+####### site-local configuration
