@@ -115,7 +115,7 @@ case "$platform" in
         fi
         unset rmajor rminor rpatch
         ;;
-    linux-gnu)
+    linux|linux-gnu)
         if [ -d "$HOME/.perl" ]; then
             IFS="=;'" read name q perlversion q _ < <( perl -V:version )
             if [ "$name" == "version" ]; then
