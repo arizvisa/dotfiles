@@ -55,10 +55,10 @@ if v:version >= 901
 endif
 
 " number formats
-if has('nvim')
-    set nrformats=hex,octal,bin
-else
+if has('patch-9.1.0537')
     set nrformats=hex,octal,bin,blank
+else
+    set nrformats=hex,octal,bin
 endif
 
 " virtualedit
