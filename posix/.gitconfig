@@ -31,6 +31,11 @@
     untouch = restore --staged --worktree
     summary = status -uno
 
+    # abbreviations
+    one = oneline
+    raw = rawdog
+    sum = summary
+
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
