@@ -4,7 +4,7 @@
 umask 022
 
 ## set a global so that .bashrc can verify this rcfile has been executed already.
-export PROFILE=`[ ! -z "$USERPROFILE" ] && echo "$USERPROFILE" || echo "$HOME"`
+export PROFILE=`[ ! -z "${USERPROFILE:-}" ] && echo "$USERPROFILE" || echo "$HOME"`
 if [ ! -d "$PROFILE" ]; then
     # FIXME: programmatically determine the tmp directory in case $PROFILE fails.
     export PROFILE="/tmp/`id -u`"
@@ -12,8 +12,8 @@ if [ ! -d "$PROFILE" ]; then
 fi
 
 ## Figure out the user and home directory if it hasn't been set yet
-[ -z "$USER" ] && export USER=`whoami`
-[ -z "$HOME" ] && export HOME=`( cd "$PROFILE" && pwd -P )`
+[ -z "${USER:-}" ] && export USER=`whoami`
+[ -z "${HOME:-}" ] && export HOME=`( cd "$PROFILE" && pwd -P )`
 
 ## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
@@ -21,7 +21,7 @@ export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
 path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
 
 ## decompose path, and keep only the paths that exist.
-oldpath="$PATH"
+oldpath="${PATH:-}"
 path=`echo "${path}" | while read -r -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
 PATH="${path%:}"
 PATH="${PATH}:${oldpath}"
@@ -29,10 +29,10 @@ unset oldpath path
 export PATH
 
 ## set language locale to utilize utf-8 encoding
-[ -z "$LANG" ] && export LANG=en_US.UTF-8
+[ -z "${LANG:-}" ] && export LANG=en_US.UTF-8
 
 ## default tmpdir
-[ -z "$TMPDIR" ] && TMPDIR="$HOME/tmp"
+[ -z "${TMPDIR:-}" ] && TMPDIR="$HOME/tmp"
 [ -d "$TMPDIR" ] || (
     echo "$0 : Unable to find temporary directory. Making a temporary directory at \"$TMPDIR\"." 1>&2;
     mkdir -p "$TMPDIR"
@@ -48,7 +48,7 @@ export arch model platform
 ## os detection
 
 # Windows defines the OS environment variable, so we can do this pretty cheaply
-case "$OS" in
+case "${OS:-unknown}" in
     Windows*) os="windows" ;;
     *) os="posix" ;;
 esac
@@ -68,7 +68,7 @@ if [ -e "/etc/os-release" ]; then
 fi
 
 ## promote terminal to something colorful
-case "$TERM" in
+case "${TERM:-missing-environment-variable}" in
     *-256color) TERM="$TERM" ;;
     xterm) TERM=xterm-256color ;;
     gnome-terminal) TERM=gnome-256color ;;
@@ -76,6 +76,7 @@ case "$TERM" in
 
     linux) TERM=linux ;;
     cygwin) TERM=ansi ;;
+    missing-environment-variable) echo "$0 : Missing environment variable (TERM)" 1>&2 ;;
     *) echo "$0 : Unknown login terminal type ($TERM)" 1>&2 ;;
 esac
 export TERM
