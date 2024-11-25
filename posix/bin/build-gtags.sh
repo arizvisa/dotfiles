@@ -346,7 +346,7 @@ tc_build_langmap_footer()
 
 global_langmap_extensions()
 {
-    local -A default_langmap
+    local -A default_langmap=()
     while read language extensions; do
         default_langmap[$language]+="$extensions"
     done < <( global_langmap )
@@ -508,7 +508,7 @@ global_list_languages()
     read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath -- )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
-    local -A languages
+    local -A languages=()
     while read label; do
 
         # add languages and patterns to our associative array.
@@ -548,7 +548,7 @@ global_list_parsers()
     read configuration < <( get_configuration_directory datadir | xargs -I {} printf '%s/%s\0' {} 'gtags.conf' | xargs -0 realpath -- )
     configuration_parameters=( --gtagsconf "${configuration}" )
 
-    local -A languages
+    local -A languages=()
     while read label; do
 
         # add all the languages listed by the parsers
@@ -588,7 +588,7 @@ global_build_database()
     log 'using %s to build database in directory: %s\n' "$description" "${output}"
 
     # build an index for each language referencing the opt_filter
-    local -A language_filter
+    local -A language_filter=()
     build_language_index_from_filters language_filter "${filters[@]}"
 
     # now we need to feed each language and pattern to
@@ -656,7 +656,7 @@ cscope_build_database()
     log 'using %s to build database in directory: %s\n' "$description" "${output}"
 
     # build an index for each language referencing the opt_filter
-    local -A language_filter
+    local -A language_filter=()
     build_language_index_from_filters language_filter "${filters[@]}"
 
     # go through and find all the files that were requested.
