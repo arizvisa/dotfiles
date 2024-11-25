@@ -230,7 +230,7 @@ __addcscope()
 
     [ "$#" -eq "0" ] && path="`pwd`" || path="$@"
     local current_db p
-    current_db="$CSCOPE_DB"
+    current_db="${CSCOPE_DB:-}"
     for p in $path; do
         local fp
         if [ -d "$p" ]; then
@@ -261,7 +261,7 @@ __addcscope()
         fi
 
         [ "${os}" = "windows" ] && ap=`cygpath -w "$rp"` || ap=`cygpath "$rp"`
-        echo 'Adding path to CSCOPE_DB: '"$ap"$'\n' 1>&2
+        echo -n 'Adding path to CSCOPE_DB: '"$ap"$'\n' 1>&2
         [ "$current_db" = "" ] && current_db="$ap" || current_db="$current_db""${listsep}""$ap"
     done
     export CSCOPE_DB="$current_db"
@@ -277,7 +277,7 @@ __rmcscope()
     local nabs pabs
 
     local current_db=
-    for nn in `echo "$CSCOPE_DB" | tr "${listsep}" "\n"`; do
+    for nn in `tr "${listsep}" "\n" <<< "${CSCOPE_DB:-}"`; do
         local n
         [ "${os}" = "windows" ] && n=`cygpath "$nn"` || n="$nn"
 
