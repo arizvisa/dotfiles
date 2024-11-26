@@ -20,7 +20,7 @@ if has("cscope")
     let s:pathsep = (has("unix") || &shellslash)? '/' : '\'
     let s:listsep = has("unix")? ":" : ";"
 
-    let s:cstype = v:none
+    let s:cstype = v:null
     let s:cstype_description = { "gtags-cscope" : "GNU Global", "cscope" : "Cscope" }
     let s:cstype_database = { "gtags-cscope" : "GTAGS", "cscope" : "cscope.out" }
 
@@ -186,13 +186,13 @@ if has("cscope")
 
         call s:information("Searching for a replacement for &cscopeprg: %s", s:csprog_types)
         for s:csfilename in s:csprog_types
-            let s:cscopeprg = v:none
+            let s:cscopeprg = v:null
             try
                 let s:cscopeprg=s:which(s:csfilename)
             catch
-                let s:cscopeprg=v:none
+                let s:cscopeprg=v:null
             endtry
-            if s:cscopeprg != v:none | break | endif
+            if s:cscopeprg != v:null | break | endif
         endfor
 
     else
