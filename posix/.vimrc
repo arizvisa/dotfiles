@@ -226,9 +226,9 @@ if has("eval")
     noremap <silent> <C-w>P <Cmd>wincmd P<CR>
     noremap <silent> <C-w><C-p> <Cmd>wincmd P<CR>
 
-    " Remap the original 'w' and 'W' commands to
-    " go "forward" and "backward" between windows.
-    noremap <silent> <C-w>f <Cmd>wincmd w<CR>
+    " Remap the original 'w' and 'W' commands to go "forward" and "backward"
+    " between windows. We leave 'f' alone so we can still split-edit <cfile>.
+    "noremap <silent> <C-w>f <Cmd>wincmd w<CR>
     noremap <silent> <C-w><C-f> <Cmd>wincmd w<CR>
     noremap <silent> <C-w>b <Cmd>wincmd W<CR>
     noremap <silent> <C-w><C-b> <Cmd>wincmd W<CR>
