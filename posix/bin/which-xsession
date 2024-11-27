@@ -11,14 +11,14 @@ IFS=. read xdisplay xscreen <<<"$xdisplay_and_screen"
 
 ## use loginctl to match the display in $session
 check_display() {
-    session="$1"
-    display=`"$loginctl" '--property=Display' show-session "$session"`
+    local session="$1"
+    local display=`"$loginctl" '--property=Display' show-session "$session"`
     [ "Display=$2" == "$display" ] && return 0 || return 1
 }
 
 ## find session according to the display passed as $1
 by_display() {
-    display="$1"
+    local display="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
         if check_display "$session" "$display"; then
             printf "%d\n" "$session"
@@ -28,7 +28,7 @@ by_display() {
 
 ## find session according to the tty device passed as $1
 by_tty() {
-    device="$1"
+    local device="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
         if [ "$tty" == "$device" ]; then
             printf "%d\n" "$session"
@@ -38,7 +38,7 @@ by_tty() {
 
 ## find session according to the seat id passed as #1
 by_seat() {
-    id="$1"
+    local id="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
         if [ "$seat" == "$id" ]; then
             printf "%d\n" "$session"
