@@ -70,23 +70,6 @@ unalias -a
 alias rm='rm -i'
 alias mv='mv -i'
 alias cp='cp -i'
-alias cat='cat -v'
-
-# remapping of common utilities
-alias info="`type -P info` --vi-keys"
-alias strings="`type -P stringsext || type -P strings`"
-alias strace="`type -P strace` -vitttTs 131072"
-alias netstat="`type -P netstat` -W"
-alias z="`type -P zstd`"
-alias clip="`type -P xclip` -sel clip"
-
-which_pager="`type -P less || type -P more`"
-case "${which_pager}" in
-    *less) which_pager_args=(-S -i -Q -s) ;;
-    *more) which_pager_args=(-d -s) ;;
-esac
-alias l="${which_pager} ${which_pager_args[*]}"
-unset which_pager which_pager_args
 
 # remove any distro-specific aliases that have been added for
 # some of our core posix utilities, while adding some sane ones.
@@ -95,10 +78,48 @@ alias cat &>/dev/null && unalias cat
 
 # some defaults for the common utilities
 alias ls='ls -F'
+alias cat='cat -v'
+alias split="split -d -a3"
 alias gawk="gawk -i '$HOME/.gawkrc'"
 
 # sort(1) does not honor record order by default.
 alias sort='sort -s'
+
+# aliases for common utilities that add default parameters
+case "$platform" in
+    msys|cygwin)
+        alias ps='command ps -af'
+        alias psall='command ps -Waf'
+        ;;
+    linux*)
+        alias ps='command ps -wwlj'
+        alias psall='command ps -ewwlj'
+        ;;
+    freebsd*|darwin*)
+        alias ps='command ps -wwl'
+        alias psall='command ps -Awwl'
+        ;;
+    *)
+
+esac
+
+# mappings for external utilities
+alias info="`type -P info` --vi-keys"
+alias strings="`type -P stringsext || type -P strings`"
+alias strace="`type -P strace` -vitttTs 131072"
+alias netstat="`type -P netstat` -W"
+alias z="`type -P zstd`"
+alias clip="`type -P xclip` -sel clip"
+alias readelf="readelf -W"
+
+# figure out the pager and default parameters to use
+which_pager="`type -P less || type -P more`"
+case "${which_pager}" in
+    *less) which_pager_args=(-S -i -Q -s) ;;
+    *more) which_pager_args=(-d -s) ;;
+esac
+alias l="${which_pager} ${which_pager_args[*]}"
+unset which_pager which_pager_args
 
 # nl(1) is stupid by default, due to not using a proper field separator.
 nl()
@@ -116,18 +137,9 @@ alias xtail='xxd | tail'
 # journalctl(1) is 100% written by fucking idiots.
 alias jdate='date +"%Y-%m-%d %H:%M:%S"'
 
-# aliases for common utilities that add default parameters
-alias readelf="readelf -W"
-case "$platform" in
-    msys|cygwin)    alias ps='ps -af'       ;;
-    *)              alias ps="ps -wwlj"   ;;
-esac
-alias split="split -d -a3"
-
 ## platform-specific fixes
 case "$platform" in
-
-    Darwin)
+    darwin)
         readlink() { greadlink "$@"; }
         export -f readlink
     ;;
