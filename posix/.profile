@@ -154,8 +154,14 @@ export PYTHON_BASIC_REPL=1
 case "$os" in
 posix)
     # ubuntu is fucking busted with process limits for some reason
-    [ "$distro" != "ubuntu" ] && ulimit -Su 8192 2>/dev/null
-    ulimit -Sv 104857600 2>/dev/null
+    if [ "$distro" != "ubuntu" ]; then
+        ulimit -Su 8192 2>/dev/null
+    fi
+
+    # some desktops (KDE) use a ton of vmem for its command-line tools
+    if [ "${XDG_CURRENT_DESKTOP:-}" != "KDE" ]; then
+        ulimit -Sv 104857600 2>/dev/null
+    fi
     ;;
 
 windows)
