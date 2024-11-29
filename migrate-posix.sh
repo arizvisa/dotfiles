@@ -36,16 +36,19 @@ link_directory()
     source="$2"
     destination="$3"
 
-    if [ -e "$destination/$name" ] && [ ! -d "$destination/$name" ]; then
-        printf '%s: Destination file exists and is not a directory: %s\n' "$name" "$destination/$name" 1>&2
-        return 1
-    fi
-
     case "$os" in
     windows)
+        if [ -e "$destination/$name" ] && [ ! -d "$destination/$name" ]; then
+            printf '%s: Destination directory name exists and is not a directory: %s\n' "$name" "$destination/$name" 1>&2
+            return 1
+        fi
         tar -cpf- -C "$source" "$name" | tar -xpf- --overwrite -C "$destination"
         ;;
     posix)
+        if [ -e "$destination/$name" ] && [ ! -L "$destination/$name" ]; then
+            printf '%s: Destination directory name exists and is not a symbolic link: %s\n' "$name" "$destination/$name" 1>&2
+            return 1
+        fi
         ln -snf "$source/$name" "$destination/$name"
         ;;
     *)
@@ -64,8 +67,8 @@ link_file()
     source="$2"
     destination="$3"
 
-    if [ -e "$destination/$name" ] && [ ! -f "$destination/$name" ]; then
-        printf '%s: Destination file exists and is not a file: %s\n' "$name" "$destination/$name" 1>&2
+    if [ -e "$destination/$name" ] && [ ! -L "$destination/$name" ]; then
+        printf '%s: Destination file name exists and is not a link: %s\n' "$name" "$destination/$name" 1>&2
         return 1
     fi
 
@@ -93,7 +96,7 @@ link_symbolic()
     destination="$3"
 
     if [ -e "$destination/$name" ] && [ ! -L "$destination/$name" ]; then
-        printf '%s: Destination file exists and is not a symbolic link: %s\n' "$name" "$destination/$name" 1>&2
+        printf '%s: Destination link name exists and is not a symbolic link: %s\n' "$name" "$destination/$name" 1>&2
         return 1
     fi
 
