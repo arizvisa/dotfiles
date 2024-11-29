@@ -88,6 +88,11 @@ esac
 alias l="${which_pager} ${which_pager_args[*]}"
 unset which_pager which_pager_args
 
+# remove any distro-specific aliases that have been added for
+# some of our core posix utilities, while adding some sane ones.
+alias ls &>/dev/null && unalias ls
+alias cat &>/dev/null && unalias cat
+
 # some defaults for the common utilities
 alias ls='ls -F'
 alias gawk="gawk -i '$HOME/.gawkrc'"
@@ -107,11 +112,6 @@ alias time="`type -P time` --verbose"
 # just some shortcuts for viewing the head or tail of a file.
 alias xhead='xxd | head'
 alias xtail='xxd | tail'
-
-# remove any distro-specific aliases that have been added for
-# some of our core posix utilities, while adding some sane ones.
-alias ls &>/dev/null && unalias ls
-alias cat &>/dev/null && unalias cat
 
 # journalctl(1) is 100% written by fucking idiots.
 alias jdate='date +"%Y-%m-%d %H:%M:%S"'
