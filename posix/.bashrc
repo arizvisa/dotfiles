@@ -192,7 +192,14 @@ fman()
 
 termdump()
 {
-     infocmp -1 | grep -ve '^#' | ( read n; cat ) | cut -d= -f1 | tr -cd '[:alpha:][:digit:]\n' | while read n; do printf "%s -- %s\n" "$n" "`man -w 5 terminfo | xargs zcat | egrep -A 2 \"\b$n[^[:print:]]\" | tr -d '\n' | sed 's/T{/{/g;s/T}/}/g' | egrep -m1 -o '\{[^}]+\}' | tr -d '\n'`"; done
+    infocmp -1 | grep -ve '^#' | ( read n; cat ) | cut -d= -f1 | tr -cd '[:alpha:][:digit:]\n' | while read TI; do
+        description=`man -w 5 terminfo | xargs zcat | grep -A 5 -e "\b$TI[^[:print:]]" | grep -ve '^\.' | tr -d '\n' | sed 's/T{/{/g;s/T}/}/g' | grep -m1 -o -e '{[^\}]\+}\?' | tr -d '\n'`
+        if [ -z "$description" ]; then
+            printf "%s\n" "$TI"
+        else
+            printf "%s -- %s\n" "$TI" "$description"
+        fi
+    done
 }
 
 __typecscope()
