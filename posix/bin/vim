@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-posix=`type -P gvim || type -P vim`
+posix=`type -P gvim || type -P vim || type -P nvim`
+posix_nog=`type -P vim || type -P nvim`
 pf_x86=`env | grep -E "^ProgramFiles\(x86\)=" | cut -d= -f2- | xargs cygpath -u`
 pf=`env | grep -E "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
-windows=`ls -1 "$pf_x86"/Vim/vim*/gvim.exe "$pf_x86"/Vim/gvim.exe "$pf"/Vim/vim*/gvim.exe "$pf"/Vim/gvim.exe 2>/dev/null`
+windows=`ls -1 "$pf_x86"/Vim/vim*/{g,}vim.exe "$pf_x86"/Vim/{g,}vim.exe "$pf"/Vim/vim*/{g,}vim.exe "$pf"/Vim/{g,}vim.exe 2>/dev/null`
 
 ## determine which program to run
 case "$platform" in
@@ -10,6 +11,7 @@ case "$platform" in
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
     *)
+        [ -z "${DISPLAY:-}" ] && posix="$posix_nog"
         posix=`basename "$posix"`
 esac
 
