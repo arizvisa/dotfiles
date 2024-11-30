@@ -4,7 +4,7 @@ set encoding=utf-8
 set fileencoding=utf-8
 set fileformat=unix
 set fileformats=unix,dos
-set formatoptions=j
+set formatoptions=jtnbc
 set display=lastline,uhex
 
 "" specify the default temp directory for swap files (overwritten when +eval)
@@ -19,7 +19,7 @@ set autoindent
 
 "" no wordwrap
 set nowrap
-set textwidth=0
+set textwidth=80
 
 set nostartofline
 set nofixendofline
@@ -102,10 +102,11 @@ if has("eval")
     endif
 
     "" coloring (syntax and filetype)
-    call matchadd('ColorColumn', '\%81v', 0x100)
-
     syntax enable
     filetype on
+
+    " similar to colorcolumn, but only if there's a character there.
+    call matchadd('ColorColumn', printf('\%%%dv', 1 + ((&textwidth > 0)? &textwidth : 80)), 0x100)
 
     "" remove ":" from &isfname
     let &isfname = join(filter(split(&isfname,","),'v:val!~":"'),",")
@@ -115,7 +116,7 @@ if has("eval")
     filetype plugin on
 
     " if you need your editor to automatically insert a comment leader
-    " while you're commenting, then you're seriously a real fucking idiot.
+    " while you're editing comments, then you're a real fucking idiot.
     autocmd FileType * setlocal formatoptions-=r formatoptions-=o
 
     "" gvim-specific settings
