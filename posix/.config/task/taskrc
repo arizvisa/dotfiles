@@ -2,15 +2,24 @@ news.version=2.6.0
 data.location=~/.local/share/task
 hooks.location=~/.config/task/hooks
 
+dateformat = Y-M-D H:N
 uda.priority.values=H,,L
 
 # options for builtin reports
 #report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
 report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description.count,urgency
 
+#report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description
+report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description.count
+
 # detailed report (includes annotations)
-report.details.filter=status:pending -WAITING limit:page
+report.details.filter=status:pending -WAITING
 report.details.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
+
+# dates report
+report.dates.filter=status:pending
+report.dates.columns=id,due,scheduled,wait,depends,priority,project,tags,description
+report.dates.sort=due+,urgency-,project+
 
 #include no-color.theme
 include dark-gray-blue-256.theme
