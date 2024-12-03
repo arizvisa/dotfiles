@@ -127,12 +127,29 @@ nl()
     "`type -P nl`" -w32 -nrn -v0 -ba -s $'\t' "$@" | sed -e $'s/^ *//g' ;
 }
 
+# just some shortcuts for viewing the head or tail of a file.
+xhead()
+{
+    local infile='-'
+    if [ "$#" -gt 0 ]; then
+        infile="$1"
+        shift
+    fi
+    xxd -- "$infile" | head "$@"
+}
+
+xtail()
+{
+    local infile='-'
+    if [ "$#" -gt 0 ]; then
+        infile="$1"
+        shift
+    fi
+    xxd -- "$infile" | tail "$@"
+}
+
 # bash's time(1) is stupid by default, due to not emitting any resource usage.
 alias time="`type -P time` --verbose"
-
-# just some shortcuts for viewing the head or tail of a file.
-alias xhead='xxd | head'
-alias xtail='xxd | tail'
 
 # journalctl(1) is 100% written by fucking idiots.
 alias jdate='date +"%Y-%m-%d %H:%M:%S"'
