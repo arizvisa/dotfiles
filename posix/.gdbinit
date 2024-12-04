@@ -1130,10 +1130,23 @@ set debuginfod enabled off
 #set disassemble-next-line on
 set pagination off
 
+set ada print-signatures on
+set guile print-stack full
+set python dont-write-bytecode on
+set python print-stack full
+
 set history save on
 set history size 131072
 set history expansion on
 set history filename ~/.gdb_history
+
+set print array-indexes on
+set print asm-demangle on
+set print demangle on
+set print finish on
+set print object on
+set print type hex on
+set print vtbl on
 
 ## tui
 set tui border-kind ascii
