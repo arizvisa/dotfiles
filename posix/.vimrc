@@ -293,8 +293,16 @@ if has("eval")
 
     "" Miscellaneous utilities
     nnoremap gs <Cmd>echomsg SyntaxIds('.')<CR>
-    noremap <F5> <Cmd>copen<CR>
-    noremap <F6> <Cmd>Lexplore<CR>
+    noremap <silent> <F6> <Cmd>Lexplore<CR>
+
+    " Quickfix-related mappings
+    if has('quickfix')
+        noremap <silent> <F5> <Cmd>if getqflist({'winid':0}).winid == 0 \| copen \| else \| cclose \| endif<CR>
+        autocmd QuickFixCmdPost * copen
+        if has('cscope')
+            set cscopequickfix=s-,c-,d-,i-,t-,e-,a-
+        endif
+    endif
 endif
 
 """ utility functions
