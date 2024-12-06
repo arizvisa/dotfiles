@@ -705,6 +705,7 @@ if has("eval")
     Plug 'https://github.com/arizvisa/vim-incpy.git'
     Plug 'https://github.com/tpope/vim-surround'
     Plug 'https://github.com/mg979/vim-visual-multi'
+    Plug 'https://github.com/lpinilla/vim-codepainter'
     call plug#end()
 
     " check if the plugins have been installed, and install them if not.
