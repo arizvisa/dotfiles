@@ -257,4 +257,27 @@ if has("cscope")
         endtry
         let &cscopeverbose = s:verbosity
     endfor
+
+    " if the current working directory isn't underneath the current database,
+    " then warn the user about it so that they aren't surprised why their
+    " queries don't work.
+    if !empty(s:cscope_db)
+        let is_valid_subdirectory = v:false
+        for s:db in split(s:cscope_db, s:listsep)
+            if stridx(getcwd(), fnamemodify(s:db, ':p:h')) == 0
+                let is_valid_subdirectory = v:true
+            endif
+        endfor
+
+        if ! is_valid_subdirectory
+            call s:warning("Current directory is not a subdirectory of the following %s databases:", s:csdescription)
+            let databases = split(s:cscope_db, s:listsep)
+            for index in range(len(databases))
+                let s:db = databases[index]
+                call s:warning("    [%d] %s", 1 + index, s:db)
+            endfor
+            call s:warning("Querying from files in the current directory may produce undesired results.")
+        endif
+        unlet is_valid_subdirectory
+    endif
 endif
