@@ -152,7 +152,21 @@ xtail()
 alias time="`type -P time` --verbose"
 
 # journalctl(1) is 100% written by fucking idiots.
-alias jdate='date +"%Y-%m-%d %H:%M:%S"'
+jdate()
+{
+    if ! tty -s; then
+        while read timestamp; do
+            date +"%Y-%m-%d %H:%M:%S" --date="$timestamp"
+        done
+        return 0
+    elif [ "$#" -eq 0 ]; then
+        date +"%Y-%m-%d %H:%M:%S"
+    else
+        timestamp="$1"
+        shift
+        date +"%Y-%m-%d %H:%M:%S" --date="$timestamp" "$@"
+    fi
+}
 
 ## platform-specific fixes
 case "$platform" in
