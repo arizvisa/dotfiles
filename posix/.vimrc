@@ -163,6 +163,7 @@ if has("eval")
 
     let g:netrw_browsex_viewer = '-'
     let g:netrw_browsex_support_remote = v:false
+    let g:netrw_winsize = 25
 
     """ netrw-noload
     "let g:loaded_netrw = 1
@@ -205,7 +206,6 @@ if has("eval")
     "inoremap <Tab> <Tab>
     vnoremap <Tab> >
     "nnoremap <Tab> >>
-    nnoremap gs <Cmd>echomsg SyntaxIds('.')<C-M>
 
     " Adjusting indentation does not exit visual-mode,
     " since we're now using <Tab> for that.
@@ -234,8 +234,8 @@ if has("eval")
     noremap <silent> <C-w>b <Cmd>wincmd W<CR>
     noremap <silent> <C-w><C-b> <Cmd>wincmd W<CR>
 
-    "" these mappings are just for copying the current location and some lines
-    "" into the default register, current selection, or clipboard.
+    "" The following mappings are just for copying the current location and some
+    "" lines into the default register, current selection, or clipboard.
 
     let g:mapleader = ','
 
@@ -276,8 +276,8 @@ if has("eval")
             return join([""] + l:items + [""], "\n")
         endfunction
 
-        "" copy current path, filename (relative), location (line number), or
-        "" the location with code to the x-selection and clipboard registers.
+        " Copy current path, filename (relative), location (line number), or
+        " the location with code to the x-selection and clipboard registers.
         nnoremap <silent> <Leader>cp <Cmd>let @"=<SID>normalpath(expand('%:~'))<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
         nnoremap <silent> <Leader>cf <Cmd>let @"=<SID>normalpath(expand('%:.'))<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
         noremap <silent> <Leader>cl <Cmd>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>normallines(v:count)<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
@@ -290,6 +290,11 @@ if has("eval")
         xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
     unlet g:mapleader
+
+    "" Miscellaneous utilities
+    nnoremap gs <Cmd>echomsg SyntaxIds('.')<CR>
+    noremap <F5> <Cmd>copen<CR>
+    noremap <F6> <Cmd>Lexplore<CR>
 endif
 
 """ utility functions
