@@ -716,8 +716,17 @@ if has("eval")
 
     call plug#begin()
     Plug 'https://github.com/arizvisa/vim-incpy.git'
-    Plug 'https://github.com/tpope/vim-surround'
     Plug 'https://github.com/mg979/vim-visual-multi'
+    Plug 'https://github.com/tpope/vim-sleuth'
+    Plug 'https://github.com/tpope/vim-surround'
+
+    " additional text objects
+    Plug 'https://github.com/wellle/targets.vim'
+    Plug 'https://github.com/michaeljsmith/vim-indent-object'
+    Plug 'https://github.com/jeetsukumaran/vim-indentwise'
+    Plug 'https://github.com/coderifous/textobj-word-column.vim'
+
+    " miscellaneous
     Plug 'https://github.com/lpinilla/vim-codepainter'
     call plug#end()
 
@@ -736,4 +745,10 @@ if has("eval")
         echohl WarningMsg | echomsg printf("Proceeding to install %splugin%s into directory at %s.", (len(g:plugs) == 1)? "" : printf("%d ", len(g:plugs)), (len(g:plugs) == 1)? "" : "s", g:plug_home) | echohl None
         PlugInstall
     endif
+endif
+
+""" configuration for specific plugins
+if has("eval")
+    let g:sleuth_no_filetype_indent_on = 1
+    let g:VM_add_cursor_at_pos_no_mappings = 1
 endif
