@@ -751,4 +751,24 @@ endif
 if has("eval")
     let g:sleuth_no_filetype_indent_on = 1
     let g:VM_add_cursor_at_pos_no_mappings = 1
+
+    " https://gist.github.com/wellle/9289224?permalink_comment_id=1182925
+    function! s:TargetsAppend(type, ...)
+        normal! `]
+        if a:type == 'char'
+            call feedkeys("a", 'n')
+        else
+            call feedkeys("o", 'n')
+        endif
+    endfunction
+    function! s:TargetsInsert(type, ...)
+        normal! `[
+        if a:type == 'char'
+            call feedkeys("i", 'n')
+        else
+            call feedkeys("O", 'n')
+        endif
+    endfunction
+    nnoremap <silent> <Leader>a <Cmd>set opfunc=<SID>TargetsAppend<CR>g@
+    nnoremap <silent> <Leader>i <Cmd>set opfunc=<SID>TargetsInsert<CR>g@
 endif
