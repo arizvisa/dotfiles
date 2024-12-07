@@ -106,7 +106,7 @@ if has("eval")
     filetype on
 
     " similar to colorcolumn, but only if there's a character there.
-    call matchadd('ColorColumn', printf('\%%%dv', 1 + ((&textwidth > 0)? &textwidth : 80)), 0x100)
+    autocmd BufEnter,WinEnter,TabEnter * call matchadd('ColorColumn', printf('\%%%dv', 1 + ((&textwidth > 0)? &textwidth : 80)), 0x100)
 
     "" remove ":" from &isfname
     let &isfname = join(filter(split(&isfname,","),'v:val!~":"'),",")
