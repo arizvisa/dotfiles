@@ -1,7 +1,7 @@
 #!/bin/sh
 posix=git
 pf=`cygpath "${ProgramFiles}"`
-windows=`ls -1 "$pf"/Git/Cmd/git.exe 2>/dev/null`
+IFS= read windows < <( ls -1 "$pf"/Git/Cmd/git.exe 2>/dev/null )
 
 ## determine which program to run
 case "$platform" in
