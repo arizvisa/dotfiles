@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import sys, json, subprocess, logging, itertools
 
-DISABLED = False
+# FIXME: instead of raising an exception, we need to output feedback so that the
+#        host will update the tasks with the actions that have been performed.
+
 EVENTS = {'on-launch', 'on-exit', 'on-add', 'on-modify'}
 COMMANDS = {
     'edit',
@@ -48,7 +50,7 @@ def setup_logging(name, stream, module=logging):
     return logger
 
 ## The exception types that we'll be using.
-class UnknownTasks(LookupError):
+class UnknownTaskIdentifier(LookupError):
     pass
 class InvalidFormat(ValueError):
     pass
@@ -157,11 +159,10 @@ class task_client(object):
         plural = '' if len(ordered) == 1 else 's'
         raise QueryError(msg_format.format(len(ordered), plural, len(res)))
 
-def update_task_dependencies(tasks, target):
-    client = task_client('task')
+def update_task_dependencies(client, tasks, target):
+    old_deps = {}
 
     # use the uuid to get the original deps for each task.
-    old_deps = {}
     for uuid in tasks:
         query = {uuid : 'depends'}
         res = client.get(query)
@@ -177,7 +178,7 @@ def update_task_dependencies(tasks, target):
         ret = client.modify([uuid], {}, depends=','.join(deps))
     return client
 
-def extract_virtual_tags(available_tags, args, old, new):
+def extract_virtual_tags(available_tags, args, new):
     parameters = args if isinstance(args, list) else args.split(' ')
 
     # output the parameters that we split up from the arguments.
@@ -261,7 +262,7 @@ def strip_tags_from_description(description, tags=None):
 
     return corrected, virtual_tags
 
-def handshake(args, old, new):
+def handshake(args):
     api = args['api']
 
     # ensure the api that we received is an integer.
@@ -305,7 +306,7 @@ def handshake(args, old, new):
     return True, None
 
 # figure out task numbers and uuids from comma-delimited list
-def extract_tasks_from_blocks(string):
+def extract_tasks_from_blocks(client, string):
     choices = string.split(',')
     msg_format = 'found {:d} choice{:s}:'
     plural = '' if len(choices) == 1 else 's'
@@ -334,7 +335,6 @@ def extract_tasks_from_blocks(string):
 
     # now we need to validate each one. we start out by converting the task
     # numbers to uuids. afterwards we then verify the uuids are valid.
-    client = task_client('task')
     try:
         res = client.get({task : 'uuid' for task in tasks}) if tasks else {}
         if any(not(value) for _, value in res.items()):
@@ -357,7 +357,7 @@ def extract_tasks_from_blocks(string):
 
         msg_format = 'found {:d} nonexisting task{:s}' 
         logging.fatal(msg_format.format(len(failed), plural))
-        raise UnknownTasks(failed)
+        raise UnknownTaskIdentifier(failed)
 
     # now we can combine our results with the uuids.
     else:
@@ -386,18 +386,23 @@ def extract_tasks_from_blocks(string):
 
         msg_format = 'found {:d} non-existing task{:s}' 
         logging.fatal(msg_format.format(len(failed), plural))
-        raise UnknownTasks(failed)
+        raise UnknownTaskIdentifier(failed)
 
     # gather our results and then return them.
     else:
         results = {uuid for _, uuid in res.items()}
     return results
 
-# entry point
-def main(args, old, new):
-    ok, err = handshake(args, old, new)
+# entry points
+def on_modification(client, args):
+    ok, err = handshake(args)
     if not ok:
         raise err
+
+    # read information from the host program, pass them and the arguments to our
+    # entrypoint. whatever the entrypoint returns, we just write to the screen.
+    old = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
+    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
 
     # verify that the command is something we support.
     if args['command'] not in COMMANDS:
@@ -405,13 +410,8 @@ def main(args, old, new):
         logging.warning(msg_format.format(args['command']))
         return new
 
-    # if we're undoing something, then just pass it through. however,
-    # because taskwarrior is retarded we need to copy the uuid and description
-    # if taskwarrior is trying to delete a record as a result of an undo.
     elif args['command'] in {'undo'}:
-        if not new:
-            return {'uuid': old['uuid'], 'description': ''}
-        return new
+        return handle_undo(args, old, new)
 
     # verify that the command is something we can handle.
     elif args['command'] not in {'modify'}:
@@ -432,9 +432,13 @@ def main(args, old, new):
     processed_tags, unprocessed_tags = extract_virtual_tags(
         available_tags,
         args['args'],
-        old,
         new
     )
+
+    # filter any unprocessed tags because they might be a description.
+    iterable = unprocessed_tags.items()
+    iterable = ((key, value) for key, value in iterable if value.strip())
+    unprocessed_tags = {key : value for key, value in iterable}
 
     # check if any chosen virtual tags are in the description. if not, then we
     # can just abort. otherwise we save the ones we're going to want to process.
@@ -462,39 +466,117 @@ def main(args, old, new):
 
     # then we can convert each task that we've been asked to block on into a
     # task uuid. then we can process each one of them individually.
-    tasks = extract_tasks_from_blocks(virtual_tags['blocks'])
+    tasks = extract_tasks_from_blocks(client, virtual_tags['blocks'])
     msg_format = 'the tasks being blocked are: {!s}'
     logging.info(msg_format.format(tasks))
 
-    if not update_task_dependencies(tasks, new['uuid']):
+    if not update_task_dependencies(client, tasks, new['uuid']):
         msg_format = 'unable to update depends for tasks: {!s}'
         tasks_description = ' '.join(map("{!s}".format, tasks))
         raise ExecutionError(msg_format.format(tasks_description))
 
     return new
 
-# $ task 37 modify owner:42,32
-# Modifying task 37 'owner:42,32'.
-# argv ['/home/user/.config/task/hooks/on-modify.owner', 'api:2', 'args:task 37 modify owner:42,32', 'command:modify', 'rc:/home/user/.config/task/taskrc', 'data:/home/user/.local/share/task', 'version:2.6.2']
-# args {'api': '2', 'args': 'task 37 modify owner:42,32', 'command': 'modify', 'rc': '/home/user/.config/task/taskrc', 'data': '/home/user/.local/share/task', 'version': '2.6.2'}
-# old {"description": "fix my vim configuration so the []{} characters work correctly in C-like languages.", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}
-# new {"description": "owner:42,32", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}
+def on_addition(client, args):
+    ok, err = handshake(args)
+    if not ok:
+        raise err
 
-# $ task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat
-# Modifying task 37 'untaggeda heh this is wat'.
-# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:113 | ('argv', ['/home/user/.config/task/hooks/on-modify.owner', 'api:2', 'args:task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat', 'command:modify', 'rc:/home/user/.config/task/taskrc', 'data:/home/user/.local/share/task', 'version:2.6.2'])
-# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:114 | ('args', {'api': '2', 'args': 'task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat', 'command': 'modify', 'rc': '/home/user/.config/task/taskrc', 'data': '/home/user/.local/share/task', 'version': '2.6.2'})
-# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:115 | ('old', '{"description": "fix my vim configuration so the []{} characters work correctly in C-like languages.", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}')
-# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:116 | ('new', '{"description": "untaggeda heh this is wat", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["fuck", "personal", "temporary"], "depends": ["ac4f64e4-74de-43e6-ad1e-0a687aa1c0db"]}')
-# Modified 1 task.
-# Project 'dotfiles' is 0% complete (1 task remaining
+    # read information from the host program, pass them and the arguments to our
+    # entrypoint. whatever the entrypoint returns, we just write to the screen.
+    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
+
+    # verify that the command is something we support.
+    if args['command'] not in COMMANDS:
+        msg_format = 'ignoring unsupported command ({:s}).'
+        logging.warning(msg_format.format(args['command']))
+        return new
+
+    elif args['command'] in {'undo'}:
+        return handle_undo(args, old, new)
+
+    # verify that the command is something we can handle.
+    elif args['command'] not in {'add'}:
+        msg_format = 'ignoring unhandled command ({:s}).'
+        logging.info(msg_format.format(args['command']))
+        return new
+
+    # grab tags that can be specified in the middle of the description. if we
+    # find any of these in the parameters, then it's a valid tag that we can
+    # ignore. otherwise, it's included as a valid part of the description.
+    iterable = new.get('tags', [])
+    available_tags = {tag for tag in iterable}
+
+    msg_format = 'the following record tags are available.'
+    logging.info(msg_format.format(available_tags))
+
+    # figure out the virtual tags from the arguments.
+    processed_tags, unprocessed_tags = extract_virtual_tags(
+        available_tags,
+        args['args'],
+        new
+    )
+
+    # filter any unprocessed tags because they might be a description.
+    iterable = unprocessed_tags.items()
+    iterable = ((key, value) for key, value in iterable if value.strip())
+    unprocessed_tags = {key : value for key, value in iterable}
+
+    # check if any chosen virtual tags are in the description. if not, then we
+    # can just abort. otherwise we save the ones we're going to want to process.
+    required = {'blocks'}
+    if not any(tag in unprocessed_tags for tag in required):
+        return new
+    tags = {tag for tag in unprocessed_tags} & required
+
+    # now that we have the virtual tag names that we want to extract, strip the
+    # matching virtual tags from the description and return them as a dict.
+    stripped, virtual_tags = strip_tags_from_description(
+        new.get('description', '').split(' '),
+        tags
+    )
+    new['description'] = stripped
+
+    # now that our description has been fixed and we've extracted the selected
+    # virtual_tags, we just need to validate that they're correctly formatted.
+    msg_format = 'the chosen virtual tags are: {!s}'
+    logging.info(msg_format.format(virtual_tags))
+
+    if not validate_blocks_value(virtual_tags['blocks']):
+        msg_format = 'invalid format for blocks: {!s}'
+        raise InvalidFormat(msg_format.format(virtual_tags['blocks']))
+
+    # then we can convert each task that we've been asked to block on into a
+    # task uuid. then we can process each one of them individually.
+    tasks = extract_tasks_from_blocks(client, virtual_tags['blocks'])
+    msg_format = 'the tasks being blocked are: {!s}'
+    logging.info(msg_format.format(tasks))
+
+    # output our new record so that the host program will update its database.
+    print(json.dumps(new)) if new else '{ }'
+
+    # now we can update our blocking tasks.
+    if not update_task_dependencies(client, tasks, new['uuid']):
+        msg_format = 'unable to update depends for tasks: {!s}'
+        tasks_description = ' '.join(map("{!s}".format, tasks))
+        raise ExecutionError(msg_format.format(tasks_description))
+
+    return
+
+# if we're undoing something, then just pass it through. however, because
+# taskwarrior is retarded we need to copy the uuid and description if
+# taskwarrior is trying to delete a record as a result of an undo.
+def handle_undo(args, old, new):
+    if not new:
+        return {'uuid': old['uuid'], 'description': ''}
+    return new
 
 if __name__ == '__main__':
     import sys, os
 
     # now we can actually setup the logging for the script.
     logging = setup_logging(__name__, sys.stderr)
-    logging.setLevel('DEBUG')
+    logging.setLevel('WARNING')
 
     # input stream (stdin) to consume stuff from host program.
     try:
@@ -515,6 +597,9 @@ if __name__ == '__main__':
         len(args)
     ))
 
+    # instantiate our client object
+    client = task_client('task')
+
     # extract the event type from our first argument.
     basename = os.path.basename(ARG0)
     event, _ = basename.split('.', 1)
@@ -525,15 +610,18 @@ if __name__ == '__main__':
 
     # FIXME: add support for on-add, which only reads a single line of json from
     #        the host program instead of the two for on-modify.
-    elif event not in {'on-modify'}:
+    if event in {'on-modify'}:
+        modified = on_modification(client, args)
+
+    elif event in {'on-add'}:
+        modified = on_addition(client, args)
+
+    else:
         logging.fatal("Unimplemented hook type: {:s}".format(event))
         raise UnsupportedHookType(event)
 
-    # read information from the host program, pass them and the arguments to our
-    # entrypoint. whatever the entrypoint returns, we just write to the screen.
-    old = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    modified = main(args, old, new) if not DISABLED else new
+    ## read information from the host program, pass them and the arguments to our
+    ## entrypoint. whatever the entrypoint returns, we just write to the screen.
     if modified is not None:
         # XXX: taskwarrior's hook logic is pretty fucking retarded and thinks
         #      that valid JSON needs to be larger than 2 characters.
@@ -545,12 +633,4 @@ if __name__ == '__main__':
     # FIXME: correct the order that this happens, since we need to print the
     #        modified dictionary before we update tasks to depend on it. perhaps
     #        we should actually use an exception to trap any errors we produce.
-
-    # debugging
-    if not DISABLED:
-        logging.debug(('argv', sys.argv))
-        logging.debug(('args', args))
-        logging.debug(('old', json.dumps(old)))
-        logging.debug(('new', json.dumps(new)))
-
     sys.exit(0)
