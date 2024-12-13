@@ -1,0 +1,556 @@
+#!/usr/bin/env python3
+import sys, json, subprocess, logging, itertools
+
+DISABLED = False
+EVENTS = {'on-launch', 'on-exit', 'on-add', 'on-modify'}
+COMMANDS = {
+    'edit',
+    'add',
+    'modify',
+    'delete',
+    'start',
+    'stop',
+    'undo',
+    'done',
+    'annotate',
+    'next',
+    'active',
+}
+
+# set up the required logging. we make a copy of the "logging" module so that we
+# can overwrite the global with our own logger and avoid breaking this function.
+def setup_logging(name, stream, module=logging):
+    '''Configure a new logger with our custom formatting and return it.'''
+
+    class LeveledStreamHandler(module.StreamHandler):
+        """
+        This class is only being created so that we can modify the logging
+        record being instantiated to add some custom attributes for formatting.
+        """
+        def emit(self, record):
+            record.levelangled = "<{:s}>".format(record.levelname)
+            return super(LeveledStreamHandler, self).emit(record)
+
+    # initialize a logger using the global logging module.
+    logger = module.getLogger(name)
+    handler = LeveledStreamHandler(stream)
+
+    # instantiate a formatter containing our desired formatting.
+    formatter = module.Formatter(
+        "[%(asctime)s] %(levelangled)-{:d}s %(filename)s:%(lineno)d | %(message)s".format(
+            2 + max(map(len, getattr(module, '_nameToLevel', ['X' * 8])))
+        ),
+        datefmt='%Y-%m-%dT%H:%M:%S'
+    )
+
+    # update the logger with our custom handler and formatting.
+    handler.setFormatter(formatter), logger.addHandler(handler)
+    return logger
+
+## The exception types that we'll be using.
+class UnknownTasks(LookupError):
+    pass
+class InvalidFormat(ValueError):
+    pass
+class InvalidVersionFormat(InvalidFormat):
+    pass
+class InvalidTagFormat(InvalidFormat):
+    pass
+class InvalidTaskFormat(InvalidFormat):
+    pass
+class InvalidQueryFormat(InvalidFormat):
+    pass
+class InternalError(RuntimeError):
+    pass
+class UnsupportedVersion(InternalError):
+    pass
+class ExecutionError(SystemError):
+    pass
+class QueryError(LookupError):
+    pass
+class UnsupportedHookType(InternalError):
+    pass
+
+def validate_task_string(string):
+    try:
+        int(string)
+    except ValueError:
+        return validate_task_uuid(string)
+    return True
+
+def validate_task_uuid(string):
+    segments = string.split('-', 4)
+    if len(segments) != 5:
+        return False
+    try:
+        [int(segment, 16) for segment in segments]
+    except ValueError:
+        return False
+    return True
+
+def validate_blocks_value(string):
+    items = string.split(',')
+    return all(map(validate_task_string, items))
+
+class task_client(object):
+    def __init__(self, path):
+        self.path = path
+
+    def execute(self, command, parameters, **options):
+        args = [self.path, command] + parameters
+        options['universal_newlines'] = True
+        options['stdout'] = options['stderr'] = subprocess.PIPE
+        process = subprocess.Popen(args, **options)
+        retcode = process.wait()
+        out, err = process.stdout.read(), process.stderr.read()
+        return retcode, (out, err)
+
+    def filter(self, tasks, command, parameters, **options):
+        args = [self.path, ','.join(tasks), command] + parameters
+        options['universal_newlines'] = True
+        options['stdout'] = options['stderr'] = subprocess.PIPE
+        process = subprocess.Popen(args, **options)
+        retcode = process.wait()
+        out, err = process.stdout.read(), process.stderr.read()
+        return retcode, (out, err)
+
+    def modify(self, tasks, tags, description=None, **virtual_tags):
+        if not all(tag[:1] in '-+' for tag in tags):
+            msg_format = 'the following tags are not prefixed correctly: {!s}'
+            invalid = {tag for tag in tags if tag[:1] not in '-+'}
+            raise InvalidTagFormat(msg_format.format(','.join(invalid)))
+        args = []
+        args.extend(tags)
+
+        iterable = ((key, virtual_tags[key]) for key in sorted(virtual_tags))
+        args.extend(':'.join([key, value]) for key, value in iterable)
+
+        if isinstance(description, list):
+            args.extend(description)
+        elif description:
+            args.append(description)
+        else:
+            args
+
+        return self.filter(tasks, 'modify', args)
+
+    def get(self, queries):
+        if not queries:
+            raise InvalidQueryFormat('refusing to make an empty query')
+
+        # preserve the order for our queries
+        ordered = [(key, queries[key]) for key in queries]
+        args = ['.'.join([key, value]) for key, value in ordered]
+        ret, (out, err) = self.execute('_get', args)
+        if ret > 0:
+            msg_format = 'execution of program returned error {:d}.'
+            raise ExecutionError(msg_format.format(ret))
+
+        # split up the results, and return a dictionary preserving the order.
+        err and [logging.warning(line) for line in err.split('\n')]
+        iterable = zip(ordered, out.split(' '))
+        res = {key : item for (key, _), item in iterable}
+        if len(ordered) == len(res):
+            return {key : value.strip() for key, value in res.items()}
+
+        msg_format = 'expected {:d} result{:s}, but received {:d}'
+        plural = '' if len(ordered) == 1 else 's'
+        raise QueryError(msg_format.format(len(ordered), plural, len(res)))
+
+def update_task_dependencies(tasks, target):
+    client = task_client('task')
+
+    # use the uuid to get the original deps for each task.
+    old_deps = {}
+    for uuid in tasks:
+        query = {uuid : 'depends'}
+        res = client.get(query)
+        old_deps[uuid] = {item for item in res[uuid].split(',') if res[uuid]}
+
+    # now we can create a dict with the deps that we want to use.
+    new_deps = {}
+    for uuid, deps in old_deps.items():
+        new_deps[uuid] = deps | {target}
+
+    # all that's left is to update each task in our new_deps dict.
+    for uuid, deps in new_deps.items():
+        ret = client.modify([uuid], {}, depends=','.join(deps))
+    return client
+
+def extract_virtual_tags(available_tags, args, old, new):
+    parameters = args if isinstance(args, list) else args.split(' ')
+
+    # output the parameters that we split up from the arguments.
+    for index, parameter in enumerate(parameters):
+        msg_format = 'found argument {:d} of {:d}: "{:s}"'
+        logging.debug(msg_format.format(1 + index, len(parameters), parameter))
+
+    # filter the parameters for any that include a ":" which potentially makes
+    # it a virtual tag that is either processed or unhandled by the host.
+    virtual_tag_candidates = {
+        index for index, parameter in enumerate(parameters)
+        if parameter.count(':') == 1
+    }
+
+    # filter out the candidates for any that have been used by the "new"
+    # dictionary from the host process. these tags should be known by the host.
+    iterable = (
+        (index, parameters[index].split(':', 1))
+        for index in virtual_tag_candidates
+    )
+    known_virtual_tags = {index for index, (key, _) in iterable if key in new}
+    processed_items = [parameters[index] for index in known_virtual_tags]
+
+    msg_format = 'the following virtual tags were used by taskwarrior: {!s}'
+    logging.info(msg_format.format(processed_items))
+
+    # now we have a list of indices that weren't used by the host process.
+    unknown_virtual_tags = virtual_tag_candidates - known_virtual_tags
+    unprocessed_items = [parameters[index] for index in unknown_virtual_tags]
+
+    # next we check our unprocessed tags for one that includes the blocks tag.
+    msg_format = 'the following virtual tags were not used: {!s}'
+    logging.info(msg_format.format(unprocessed_items))
+
+    # convert our processed and unprocessed tags into dicts to return.
+    iterable = (
+        item.split(':', 1)
+        for item in processed_items
+        if ':' in item
+    )
+    processed_tags = {key : value for key, value in iterable}
+
+    iterable = (
+        item.split(':', 1)
+        for item in unprocessed_items
+        if ':' in item
+    )
+    unprocessed_tags = {key: value for key, value in iterable}
+    return processed_tags, unprocessed_tags
+
+def strip_tags_from_description(description, tags=None):
+    old = description if isinstance(description, list) else [description]
+
+    # start out by processing our description.
+    listable = [
+        (index, item.split(':', 1) if ':' in item else ['', item])
+        for index, item in enumerate(old)
+    ]
+    virtual_tag_indices = {key : index for index, (key, _) in listable if key}
+
+    msg_format = 'the original description is: {!s}'
+    logging.info(msg_format.format(old))
+
+    # finally we can correct the description by grabbing everything other than
+    # that tags that we filtered. then we just join and assign it into the dict.
+    filtered = (
+        old[index]
+        for index, (key, _) in listable
+        if not key or key not in (tags or [])
+    )
+
+    corrected = ' '.join(filtered)
+    msg_format = 'the corrected description is: {:s}'
+    logging.info(msg_format.format(corrected))
+
+    # now we're able to process the virtual tag that we're handling.
+    # FIXME: do a sanity check in case the tag isn't found.
+    indices = (virtual_tag_indices[tag] for tag in tags)
+    iterable = (old[index].split(':', 1) for index in indices)
+    virtual_tags = {key : value for key, value in iterable}
+
+    return corrected, virtual_tags
+
+def handshake(args, old, new):
+    api = args['api']
+
+    # ensure the api that we received is an integer.
+    try:
+        integer = int(api)
+    except ValueError:
+        msg_format = 'unsupported api version format ({:s}), expected an integer.'
+        raise InvalidVersionFormat(msg_format.format(api))
+    else:
+        version = integer
+
+    # verify that we support the api version.
+    if version < 2:
+        msg_format = 'unsupported api version {:d}, expected {:d}.'
+        return False, UnsupportedVersion(msg_format.format(version, 2))
+
+    # verify the command given to us by taskwarrior.
+    command = args.get('command', '')
+    if not command:
+        msg_format = 'command is missing, expected it as "{:s}".'
+        return False, InternalError(msg_format.format('modify'))
+
+    elif command not in COMMANDS:
+        available = sorted(COMMANDS)
+        joined = ', '.join(available[:-1])
+        multi = ', or '.join(itertools.chain([joined], available[-1:]))
+        double = ' or '.join(itertools.chain([joined], available[-1:]))
+        single = ', '.join(available)
+        last = multi if len(available) > 2 else double
+        expected = last if len(available) > 1 else single
+
+        msg_format = 'command "{:s}" is unexpected, and should be {!s}.'
+        return False, InternalError(msg_format.format(command, expected))
+
+    # if the args key is missing from our dictionary, then complain about it.
+    elif 'args' not in args:
+        msg = 'parameters are missing, expected something at least.'
+        return False, InternalError(msg)
+
+    # the secret handshake is complete and we can join skull and bones.
+    return True, None
+
+# figure out task numbers and uuids from comma-delimited list
+def extract_tasks_from_blocks(string):
+    choices = string.split(',')
+    msg_format = 'found {:d} choice{:s}:'
+    plural = '' if len(choices) == 1 else 's'
+    logging.info(msg_format.format(len(choices), plural))
+    invalid, uuids, tasks = [], [], []
+    for index, choice in enumerate(choices):
+        if validate_task_uuid(choice):
+            msg_format = '{:d}) task uuid: {!s}'
+            logging.info(msg_format.format(1 + index, choice))
+            uuids.append(choice)
+        elif validate_task_string(choice):
+            msg_format = '{:d}) task number: {!s}'
+            logging.info(msg_format.format(1 + index, choice))
+            tasks.append(choice)
+        else:
+            msg_format = '{:d}) unknown: {!s}'
+            invalid.append(choice)
+        continue
+
+    # if we had any invalid tasks, then we'll need to abort.
+    if invalid:
+        msg_format = 'found {:d} invalid task{:s}.'
+        plural = '' if len(invalid) == 1 else 's'
+        E = InvalidTaskFormat(msg_format.format(len(invalid), plural, invalid))
+        raise E
+
+    # now we need to validate each one. we start out by converting the task
+    # numbers to uuids. afterwards we then verify the uuids are valid.
+    client = task_client('task')
+    try:
+        res = client.get({task : 'uuid' for task in tasks}) if tasks else {}
+        if any(not(value) for _, value in res.items()):
+            failed = [task for task, value in res.items() if not value]
+            msg_format = 'missing task{:s}: {!s}'
+            plural = '' if len(failed) == 1 else 's'
+            raise QueryError(msg_format.format(plural, failed))
+
+    # figure out which query actually failed.
+    except QueryError as E:
+        failed = []
+        for task in tasks:
+            try:
+                res = client.get({task: 'uuid'})
+            except:
+                res = {}
+            if not res.get(task, ''):
+                failed.append(task)
+            continue
+
+        msg_format = 'found {:d} nonexisting task{:s}' 
+        logging.fatal(msg_format.format(len(failed), plural))
+        raise UnknownTasks(failed)
+
+    # now we can combine our results with the uuids.
+    else:
+        uuids.extend(value for key, value in res.items())
+
+    # next we verify that each uuid is actually valid.
+    try:
+        res = client.get({uuid: 'uuid' for uuid in uuids}) if uuids else {}
+        if any(not(value) for _, value in res.items()):
+            failed = [uuid for uuid, value in res.items() if not value]
+            msg_format = 'missing task{:s}: {!s}'
+            plural = '' if len(failed) == 1 else 's'
+            raise QueryError(msg_format.format(plural, failed))
+
+    # figure out which query actually failed.
+    except QueryError as E:
+        failed = []
+        for uuid in uuids:
+            try:
+                res = client.get({uuid: 'uuid'})
+            except:
+                res = {}
+            if not res.get(uuid, ''):
+                failed.append(uuid)
+            continue
+
+        msg_format = 'found {:d} non-existing task{:s}' 
+        logging.fatal(msg_format.format(len(failed), plural))
+        raise UnknownTasks(failed)
+
+    # gather our results and then return them.
+    else:
+        results = {uuid for _, uuid in res.items()}
+    return results
+
+# entry point
+def main(args, old, new):
+    ok, err = handshake(args, old, new)
+    if not ok:
+        raise err
+
+    # verify that the command is something we support.
+    if args['command'] not in COMMANDS:
+        msg_format = 'ignoring unsupported command ({:s}).'
+        logging.warning(msg_format.format(args['command']))
+        return new
+
+    # if we're undoing something, then just pass it through. however,
+    # because taskwarrior is retarded we need to copy the uuid and description
+    # if taskwarrior is trying to delete a record as a result of an undo.
+    elif args['command'] in {'undo'}:
+        if not new:
+            return {'uuid': old['uuid'], 'description': ''}
+        return new
+
+    # verify that the command is something we can handle.
+    elif args['command'] not in {'modify'}:
+        msg_format = 'ignoring unhandled command ({:s}).'
+        logging.info(msg_format.format(args['command']))
+        return new
+
+    # grab tags that can be specified in the middle of the description. if we
+    # find any of these in the parameters, then it's a valid tag that we can
+    # ignore. otherwise, it's included as a valid part of the description.
+    iterable = itertools.chain(old.get('tags', []), new.get('tags', []))
+    available_tags = {tag for tag in iterable}
+
+    msg_format = 'the following record tags are available.'
+    logging.info(msg_format.format(available_tags))
+
+    # figure out the virtual tags from the arguments.
+    processed_tags, unprocessed_tags = extract_virtual_tags(
+        available_tags,
+        args['args'],
+        old,
+        new
+    )
+
+    # check if any chosen virtual tags are in the description. if not, then we
+    # can just abort. otherwise we save the ones we're going to want to process.
+    required = {'blocks'}
+    if not any(tag in unprocessed_tags for tag in required):
+        return new
+    tags = {tag for tag in unprocessed_tags} & required
+
+    # now that we have the virtual tag names that we want to extract, strip the
+    # matching virtual tags from the description and return them as a dict.
+    stripped, virtual_tags = strip_tags_from_description(
+        new.get('description', '').split(' '),
+        tags
+    )
+    new['description'] = stripped or old['description']
+
+    # now that our description has been fixed and we've extracted the selected
+    # virtual_tags, we just need to validate that they're correctly formatted.
+    msg_format = 'the chosen virtual tags are: {!s}'
+    logging.info(msg_format.format(virtual_tags))
+
+    if not validate_blocks_value(virtual_tags['blocks']):
+        msg_format = 'invalid format for blocks: {!s}'
+        raise InvalidFormat(msg_format.format(virtual_tags['blocks']))
+
+    # then we can convert each task that we've been asked to block on into a
+    # task uuid. then we can process each one of them individually.
+    tasks = extract_tasks_from_blocks(virtual_tags['blocks'])
+    msg_format = 'the tasks being blocked are: {!s}'
+    logging.info(msg_format.format(tasks))
+
+    if not update_task_dependencies(tasks, new['uuid']):
+        msg_format = 'unable to update depends for tasks: {!s}'
+        tasks_description = ' '.join(map("{!s}".format, tasks))
+        raise ExecutionError(msg_format.format(tasks_description))
+
+    return new
+
+# $ task 37 modify owner:42,32
+# Modifying task 37 'owner:42,32'.
+# argv ['/home/user/.config/task/hooks/on-modify.owner', 'api:2', 'args:task 37 modify owner:42,32', 'command:modify', 'rc:/home/user/.config/task/taskrc', 'data:/home/user/.local/share/task', 'version:2.6.2']
+# args {'api': '2', 'args': 'task 37 modify owner:42,32', 'command': 'modify', 'rc': '/home/user/.config/task/taskrc', 'data': '/home/user/.local/share/task', 'version': '2.6.2'}
+# old {"description": "fix my vim configuration so the []{} characters work correctly in C-like languages.", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}
+# new {"description": "owner:42,32", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}
+
+# $ task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat
+# Modifying task 37 'untaggeda heh this is wat'.
+# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:113 | ('argv', ['/home/user/.config/task/hooks/on-modify.owner', 'api:2', 'args:task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat', 'command:modify', 'rc:/home/user/.config/task/taskrc', 'data:/home/user/.local/share/task', 'version:2.6.2'])
+# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:114 | ('args', {'api': '2', 'args': 'task 37 modify depends:42 +fuck untaggeda +temporary heh this is wat', 'command': 'modify', 'rc': '/home/user/.config/task/taskrc', 'data': '/home/user/.local/share/task', 'version': '2.6.2'})
+# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:115 | ('old', '{"description": "fix my vim configuration so the []{} characters work correctly in C-like languages.", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["personal"]}')
+# [2024-12-01T03:09:21] <DEBUG>    on-modify.owner:116 | ('new', '{"description": "untaggeda heh this is wat", "entry": "20241128T232916Z", "modified": "20241201T064330Z", "priority": "L", "project": "dotfiles", "status": "pending", "uuid": "960e776f-622c-4855-ae6b-519f9f7a822d", "tags": ["fuck", "personal", "temporary"], "depends": ["ac4f64e4-74de-43e6-ad1e-0a687aa1c0db"]}')
+# Modified 1 task.
+# Project 'dotfiles' is 0% complete (1 task remaining
+
+if __name__ == '__main__':
+    import sys, os
+
+    # now we can actually setup the logging for the script.
+    logging = setup_logging(__name__, sys.stderr)
+    logging.setLevel('DEBUG')
+
+    # input stream (stdin) to consume stuff from host program.
+    try:
+        input_stream = sys.stdin.buffer
+    except AttributeError:
+        input_stream = sys.stdin
+
+    # collect the arguments into a dictionary.
+    args = sys.argv[:]
+    ARG0 = args.pop(0) if args else __file__
+    iterable = (arg.split(':', 1) for arg in args)
+    args = {key : value for key, value in iterable}
+
+    msg_format = 'started {:s} with {:d} parameter{:s} ({:d}).'
+    logging.debug(msg_format.format(
+        ARG0,
+        len(sys.argv), '' if len(sys.argv) == 1 else 's',
+        len(args)
+    ))
+
+    # extract the event type from our first argument.
+    basename = os.path.basename(ARG0)
+    event, _ = basename.split('.', 1)
+
+    if event not in EVENTS:
+        logging.fatal("Unsupported hook type: {:s}".format(event))
+        raise UnsupportedHookType(event)
+
+    # FIXME: add support for on-add, which only reads a single line of json from
+    #        the host program instead of the two for on-modify.
+    elif event not in {'on-modify'}:
+        logging.fatal("Unimplemented hook type: {:s}".format(event))
+        raise UnsupportedHookType(event)
+
+    # read information from the host program, pass them and the arguments to our
+    # entrypoint. whatever the entrypoint returns, we just write to the screen.
+    old = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
+    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
+    modified = main(args, old, new) if not DISABLED else new
+    if modified is not None:
+        # XXX: taskwarrior's hook logic is pretty fucking retarded and thinks
+        #      that valid JSON needs to be larger than 2 characters.
+        print(json.dumps(modified)) if modified else '{ }'
+
+    # FIXME: figure out how the taskwarrior hook api is supposed to work with
+    #        regards to error codes and writing to stdout or stderr.
+
+    # FIXME: correct the order that this happens, since we need to print the
+    #        modified dictionary before we update tasks to depend on it. perhaps
+    #        we should actually use an exception to trap any errors we produce.
+
+    # debugging
+    if not DISABLED:
+        logging.debug(('argv', sys.argv))
+        logging.debug(('args', args))
+        logging.debug(('old', json.dumps(old)))
+        logging.debug(('new', json.dumps(new)))
+
+    sys.exit(0)
