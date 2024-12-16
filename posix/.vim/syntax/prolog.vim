@@ -508,10 +508,11 @@ syntax match prologEndingRule '\.\ze\s*\_[%]'
 highlight link prologDefineRule prologSpecial
 highlight link prologEndingRule prologSpecial
 
-syn match prologDefineConstraintRule '\S\s*\zs-->\ze\s*'
-syn match prologDefineCHRRule '\S\s*\zs==>\ze\s*'
-syn match prologDefineCHRRule '\S\s*\zs<=>\ze\s*'
-syntax cluster prologDefineConstraint contains=prologDefineConstraintRule,prologDefineCHRRule
+syn match prologDefineConstraintRule '[^[:space:]]\s*\zs-->\ze\s*'
+syn match prologDefineCHRRule '[^[:space:]]\s*\zs==>\ze\s*'
+syn match prologDefineCHRRule '[^[:space:]]\s*\zs<=>\ze\s*'
+syn match prologDefineCHRType '[^[:space:]]\s*\zs--->\ze\s*'
+syntax cluster prologDefineConstraint contains=prologDefineConstraintRule,prologDefineCHRRule,prologDefineCHRType
 highlight link prologDefineConstraint prologSpecial
 
 syntax region prologRuleBodyMultiple keepend
@@ -524,10 +525,11 @@ syntax region prologRuleBodyNoHead keepend
 \   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
 syntax region prologRuleBodySingle oneline
 \   matchgroup=prologDefineRule skipwhite start='^\zs:-\ze.'
-\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption
+\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption,prologDefineCHRType
 \   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax cluster prologRuleBody contains=prologRuleBodySingle,prologRuleBodyMultiple,prologRuleBodyNoHead
 
+" multi-line regions
 syntax region prologConstraintBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='-->'
 \   contains=@prologBodyToken,@prologComment
@@ -544,7 +546,7 @@ syntax cluster prologBody contains=prologRuleBody,prologConstraintBody,prologCHR
 
 " XXX: highlighting doesn't seem to work inside a cluster, so this is more a reference than anything else.
 syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter
-syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString
+syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologTopLevel
 syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
 
 syntax match prologHead '^\zs\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
