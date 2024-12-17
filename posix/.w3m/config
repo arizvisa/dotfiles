@@ -56,7 +56,7 @@ save_hist 1
 confirm_qq 1
 close_tab_back 0
 mark 0
-emacs_like_lineedit 1
+emacs_like_lineedit 0
 space_autocomplete 0
 vi_prec_num 1
 mark_all_pages 0

@@ -1,2 +1,245 @@
+# start out by clearing out all the default keymaps
+keymap C-@     NULL
+keymap C-_     NULL
+keymap C-a     NULL
+keymap C-b     NULL
+keymap C-e     NULL
+keymap C-f     NULL
+keymap C-g     NULL
+keymap C-h     NULL
+keymap TAB     NULL
+keymap C-j     NULL     # RET
+keymap C-k     NULL
+keymap C-l     NULL
+keymap C-m     NULL
+keymap C-n     NULL
+keymap C-p     NULL
+keymap C-q     NULL
+keymap C-r     NULL
+keymap C-s     NULL
+keymap C-t     NULL
+keymap C-u     NULL
+keymap C-v     NULL
+keymap C-w     NULL
+keymap C-z     NULL
+
+keymap SPC     NULL
+keymap !       NULL
+keymap \"      NULL
+keymap #       NULL
+keymap $       NULL
+keymap (       NULL
+keymap )       NULL
+keymap +       NULL
+keymap ,       NULL
+keymap -       NULL
+keymap .       NULL
+keymap /       NULL
+keymap :       NULL
+keymap ";"     NULL
+keymap <       NULL
+keymap =       NULL
+keymap >       NULL
+keymap ?       NULL
+keymap @       NULL
+keymap B       NULL
+keymap D       NULL
+keymap E       NULL
+keymap F       NULL
+keymap G       NULL
+keymap H       NULL
+keymap I       NULL
+keymap J       NULL
+keymap K       NULL
+keymap L       NULL
+keymap M       NULL
+keymap N       NULL
+keymap Q       NULL
+keymap R       NULL
+keymap S       NULL
+keymap T       NULL
+keymap U       NULL
+keymap V       NULL
+keymap W       NULL
+keymap Z       NULL
+keymap [       NULL
+keymap ]       NULL
+keymap \^      NULL
+keymap a       NULL
+keymap b       NULL
+keymap c       NULL
+keymap g       NULL
+keymap h       NULL
+keymap i       NULL
+keymap j       NULL
+keymap k       NULL
+keymap l       NULL
+keymap m       NULL
+keymap n       NULL
+keymap o       NULL
+keymap q       NULL
+keymap r       NULL
+keymap s       NULL
+keymap u       NULL
+keymap v       NULL
+keymap w       NULL
+keymap z       NULL
+keymap {       NULL
+keymap |       NULL
+keymap }       NULL
+
+keymap M-TAB   NULL
+keymap M-C-j   NULL
+keymap M-C-m   NULL
+
+keymap M-:     NULL
+keymap M-<     NULL
+keymap M->     NULL
+keymap M-I     NULL
+keymap M-M     NULL
+keymap M-W     NULL
+keymap M-a     NULL
+keymap M-b     NULL
+keymap M-c     NULL
+keymap M-e     NULL
+keymap M-g     NULL
+keymap M-k     NULL
+keymap M-l     NULL
+keymap M-m     NULL
+keymap M-n     NULL
+keymap M-o     NULL
+keymap M-p     NULL
+keymap M-s     NULL
+keymap M-t     NULL
+keymap M-u     NULL
+keymap M-v     NULL
+keymap M-w     NULL
+
+keymap UP      NULL
+keymap DOWN    NULL
+keymap RIGHT   NULL
+keymap LEFT    NULL
+
+keymap M-[E    NULL
+keymap M-[L    NULL
+keymap M-[Z    NULL
+
+keymap M-[1~   NULL
+keymap M-[2~   NULL
+keymap M-[4~   NULL
+keymap M-[5~   NULL
+keymap M-[6~   NULL
+keymap M-[28~  NULL
+
+# now we can start setting the keymaps to something "reasonable"
 keymap C-f NEXT_PAGE
 keymap C-b PREV_PAGE
+ 
+keymap l MOVE_RIGHT
+keymap h MOVE_LEFT
+keymap j MOVE_DOWN
+keymap k MOVE_UP
+ 
+keymap J UP
+keymap K DOWN
+keymap zH SHIFT_LEFT
+keymap zL SHIFT_RIGHT
+keymap zh LEFT
+keymap zl RIGHT
+keymap UP UP
+keymap DOWN DOWN
+keymap C-LEFT SHIFT_LEFT
+keymap C-RIGHT SHIFT_RIGHT
+keymap LEFT LEFT
+keymap RIGHT RIGHT
+ 
+keymap \^ LINE_BEGIN
+keymap 0 LINE_BEGIN
+keymap $ LINE_END
+ 
+keymap zz CENTER_V
+keymap gg BEGIN
+keymap G END
+ 
+keymap w NEXT_WORD
+keymap W PREV_WORD
+keymap ] NEXT_LINK
+keymap [ PREV_LINK
+keymap C-n NEXT_LINK
+keymap C-p PREV_LINK
+keymap TAB NEXT_LINK
+
+keymap gf MOVE_LIST_MENU
+
+keymap gl NEXT_RIGHT
+keymap gh NEXT_LEFT
+keymap gj NEXT_DOWN
+keymap gk NEXT_UP
+ 
+keymap C-i REDO
+keymap C-o UNDO
+keymap zt CURSOR_TOP
+keymap zb CURSOR_BOTTOM
+ 
+keymap C-] GOTO_LINK
+keymap C-j GOTO_LINK
+keymap C-T TAB_LINK
+ 
+keymap a SAVE_LINK
+keymap d SAVE_LINK
+keymap D SAVE_LINK
+keymap gC-j SUBMIT
+ 
+keymap u PEEK
+keymap U PEEK_LINK
+keymap gC-g INFO
+keymap C-g LINE_INFO
+ 
+keymap V LIST
+keymap f LIST_MENU
+ 
+keymap :o GOTO
+keymap t TAB_GOTO
+keymap :e LOAD
+keymap :! PIPE_SHELL
+keymap :%! PIPE_BUF
+ 
+keymap B BACK
+keymap :n NEXT
+keymap :p PREV
+keymap C-s SELECT_MENU
+keymap :v VIEW
+keymap :w SAVE
+keymap C-r RELOAD
+keymap C-l REDRAW
+ 
+keymap C-t NEW_TAB
+keymap C-w CLOSE_TAB
+keymap gt NEXT_TAB
+keymap gT PREV_TAB
+keymap T TAB_MENU
+keymap :t TAB_MENU
+ 
+keymap :b VIEW_BOOKMARK
+keymap :B ADD_BOOKMARK
+ 
+keymap / ISEARCH
+keymap ? ISEARCH_BACK
+keymap n SEARCH_NEXT
+keymap N SEARCH_PREV
+ 
+# not sure if these actually work...
+keymap m MARK
+keymap gm NEXT_MARK
+keymap gM PREV_MARK
+ 
+keymap :H HELP
+keymap :O OPTIONS
+keymap :C COOKIE
+keymap :h HISTORY
+keymap :d DOWNLOAD_LIST
+keymap :: COMMAND
+ 
+keymap C-z SUSPEND
+keymap :q QUIT
+keymap :Q EXIT
