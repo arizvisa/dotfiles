@@ -28,12 +28,16 @@
     {
       "passKeys": "",
       "pattern": "https?://docs.google.com/*"
+    },
+    {
+      "passKeys": "",
+      "pattern": "https?://archive.org/*"
     }
   ],
   "filterLinkHints": false,
   "waitForEnterForFilteredHints": true,
   "hideHud": false,
-  "keyMappings": "unmapAll\n\n# local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap 0 scrollToLeft\nmap $ scrollToRight\n\nmap gf nextFrame\nmap gF mainFrame\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\n\n# modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap e enterVisualLineMode\nmap gi focusInput\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap U LinkHints.activateModeToDownloadLink\n\n# find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\n\n# tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap <c-r> reload\nmap <c-m> toggleMuteTab\n\n# external navigation\nmap yy copyCurrentUrl\nmap P openCopiedUrlInNewTab\nmap <c-space> Vomnibar.activate keyword=k\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab",
+  "keyMappings": "unmapAll\n\n## local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap zh scrollToLeft\nmap zl scrollToRight\nmap zH scrollToLeft\nmap zL scrollToRight\n\n# focusInput uses <tab> and <s-tab> to navigate input box selection\nmap gi focusInput\nmap gf nextFrame\nmap gF mainFrame\n\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\nmap <c-k> passNextKey\n\n## modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap V enterVisualLineMode\n\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap a LinkHints.activateModeToDownloadLink\nmap y LinkHints.activateModeToCopyLinkUrl\n\n## find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\n\n## tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap <c-r> reload\nmap <c-m> toggleMuteTab\n\n## external navigation\nmap gu goUp \nmap g/ goToRoot \nmap ,cu copyCurrentUrl\nmap ,cg openCopiedUrlInNewTab\n\nmap <c-space> Vomnibar.activate keyword=k\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab\nmap <c-g> Vomnibar.activateTabSelection",
   "linkHintCharacters": "sadfjklewcmpgh",
   "linkHintNumbers": "!@#$%^&*()_+-=<>?,./;'[]\\{}|",
   "newTabUrl": "about:newtab",
