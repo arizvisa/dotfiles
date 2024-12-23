@@ -31,11 +31,11 @@ import subprocess
 import sys
 
 # Hook should extract all the following for use as Timewarrior tags:
-#   UUID
+#   UUID            - Perhaps using the shorter uuid?
 #   Project
 #   Tags
 #   Description
-#   UDAs
+#   UDAs            - Probably not this one...
 
 try:
     input_stream = sys.stdin.buffer
@@ -104,7 +104,16 @@ def main(old, new):
 
 
 if __name__ == "__main__":
-    old = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    print(json.dumps(new))
+    old = json.loads                                    (input_stream.readline().decode("utf-8", errors="replace"))
+    new = json.loads                                    (input_stream.readline().decode("utf-8", errors="replace"))
+    if new:
+        print(json.dumps(new))
+
+    # this record is being removed...likely by an undo. since taskwarrior
+    # doesn't know what an empty json record looks like in that it requires
+    # whitespace (like "{ }"), we output it manually. we avoid emitting an
+    # completely empty record, and be sure to include the uuid and description.
+    else:
+        notempty = {'uuid': old['uuid'], 'description': ''}
+        print(json.dumps(notempty))
     main(old, new)
