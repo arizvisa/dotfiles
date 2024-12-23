@@ -22,12 +22,13 @@
 %:- use_module(library(dcg_core)).
 :- use_module(library(dcg_progress)).
 
-%- https://www.swi-prolog.org/pack/list?p=edcg
-:- not(prolog_pack:current_pack(edcg)) -> pack_install(edcg); true.
+%- https://www.swi-prolog.org/pack/list?p=edcg -> https://github.com/kamahen/edcg.git
+%:- not(prolog_pack:current_pack(edcg)) -> pack_install(edcg); true.
+:- not(prolog_pack:current_pack(edcg)) -> pack_install('https://github.com/kamahen/edcg.git', [git(true), version('0.9.1.8')]); true.
 :- use_module(library(edcg)).
 
 %- https://github.com/ptarau/AnswerStreamGenerators/lazy_streams-0.5.0
-:- not(prolog_pack:current_pack(lazy_streams)) -> pack_install(lazy_streams, [url('https://github.com/arizvisa/ptarau-lazy_streams.git'), git(true), version('0.5.0')]); true.
+:- not(prolog_pack:current_pack(lazy_streams)) -> pack_install('https://github.com/arizvisa/lazy_streams.git', [git(true), version('0.5.0')]); true.
 %:- use_module(library(lazy_streams)).
 
 %- https://www.swi-prolog.org/pack/list?p=lsp_server
