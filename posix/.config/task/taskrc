@@ -7,9 +7,15 @@ uda.priority.values=H,,L
 
 # options for builtin reports
 #report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
+#report.next.filter=status:pending -WAITING limit:page
+#report.next.labels=ID,Active,Age,Deps,P,Project,Tag,Recur,S,Due,Until,Description,Urg
+#report.next.sort=urgency-
 report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description.count,urgency
 
 #report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description
+#report.completed.filter            status:completed
+#report.completed.labels            ID,UUID,Created,Completed,Age,Deps,P,Project,Tags,R,Due,Description
+#report.completed.sort              end+
 report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description.count
 
 # detailed report (includes annotations)
@@ -17,8 +23,9 @@ report.details.filter=status:pending -WAITING
 report.details.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
 
 # dates report
-report.dates.filter=status:pending
-report.dates.columns=id,due,scheduled,wait,depends,priority,project,tags,description
+report.dates.filter=status:pending limit:page +DUE
+report.dates.labels=ID,Age,Due,Date,Scheduled,Depends,Priority,Project,Tags,Description
+report.dates.columns=id,entry.age,due.remaining,due,scheduled,depends,priority,project,tags,description.truncated_count
 report.dates.sort=due+,urgency-,project+
 
 #include no-color.theme
