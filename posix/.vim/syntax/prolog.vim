@@ -7,7 +7,7 @@ set cpoptions&vim
 
 """ global settings
 syntax case match
-syntax sync maxlines=256
+syntax sync minlines=1 maxlines=0
 
 """ character classes
 let s:char_type_UC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'
@@ -514,6 +514,9 @@ syn match prologDefineCHRRule '[^[:space:]]\s*\zs<=>\ze\s*'
 syn match prologDefineCHRType '[^[:space:]]\s*\zs--->\ze\s*'
 syntax cluster prologDefineConstraint contains=prologDefineConstraintRule,prologDefineCHRRule,prologDefineCHRType
 highlight link prologDefineConstraint prologSpecial
+highlight link prologDefineConstraintRule prologSpecial
+highlight link prologDefineCHRRule prologSpecial
+highlight link prologDefineCHRType prologSpecial
 
 syntax region prologRuleBodyMultiple keepend
 \   matchgroup=prologDefineRule skipwhite skipempty start='\zs:-\ze'
@@ -525,17 +528,17 @@ syntax region prologRuleBodyNoHead keepend
 \   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
 syntax region prologRuleBodySingle oneline
 \   matchgroup=prologDefineRule skipwhite start='^\zs:-\ze.'
-\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption,prologDefineCHRType
+\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption,@prologDefineConstraint
 \   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax cluster prologRuleBody contains=prologRuleBodySingle,prologRuleBodyMultiple,prologRuleBodyNoHead
 
 " multi-line regions
 syntax region prologConstraintBody keepend
-\   matchgroup=prologDefineConstraint skipwhite skipempty start='-->'
+\   matchgroup=prologDefineConstraint skipwhite skipempty start='-->>\?'
 \   contains=@prologBodyToken,@prologComment
 \   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
-\   matchgroup=prologDefineConstraint skipwhite skipempty start='==>'
+\   matchgroup=prologDefineConstraint skipwhite skipempty start='==>>\?'
 \   contains=@prologBodyToken,@prologComment
 \   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
