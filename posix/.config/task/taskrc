@@ -30,5 +30,7 @@ report.dates.sort=due+,urgency-,project+
 
 #include no-color.theme
 include dark-gray-blue-256.theme
+color.tag.home=on magenta
+color.tag.work=on cyan
 
 ####### site-local configuration
