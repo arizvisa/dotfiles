@@ -17,7 +17,7 @@ EOF
 }
 
 grope() {
-    file -b -h --mime-type "$*"
+	file -b -h --mime-type "$*"
 }
 logerror() {
 	echo "Error: $*" 1>&2
@@ -71,9 +71,9 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -f "$output" ] || [ ! -e "$output" ]; then
-    temporary=$(basename "$output.$$")
+	temporary=$(basename "$output.$$")
 else
-    temporary=$(basename "$output.$$")
+	temporary=$(basename "$output.$$")
 fi
 
 ## concatenating files
@@ -93,13 +93,13 @@ echo "$files" | while read x; do
 	elif [ "$type" = "application/x-bzip2" ]; then
 		bzcat "$x" >> "$temporary"
 	elif [ "$type" = "application/x-xz" ]; then
-        xzcat "$x" >> "$temporary"
+		xzcat "$x" >> "$temporary"
 	elif [ "$type" = "application/x-lzma" ]; then
-        lzcat "$x" >> "$temporary"
+		lzcat "$x" >> "$temporary"
 	elif [ "$type" = "application/x-lz4" ]; then
-        lz4cat "$x" >> "$temporary"
+		lz4cat "$x" >> "$temporary"
 	elif [ "$type" = "application/zstd" ]; then
-        zstdcat "$x" >> "$temporary"
+		zstdcat "$x" >> "$temporary"
 	elif [ "$type" = "text/plain" ]; then
 		cat "$x" >> "$temporary"
 	fi
@@ -110,12 +110,12 @@ if [ "$flag_insert" -eq 1 ]; then
 	logverbose "inserting \"$temporary\" in front of \"$output\""
 	insert "$output" "$temporary"
 else
-    logverbose "appending results to $output"
-    append "$output" "$temporary"
+	logverbose "appending results to $output"
+	append "$output" "$temporary"
 fi
 
 if [ -f "$temporary" ]; then
-    rm -f "$temporary"
+	rm -f "$temporary"
 fi
 
 if [ "$flag_oktodelete" -eq 1 ]; then

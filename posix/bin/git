@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 posix=git
 pf=`cygpath "${ProgramFiles}"`
 IFS= read windows < <( ls -1 "$pf"/Git/Cmd/git.exe 2>/dev/null )

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 url=https://dogbolt.org/api/binaries/
 sleeper=5
 foo=22

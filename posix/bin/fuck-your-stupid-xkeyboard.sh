@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 property="Device Enabled"
 format=8
 enabled=1

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 BS=16
 
 # Mudita's culled password "scheme" is pretty fucking stupid.

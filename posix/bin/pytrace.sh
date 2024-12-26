@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 if [ $# -lt 1 ]; then
     echo "Usage: $0 /path/to/python/binary/ [bpftrace-parameters...]" 1>&2
     exit 22 # EINVAL

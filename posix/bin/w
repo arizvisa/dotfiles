@@ -55,6 +55,9 @@ elif [ ${platform} = 'msys' ]; then
     {
         _return=$( /usr/bin/stat -c %U -- /dev/$1 )
     }
+else
+    echo "unsupported platform: ${platform}" 1>&2
+    exit 1
 fi
 
 ## collect information

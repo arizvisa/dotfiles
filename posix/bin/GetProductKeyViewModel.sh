@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 : """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""" :
 This script will take the GetProductKeyViewModel.json file from an MSDN
 subscription and flatten it into a list containing the product name,
