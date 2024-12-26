@@ -90,14 +90,17 @@ case "$platform" in
     msys|cygwin)
         alias ps='command ps -af'
         alias psall='command ps -Waf'
+        alias psdetails='command ps -Welf'
         ;;
     linux*)
         alias ps='command ps -wwlj'
         alias psall='command ps -ewwlj'
+        alias psdetails='command ps -ewwo pid,user,group,exe,context,args'
         ;;
     freebsd*|darwin*)
         alias ps='command ps -wwl'
         alias psall='command ps -Awwl'
+        alias psdetails='command ps -Awwd -o pid,state,user,group,tt,command'
         ;;
     *)
 
