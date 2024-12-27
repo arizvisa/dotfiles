@@ -494,8 +494,9 @@ highlight link prologOption_prolog_choice_attribute prologKeyword
 syn match   prologQuestion  +?-.*\.+    contains=prologNumber
 
 """ Regions stolen from prolog.vim
-syn region   prologString   contained start=+"+   skip=+\\\\\|\\"+    end=+"+ contains=@Spell
-syn region   prologAtom     contained start=+'+   skip=+\\\\\|\\'+    end=+'+
+syn region   prologString       contained start=+"+   skip=+\\\\\|\\"+  end=+"+ contains=@Spell
+syn region   prologAtom         contained start=+'+   skip=+\\\\\|\\'+  end=+'+
+syn region   prologCharCodes    contained start=+`+   skip=+\\\\\|\\`+  end=+`+ contains=@Spell
 
 syntax match prologAnonymousVariable contained '[^\$]\zs\$\u\w*\ze\_[^\$]'
 syntax match prologAnonymousVariable contained '\<_\w*\>'
@@ -549,8 +550,8 @@ syntax cluster prologBody contains=prologRuleBody,prologConstraintBody,prologCHR
 
 " XXX: highlighting doesn't seem to work inside a cluster, so this is more a reference than anything else.
 syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter
-syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologTopLevel
-syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
+syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologCharCodes,prologTopLevel
+syntax cluster prologHeadParenthesesToken contains=@prologToken,prologStringprologCharCodes,
 
 syntax match prologHead '^\zs\a[[:alnum:]_:]*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
 syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=prologNextHead,@prologBody contained
@@ -583,6 +584,7 @@ highlight link prologCHRSpecialCharacter prologSpecial
 " Strings and Atoms
 syntax region prologString start=+"+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)"+ end=+"+ contains=@Spell
 syntax region prologAtom start=+'+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)'+ end=+'+
+syntax region prologCharCodes start=+`+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)"+ end=+`+ contains=@Spell
 
 " Comments
 syn match   prologLineComment   +%.*+                   contains=@Spell
@@ -598,6 +600,7 @@ highlight link prologCCommentError  prologError
 highlight link prologNumber         Number
 highlight link prologAtom           Constant
 highlight link prologString         String
+highlight link prologCharCodes      String
 highlight link prologOperator       Operator
 highlight link prologComment        Comment
 highlight link prologOption         Tag
