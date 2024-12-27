@@ -552,21 +552,21 @@ syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prolo
 syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologTopLevel
 syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString
 
-syntax match prologHead '^\zs\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
+syntax match prologHead '^\zs\a[[:alnum:]_:]*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
 syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=prologNextHead,@prologBody contained
-syntax match prologHead '^\zs\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)' skipwhite keepend
+syntax match prologHead '^\zs\a[[:alnum:]_:]*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)' skipwhite keepend
 
 " XXX: it might be better to explicitly match the head continuation
 "      characters (',' and '\\') before chaining the the next head.
-syntax match prologHead '^\zs\a\w*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
+syntax match prologHead '^\zs\a[[:alnum:]_:]*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
 highlight link prologNextHead prologHead
 
-syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses contains=prologSpecialCharacter,prologCHRSpecialCharacter
-syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead  contains=prologSpecialCharacter,prologCHRSpecialCharacter
-syntax match prologNextHead '[\\@]\s*\a\w*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter,prologCHRSpecialCharacter
-syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze(' skipwhite keepend nextgroup=prologHeadParentheses
-syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
-syntax match prologNextHead '[,]\zs\s*\a\w*\s*\ze\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter
+syntax match prologNextHead '[\\@]\s*\a[[:alnum:]_:]*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[\\@]\s*\a[[:alnum:]_:]*\ze\s*[,\\]\@=' skipwhite keepend nextgroup=prologNextHead  contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[\\@]\s*\a[[:alnum:]_:]*\ze\s*\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter,prologCHRSpecialCharacter
+syntax match prologNextHead '[,]\zs\s*\a[[:alnum:]_:]*\s*\ze(' skipwhite keepend nextgroup=prologHeadParentheses
+syntax match prologNextHead '[,]\zs\s*\a[[:alnum:]_:]*\s*\ze[,\\]\@=' skipwhite keepend nextgroup=prologNextHead
+syntax match prologNextHead '[,]\zs\s*\a[[:alnum:]_:]*\s*\ze\(:-\|-->\|==>\|<=>\|\.\)\@=' skipwhite keepend nextgroup=@prologBody contains=prologSpecialCharacter
 
 syntax match prologCHRName '^\zs\a\w*\s*@' skipwhite keepend nextgroup=prologCHRHead,prologNextHead contains=prologCHRSpecialCharacter
 highlight link prologCHRName prologQuestion
@@ -581,8 +581,8 @@ syntax match prologCHRSpecialCharacter contained '@'
 highlight link prologCHRSpecialCharacter prologSpecial
 
 " Strings and Atoms
-syntax region prologString start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@Spell
-syntax region prologAtom start=+'+ skip=+\\\\\|\\'+ end=+'+
+syntax region prologString start=+"+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)"+ end=+"+ contains=@Spell
+syntax region prologAtom start=+'+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)'+ end=+'+
 
 " Comments
 syn match   prologLineComment   +%.*+                   contains=@Spell
