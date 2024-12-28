@@ -16,7 +16,14 @@ report.next.columns=id,start.age,entry.age,depends,priority,project,tags,recur,s
 #report.completed.filter            status:completed
 #report.completed.labels            ID,UUID,Created,Completed,Age,Deps,P,Project,Tags,R,Due,Description
 #report.completed.sort              end+
-report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description.count
+
+#report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description.count
+#report.all.columns                 id,status.short,uuid.short,start.active,entry.age,end.age,depends.indicator,priority,project.parent,tags.count,recur.indicator,wait.remaining,scheduled.remaining,due,until.remaining,description
+#report.all.context                 1
+#report.all.description             All tasks
+#report.all.labels                  ID,St,UUID,A,Age,Done,D,P,Project,Tags,R,Wait,Sch,Due,Until,Description
+#report.all.sort                    entry-
+report.all.sort=entry+
 
 # detailed report (includes annotations)
 report.details.filter=status:pending -WAITING
