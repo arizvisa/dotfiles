@@ -17,6 +17,8 @@ COMMANDS = {
     'annotate',
     'next',
     'active',
+    'denotate',
+    'recurring',
 }
 
 # set up the required logging. we make a copy of the "logging" module so that we
