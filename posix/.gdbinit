@@ -1148,6 +1148,8 @@ set print object on
 set print type hex on
 set print vtbl on
 
+set max-completions 32
+
 ## tui
 set tui border-kind ascii
 set tui border-mode half
