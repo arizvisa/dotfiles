@@ -268,6 +268,7 @@ BeginPackage["System`"];
    } // Apply[FromBaseForm[StringJoin[#1], #2] &]
  ];
 
+ GraphOfTree::usage = "GraphOfTree[tree, ___graphoptions] will convert the specified tree into a graph."
  GraphOfTree[tree_, options___] := Module[
   {count = 0},
   traverse[head_[children___]] := With[
@@ -287,6 +288,7 @@ BeginPackage["System`"];
   ],
   xy
  ];
+ VertexShapeCustom::usage = "VertexShapeCustom[width_Integer][___] can be used to customize the shape of a vertex in a graph."
 
  CompilableQ::usage = "Compilable[func] returns True if func can be compiled."
  CompilableQ[func_] := MemberQ[Compile`CompilerFunctions[], func];
@@ -466,6 +468,11 @@ Begin["Global`"]
   SetOptions[$FrontEnd, RenderingOptions->{"HardwareAntialiasingQuality" -> 0.}];
   SetOptions[$FrontEnd, StyleNameDialogSettings->{"Style" -> "CodeText"}];
  ];
+
+ (*
+  i had a keymapping function defined and used to map some stuff here that
+  was unfortunately lost due to a cascading failure from a power outage.
+ *)
 
  (** Packages that are useful to have **)
  Quiet[Needs["PacletManager`"]]
