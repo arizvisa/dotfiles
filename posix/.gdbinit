@@ -476,6 +476,16 @@ class process_mappings(workspace):
         return filter
 
     @classmethod
+    def filter_by_name(cls, glob, fnmatch=__import__('fnmatch')):
+        def filter(iterable):
+            transformed = ((path, cls.os.path.basename(path)) for path in iterable)
+            filtered = (path for path, name in transformed if fnmatch.fnmatch(name, glob))
+            # FIXME: should really be using fnmatch.translate and then compiling
+            #        to a regex to avoid fnmatch doing it for every iteration.
+            return filtered
+        return filter
+
+    @classmethod
     def mappings(cls):
         mappings = gdb.execute('info proc mappings', False, True)
         rows = mappings.strip().split('\n')
@@ -502,7 +512,7 @@ class process_mappings(workspace):
         relative = '+'.join("{:#0{:d}x}".format(int(fields[field], 16), columns[field]) for field in ['Offset', 'Size'])
         location = "{:s} {:<{:d}s}".format('..'.join(range), "({:s})".format(relative), 2 + 1 + sum(columns[field] for field in ['Offset', 'Size']))
         permissions = "{:{:d}s}".format(fields['Perms'], columns['Perms'])
-        filename = "{:{:d}s}".format(fields.get('objfile', ''), columns['objfile'])
+        filename = "{:{:d}s}".format(fields.get('objfile', ''), columns.get('objfile', 0))
         #return "{:s} {:>{:d}s} {:{:d}s}".format(location, fields['Perms'], columns['Perms'], fields.get('objfile', ''), columns['objfile'])
         return ' '.join([location, "<{:s}>".format(permissions), filename])
 
@@ -516,17 +526,61 @@ class process_mappings(workspace):
             return self.COMPLETE
 
         def invoke(self, string, from_tty, count=None):
-            res, ordered, filteritems = {}, self.workspace.mappings(), self.workspace.filter_by_glob(string)
-            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
-            filtered = {objfile for objfile in filteritems(res)}
-            if len(string):
-                #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
-                indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), filteritems(res))))
-            else:
-                indices = range(len(ordered))
+            args = gdb.string_to_argv(string)
+            if len(args) not in {0, 2}:
+                raise gdb.GdbError("usage: select_process_mappings [a|m|M] [address|glob]")
+
+            elif not(args):
+                return self.invoke_raw(from_tty, count=count)
+
+            subcommand, remaining = args
+            if subcommand in 'a':
+                parsed = gdb.parse_and_eval(remaining)
+                address = int(parsed)
+                return self.invoke_address(address, from_tty, count=count)
+
+            elif subcommand in 'm':
+                return self.invoke_path(self.workspace.filter_by_name(remaining), from_tty, count=count)
+
+            elif subcommand in 'M':
+                return self.invoke_path(self.workspace.filter_by_glob(remaining), from_tty, count=count)
+            raise NotImplementedError(subcommand, remaining)
+
+        def invoke_address(self, integer, from_tty, count=None):
+            res, ordered = {}, self.workspace.mappings()
+            [res.setdefault(item.get('objfile', ''), []).append(index) for index, item in enumerate(ordered)]
+            iterable = ((item.get('objfile', ''), parsenum(item['Start Addr']), parsenum(item['End Addr'])) for item in ordered)
+            selected = {objfile for objfile, start, end in iterable if start <= integer < end}
+            #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
+            indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), selected)))
             results = [ordered[index] for index in indices]
             columns = self.workspace.columns(results)
             [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
+            if not results:
+                gdb.write("No mappings were matched for the address {:#x}.\n".format(integer))
+            return
+
+        def invoke_path(self, filteritems, from_tty, count=None):
+            res, ordered = {}, self.workspace.mappings()
+            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+            #filtered = {objfile for objfile in filteritems(res)}
+            #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
+            indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), filteritems(res))))
+            results = [ordered[index] for index in indices]
+            columns = self.workspace.columns(results)
+            [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
+            if not(results):
+                gdb.write('No mappings were matched for the specified glob.\n')
+            return
+
+        def invoke_raw(self, from_tty, count=None):
+            res, ordered = {}, self.workspace.mappings()
+            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+            results = [ordered[index] for index in range(len(ordered))]
+            columns = self.workspace.columns(results)
+            [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
+            if not(results):
+                gdb.write('No available mappings were found in the process.\n')
             return
 
     import os.path
@@ -916,7 +970,7 @@ end
 
 define lm
     if $argc > 0
-        select_process_mappings $arg0
+        select_process_mappings $arg0 $arg1
     else
         select_process_mappings
     end
