@@ -1160,6 +1160,7 @@ tui new-layout default {-horizontal src 1 asm 1} 2 status 0 cmd 1
 tui layout default
 tui window height src 16
 tui focus cmd
+tui disable
 
 ## utility scripts
 #guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
