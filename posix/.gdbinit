@@ -522,16 +522,18 @@ class process_mappings(workspace):
         COMMAND, COMPLETE = gdb.COMMAND_STATUS, gdb.COMPLETE_FILENAME
 
         def complete(self, arguments_string, last):
-            # FIXME: we should probably enumerate the mappings so we can complete things.
+            # FIXME: we should probably enumerate the mappings so we can
+            #        complete things. we should also complete the known
+            #        parameters since they're available for this command.
             return self.COMPLETE
 
         def invoke(self, string, from_tty, count=None):
             args = gdb.string_to_argv(string)
-            if len(args) not in {0, 2}:
-                raise gdb.GdbError("usage: select_process_mappings [a|m|M] [address|glob]")
-
-            elif not(args):
+            if not(args):
                 return self.invoke_raw(from_tty, count=count)
+
+            elif not(len(args) in {2} and args[0] in 'amM'):
+                raise gdb.GdbError("usage: select_process_mappings [a|m|M] [address|glob]")
 
             subcommand, remaining = args
             if subcommand in 'a':
@@ -557,7 +559,8 @@ class process_mappings(workspace):
             columns = self.workspace.columns(results)
             [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
             if not results:
-                gdb.write("No mappings were matched for the address {:#x}.\n".format(integer))
+                size = int(gdb.parse_and_eval("sizeof({:s})".format('void*')))
+                gdb.write("No mappings were found at the specified address {:#0{:d}x}.\n".format(integer, 2 + 2 * size))
             return
 
         def invoke_path(self, filteritems, from_tty, count=None):
@@ -969,10 +972,25 @@ define ln
 end
 
 define lm
-    if $argc > 0
-        select_process_mappings $arg0 $arg1
-    else
+    # gdb's expression evaluation appears pretty limited as i couldn't for the
+    # life of me paste string args together with an `eval` loop as described in
+    # the documentation. there's also no elseif. so, we use the following nested
+    # conditionals so that the wrong number of parameters can be passed to the
+    # `select_process_mappings` implementation which will display its help.
+    if $argc == 0
         select_process_mappings
+    else
+        if $argc == 1
+            select_process_mappings $arg0
+        else
+            if $argc == 2
+                select_process_mappings $arg0 $arg1
+            else
+                if $argc == 3
+                    select_process_mappings $arg0 $arg1 $arg2
+                end
+            end
+        end
     end
     #progspace = gdb.current_progspace()
     #objfiles = progspace.objfiles()
