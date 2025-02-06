@@ -234,6 +234,14 @@ if has("eval")
     noremap <silent> <C-w>b <Cmd>wincmd W<CR>
     noremap <silent> <C-w><C-b> <Cmd>wincmd W<CR>
 
+    " Display a mode-message when a new undo branch gets created. Unfortunately,
+    " this doesn't work when using the gui because the mode bar doesn't appear
+    " to get rendered before our call to :sleep.
+    if !has('gui')
+        inoremap <silent> <C-g>u <C-g>u<Cmd>echohl ModeMsg<Bar>echomsg"-- NEW UNDO BRANCH --"<Bar>echohl None<Bar>sleep 500m<CR>
+        inoremap <silent> <C-g><C-u> <C-g>u<Cmd>echohl ModeMsg<Bar>echomsg"-- NEW UNDO BRANCH --"<Bar>echohl None<Bar>sleep 500m<CR>
+    endif
+
     "" The following mappings are just for copying the current location and some
     "" lines into the default register, current selection, or clipboard.
 
