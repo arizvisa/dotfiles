@@ -21,12 +21,12 @@ class unionedstream(object):
     def __init__(self, infile):
         self.file, self.offset = infile, infile.tell() if infile.seekable() else 0
         self.__encoding__, consumed = self.__detect__(infile)
-        self.__consumed__, self.__length__ = consumed, sum(length for length, _ in consumed)
+        self.__consumed__, self.__length__ = consumed, sum(len(data) for position, data in consumed)
 
     @property
     def consumed(self):
         if len(self.__consumed__) > 0:
-            length, item = self.__consumed__[0]
+            position, item = self.__consumed__[0]
             cls = type(item)
         else:
             cls = bytes
@@ -47,32 +47,33 @@ class unionedstream(object):
                 position += len(data)
             detector.close()
         except StopIteration:
-            return sys.getdefaultencoding(), bytes()
+            return sys.getdefaultencoding(), consumed
         return detector.result['encoding'], consumed
 
     def __read(self, size):
         if self.offset < self.__length__:
             data = self.consumed[self.offset:]
             result = data + self.file.read(max(0, size - len(data)))
-            self.offset += len(result)
-            return result
+            self.offset += len(result[:size])
+            return result[:size]
         return self.file.read(size)
 
     def __next__(self):
         if self.offset < self.__length__:
             index = next(index for index, (position, item) in enumerate(self.__consumed__) if position >= self.offset)
             position, data = self.__consumed__[index]
-            return data[offset - position:]
+            result = data[self.offset - position:]
+            self.offset += len(result)
+            return result
         return next(self.file)
 
     def read(self, *size):
         if size:
-            result = self.__read(*size)
-        else:
-            length, item = self.__consumed__[0] if len(self.__consumed__) > 0 else 0, b''
-            result = type(item).join(bytes for _, bytes in self.__consumed__)[self.offset:] + self.file.read()
-        self.offset = self.file.tell() if self.file.seekable() else self.offset + len(result)
-        return result
+            return self.__read(*size)
+        iterable = (bytes for _, bytes in self.__consumed__)
+        data = bytes().join(iterable)[self.offset:] + self.file.read()
+        self.offset += len(data)
+        return data
 
     def seek(self, *args):
         result = self.file.seek(*args)
