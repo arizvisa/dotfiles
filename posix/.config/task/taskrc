@@ -12,7 +12,7 @@ uda.priority.values=H,,L
 #report.next.sort=urgency-
 report.next.filter=status:pending -WAITING limit:page
 report.next.labels=ID,Active,Age,Deps,P,Project,Tag,Sch,Due,Until,Description,Urg
-report.next.columns=id,start.age,entry.age,depends,priority,project,tags,scheduled.countdown,due.remaining,until.remaining,description.count,urgency
+report.next.columns=id,start.age,entry.age,depends,priority,project,tags,scheduled.relative,due.remaining,until.remaining,description.count,urgency
 report.next.sort=priority-,depends+,due+,entry-
 
 #report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description
