@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+"""
+This hook is responsible for adding support for a new virtual tag, "BLOCKS",
+which takes any number of tasks (delimited by commas), and mark them as being
+dependent on the task being added or modified. The purpose of this is to enable
+one to block another task when adding or modifying a new task.
+
+Additional tasks can be specified by their "ID" number or their unique "UUID"
+number. After completing the addition/modification of the current task, the list
+of tasks that were passed via the "BLOCKS" tag will be have their dependencies
+modified by adding the "UUID" of the newly created task to each of them as as
+the "depends" tag.
+
+An example of using this can be the following.
+
+    $ task add ... 'new sample task' blocks:3,4,5
+    Created task 42.
+
+This will result in modifying tasks 3, 4, and 5 similar to the following
+commands:
+
+    task 3 modify depends:42
+    task 4 modify depends:42
+    task 5 modify depends:42
+
+"""
 import sys, json, subprocess, logging, itertools
 
 # FIXME: instead of raising an exception, we need to output feedback so that the
