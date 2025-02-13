@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+import sys, json, subprocess, logging, itertools, datetime
+
+# set up the required logging. we make a copy of the "logging" module so that we
+# can overwrite the global with our own logger and avoid breaking this function.
+def setup_logging(name, stream, module=logging):
+    '''Configure a new logger with our custom formatting and return it.'''
+    class LeveledStreamHandler(module.StreamHandler):
+        """
+        This class is only being created so that we can modify the logging
+        record being instantiated to add some custom attributes for formatting.
+        """
+        def emit(self, record):
+            record.levelangled = "<{:s}>".format(record.levelname)
+            return super(LeveledStreamHandler, self).emit(record)
+
+    # initialize a logger using the global logging module.
+    logger = module.getLogger(name)
+    handler = LeveledStreamHandler(stream)
+
+    # instantiate a formatter containing our desired formatting.
+    formatter = module.Formatter(
+        "[%(asctime)s] %(levelangled)-{:d}s %(filename)s:%(lineno)d | %(message)s".format(
+            2 + max(map(len, getattr(module, '_nameToLevel', ['X' * 8])))
+        ),
+        datefmt='%Y-%m-%dT%H:%M:%S'
+    )
+
+    # update the logger with our custom handler and formatting.
+    handler.setFormatter(formatter), logger.addHandler(handler)
+    return logger
+
+# FIXME: we should be reading the rc.dataformat configuration and using it to
+#        actually parse these dates.
+def parse_ISO8601(timestamp):
+    timeformat = '%Y%m%dT%H%M%SZ'
+    try:
+        res = datetime.datetime.strptime(timestamp, timeformat)
+    except ValueError:
+        return
+    return res
+
+def earlist_datetime():
+    return datetime.datetime(1, 1, 1, 0, 0)
+
+if __name__ == '__main__':
+    import sys, os
+
+    # now we can actually setup the logging for the script.
+    logging = setup_logging(__name__, sys.stderr)
+    logging.setLevel('WARNING')
+
+    # input stream (stdin) to consume stuff from host program.
+    try:
+        input_stream = sys.stdin.buffer
+    except AttributeError:
+        input_stream = sys.stdin
+
+    # collect the arguments into a dictionary.
+    args = sys.argv[:]
+    ARG0 = args.pop(0) if args else __file__
+    iterable = (arg.split(':', 1) for arg in args)
+    args = {key : value for key, value in iterable}
+
+    msg_format = 'started {:s} with {:d} parameter{:s} ({:d}).'
+    logging.debug(msg_format.format(
+        ARG0,
+        len(sys.argv), '' if len(sys.argv) == 1 else 's',
+        len(args)
+    ))
+
+    # extract the event type from our first argument and verify it.
+    basename = os.path.basename(ARG0)
+    event, _ = basename.split('.', 1)
+
+    if event not in {'on-add'}:
+        logging.fatal("Unimplemented hook type: {:s}".format(event))
+        raise UnsupportedHookType(event)
+
+    # decode our new record from input.
+    original = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
+    modified = {field : value for field, value in original.items()}
+
+    # if it's missing the "scheduled" key, then add it.
+    start = parse_ISO8601(original.get('entry', earlist_datetime()))
+    if 'wait' in original and 'scheduled' not in original:
+        wait = parse_ISO8601(original.get('wait', earlist_datetime()))
+        field = 'wait' if wait > start else 'entry'
+        msg_format = 'Setting the \"{:s}\" field in the new task to the timestamp for \"{:s}\" ({!s}).'
+        logging.warning(msg_format.format('scheduled', field, original[field]))
+        modified['scheduled'] = original[field]
+
+    # if it's missing the "scheduled" key, then add it.
+    elif 'scheduled' not in original:
+        msg_format = 'Setting the \"{:s}\" field in the new task to the timestamp for \"{:s}\" ({!s}).'
+        logging.warning(msg_format.format('scheduled', 'entry', original['entry']))
+        modified['scheduled'] = original['entry']
+
+    # now we can print everything and then exit.
+    print(json.dumps(modified)) if modified else '{ }'
+    sys.exit(0)
