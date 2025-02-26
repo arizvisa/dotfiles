@@ -222,6 +222,7 @@ fi
 rp=`cygpath -u "$filename"`
 rd=`dirname "$rp"`
 wd=`cygpath -u "."`
+td="${rd##$wd/}"
 if [ "$rd" != "$wd" ]; then
     printf "%s: Creating target directory \"%s\".\n" "$0" "$rd" 1>&2
     mkdir -p "$rd"
@@ -234,6 +235,9 @@ download "$url" "$filename"
 ec=$?
 if [ $ec -gt 0 ]; then
     printf "%s: Aborting download from url \"%s\" due to error %d.\n" "$0" "$url" "$ec" 1>&2
+    [ -e "$rp" ] && [ ! -s "$rp" ] && printf "%s: Found zero-sized file from partial download at \"%s\".\n" "$0" "$filename" 1>&2 && rm -v "$rp"
+    [ "$rd" != "$wd" ] && printf "%s: Removing created target directory \"%s\".\n" "$0" "$rd" 1>&2 && rmdir -p "$td" 2>/dev/null
+    [ "$rd" != "$wd" ] && [ -d "$rd" ] && printf "%s: Unable to remove target directory \"%s\".\n" "$0" "$rd" 1>&2
     exit $ec
 else
     printf "%s: Completed download from url \"%s\".\n" "$0" "$url" 1>&2
