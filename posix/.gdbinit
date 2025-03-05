@@ -485,6 +485,7 @@ class process_mappings(workspace):
             return filtered
         return filter
 
+    expected_field_names = ['Start Addr', 'End Addr', 'Size', 'Offset', 'Perms', 'File']
     @classmethod
     def mappings(cls):
         mappings = gdb.execute('info proc mappings', False, True)
@@ -494,6 +495,8 @@ class process_mappings(workspace):
         headers = rows[:index][-1].rsplit(None, 4)
         iterable = itertools.chain(filter(None, headers[:1][0].rsplit('  ')), headers[1:])
         fields = [header.strip() for header in iterable]
+        if any(name not in fields for name in cls.expected_field_names):
+            gdb.write("The expected field names ({!s}) were changed by gdb to {!s}".format(cls.expected_field_names, fields))
         return [{field : value for field, value in zip(fields, row.strip().split())} for row in rows[index:]]
 
     @classmethod
@@ -512,7 +515,7 @@ class process_mappings(workspace):
         relative = '+'.join("{:#0{:d}x}".format(int(fields[field], 16), columns[field]) for field in ['Offset', 'Size'])
         location = "{:s} {:<{:d}s}".format('..'.join(range), "({:s})".format(relative), 2 + 1 + sum(columns[field] for field in ['Offset', 'Size']))
         permissions = "{:{:d}s}".format(fields['Perms'], columns['Perms'])
-        filename = "{:{:d}s}".format(fields.get('objfile', ''), columns.get('objfile', 0))
+        filename = "{:{:d}s}".format(fields.get(cls.expected_field_names[-1], ''), columns.get(cls.expected_field_names[-1], 0))
         #return "{:s} {:>{:d}s} {:{:d}s}".format(location, fields['Perms'], columns['Perms'], fields.get('objfile', ''), columns['objfile'])
         return ' '.join([location, "<{:s}>".format(permissions), filename])
 
@@ -549,9 +552,9 @@ class process_mappings(workspace):
             raise NotImplementedError(subcommand, remaining)
 
         def invoke_address(self, integer, from_tty, count=None):
-            res, ordered = {}, self.workspace.mappings()
-            [res.setdefault(item.get('objfile', ''), []).append(index) for index, item in enumerate(ordered)]
-            iterable = ((item.get('objfile', ''), parsenum(item['Start Addr']), parsenum(item['End Addr'])) for item in ordered)
+            res, ordered, field = {}, self.workspace.mappings(), self.workspace.expected_field_names[-1]
+            [res.setdefault(item.get(field, ''), []).append(index) for index, item in enumerate(ordered)]
+            iterable = ((item.get(field, ''), parsenum(item['Start Addr']), parsenum(item['End Addr'])) for item in ordered)
             selected = {objfile for objfile, start, end in iterable if start <= integer < end}
             #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
             indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), selected)))
@@ -564,8 +567,8 @@ class process_mappings(workspace):
             return
 
         def invoke_path(self, filteritems, from_tty, count=None):
-            res, ordered = {}, self.workspace.mappings()
-            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+            res, ordered, field = {}, self.workspace.mappings(), self.workspace.expected_field_names[-1]
+            [res.setdefault(item[field], []).append(index) for index, item in enumerate(ordered) if field in item]
             #filtered = {objfile for objfile in filteritems(res)}
             #indices = itertools.chain(*(res[objfile] for objfile in filteritems(res)))
             indices = sorted(itertools.chain(*map(functools.partial(operator.getitem, res), filteritems(res))))
@@ -577,8 +580,8 @@ class process_mappings(workspace):
             return
 
         def invoke_raw(self, from_tty, count=None):
-            res, ordered = {}, self.workspace.mappings()
-            [res.setdefault(item['objfile'], []).append(index) for index, item in enumerate(ordered) if 'objfile' in item]
+            res, ordered, field = {}, self.workspace.mappings(), self.workspace.expected_field_names[-1]
+            [res.setdefault(item[field], []).append(index) for index, item in enumerate(ordered) if field in item]
             results = [ordered[index] for index in range(len(ordered))]
             columns = self.workspace.columns(results)
             [ gdb.write("{:s}\n".format(self.workspace.format(item, columns))) for item in results ]
@@ -591,8 +594,9 @@ class process_mappings(workspace):
     @functions.add
     class baseaddress(function):
         def by_path(self, path):
+            field = self.workspace.expected_field_names[-1]
             objfiles, mappings, fp = {}, self.workspace.mappings(), self.workspace.os.path.normpath(path[1:] if path.startswith(2 * self.workspace.os.path.sep) else path)
-            [objfiles.setdefault(item.get('objfile', ''), []).append(int(item['Start Addr'], 16)) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
+            [objfiles.setdefault(item.get(field, ''), []).append(int(item['Start Addr'], 16)) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
             candidates = {ea for ea in objfiles[fp]}
             if len(candidates) > 1:
                 gdb.write("WARNING: More than one base address was found for path: {:s}\n".format(fp))
@@ -601,10 +605,11 @@ class process_mappings(workspace):
             return next(iter(candidates)) if candidates else -1
 
         def by_module(self, module):
+            field = self.workspace.expected_field_names[-1]
             objfiles, mappings, path = {}, self.workspace.mappings(), self.workspace.os.path
-            [objfiles.setdefault(item.get('objfile', ''), []).append(item) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
+            [objfiles.setdefault(item.get(field, ''), []).append(item) for index, item in enumerate(mappings) if int(item['Offset'], 16) == 0]
             iterable = (name for name in objfiles if path.split(name)[-1] == module)
-            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
+            candidates = {(item.get(field, ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
             if not candidates:
                 # FIXME: need to return a failure or emptiness of some sort
                 return gdb.Value(-1)
@@ -616,16 +621,17 @@ class process_mappings(workspace):
             return ea
 
         def by_subpath(self, subpath):
+            field = self.workspace.expected_field_names[-1]
             mappings, path = self.workspace.mappings(), self.workspace.os.path
             objfiles, components = {}, path.normpath(subpath).split(path.sep)
             for index, item in enumerate(mappings):
                 if int(item['Offset'], 16) != 0:
                     continue
-                split = item.get('objfile', '').split(path.sep)
+                split = item.get(field, '').split(path.sep)
                 sliced = split[-len(components):] if components else split
                 objfiles.setdefault(path.join(*sliced), []).append(item)
             iterable = (name for name in objfiles if name == subpath)
-            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
+            candidates = {(item.get(field, ''), int(item['Start Addr'], 16)) for item in itertools.chain(*(objfiles[name] for name in iterable))}
             if not candidates:
                 # FIXME: need to return a failure or emptiness of some sort
                 return gdb.Value(-1)
@@ -649,14 +655,14 @@ class process_mappings(workspace):
             return self.by_address(int(address))
 
         def by_address(self, ea):
-            mappings, path = self.workspace.mappings(), self.workspace.os.path
+            mappings, path, field = self.workspace.mappings(), self.workspace.os.path, self.workspace.expected_field_names[-1]
 
             # FIXME: this is pretty inefficient, but we can't improve it unless we actively
             #        track when addresses are mapped/unmapped inside the address space.
             results, objfiles = {}, {}
             for index, item in enumerate(mappings):
                 left, right = (int(item[field], 16) for field in ['Start Addr', 'End Addr'])
-                name = item.get('objfile', '')
+                name = item.get(field, '')
                 if left <= ea < right:
                     results.setdefault(name, set()).add((left, right))
                 if int(item['Offset'], 16) != 0:
@@ -664,7 +670,7 @@ class process_mappings(workspace):
                 objfiles.setdefault(name, []).append(item)
 
             iterable = itertools.chain(*(objfiles[name] for name in results))
-            candidates = {(item.get('objfile', ''), int(item['Start Addr'], 16)) for item in iterable}
+            candidates = {(item.get(field, ''), int(item['Start Addr'], 16)) for item in iterable}
             if not candidates:
                 # FIXME: need to return a failure or emptiness of some sort
                 return gdb.Value(-1)
