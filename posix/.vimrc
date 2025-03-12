@@ -158,7 +158,7 @@ if has("eval")
     let g:netrw_banner = 0
     let g:netrw_keepj = 'keepj'
     let g:netrw_liststyle = 3
-    let g:netrw_browse_split = 3
+    let g:netrw_browse_split = 4
     let g:netrw_dirhistmax = 4
 
     let g:netrw_browsex_viewer = '-'
