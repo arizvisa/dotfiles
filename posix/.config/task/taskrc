@@ -13,7 +13,9 @@ uda.priority.values=H,,L
 report.next.filter=status:pending -WAITING limit:page
 report.next.labels=ID,Active,Age,Deps,P,Project,Tag,Sch,Due,Until,Description,Urg
 report.next.columns=id,start.age,entry.age,depends,priority,project,tags,scheduled.relative,due.remaining,until.remaining,description.count,urgency
-report.next.sort=priority-,depends+,due+,entry-
+#report.next.sort=priority-,depends+,due+,entry-
+#report.next.sort=depends+,due+,tags,entry-,priority-
+report.next.sort=urgency-,depends+,due+,entry-
 
 #report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description
 #report.completed.filter            status:completed
@@ -40,7 +42,8 @@ report.dates.sort=due+,urgency-,project+
 
 #include no-color.theme
 include dark-gray-blue-256.theme
-color.tag.home=on magenta
+color.blocking=bold gray6 on gray18
+color.blocked=gray18 on gray6
 color.tag.work=on cyan
 
 ####### site-local configuration
