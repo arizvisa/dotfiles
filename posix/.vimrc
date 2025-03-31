@@ -168,8 +168,8 @@ if has("eval")
     let g:netrw_winsize = 25
 
     """ netrw-noload
-    "let g:loaded_netrw = 1
-    "let g:loaded_netrwPlugin = 1
+    let g:loaded_netrw = 1
+    let g:loaded_netrwPlugin = 1
 
     let g:netrw_compress = 'xz'
     let g:netrw_compress = 'zstd'
@@ -303,7 +303,8 @@ if has("eval")
 
     "" Miscellaneous utilities
     nnoremap gs <Cmd>echomsg SyntaxIds('.')<CR>
-    noremap <silent> <F6> <Cmd>Lexplore<CR>
+    "noremap <silent> <F6> <Cmd>Lexplore<CR>
+    noremap <silent> <F6> <Cmd>NERDTreeToggle<CR>
 
     " Quickfix-related mappings
     if has('quickfix')
@@ -729,6 +730,12 @@ if has("eval")
     Plug 'https://github.com/mg979/vim-visual-multi'
     Plug 'https://github.com/tpope/vim-sleuth'
     Plug 'https://github.com/tpope/vim-surround'
+
+    " XXX: tried really fucking hard to use netrw, but it fails at creating
+    "      files in the current selected directory (%) and then the difference
+    "      between :Lexplore and :Vexplore doesn't always use the previous
+    "      window to edit a file. pretty fucking stupid. ..
+    Plug 'https://github.com/preservim/nerdtree'
 
     " additional text objects
     Plug 'https://github.com/wellle/targets.vim'
