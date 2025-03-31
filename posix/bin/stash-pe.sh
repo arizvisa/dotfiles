@@ -40,10 +40,10 @@ realize_path()
 # verify that all of our requirements actually exist.
 if [ ! -e "$SYRINGE/bin/pe.py" ] || [ ! -e "$SYRINGE/bin/peversionpath.py" ]; then
     fatalf 'Unable to locate required tools (pe.py, peversionpath.py) for parsing the portable executable format : %s' "$SYRINGE"
-    exit 1
+    exit 65 # ENOPKG
 elif ! type -P realpath >/dev/null; then
     fatalf 'Unable to find required tool (%s) within the current path.' 'realpath'
-    exit 1
+    exit 65 # ENOPKG
 fi
 
 # set some defaults for the globals.
@@ -76,7 +76,7 @@ shift $(( $OPTIND - 1 ))
 if [ -z "$HELP" ] && [ $# -lt 2 ]; then
     fatalf '%s: not enough parameters -- got %d, but %d required' "$0" "$#" 2
     HELP=2
-    ec=1
+    ec=22   # EINVAL
 fi
 
 # halp.
@@ -92,10 +92,10 @@ shift 2
 
 if [ ! -d "$outdir" ] && [ "$DRYRUN" -ne 1 ]; then
     fatalf 'Specified path '\''%s'\'' not found or is not a directory.' "$outdir"
-    exit 1
+    exit 20 # ENOTDIR
 elif [ ! -r "$inpath" ]; then
     fatalf 'Specified path '\''%s'\'' not found or is not readable.' "$inpath"
-    exit 1
+    exit 2  # ENOENT
 fi
 
 ## figure out path to store pe into
@@ -129,7 +129,7 @@ fi
 if [ "$?" -gt 0 ] || [ "`printf '%s' "$outpath" | wc -l`" -gt 0 ]; then
     fatalf 'Unable to format the path for "%s" using the parameters "%s".' "$inpath" "$*"
     [ -z "$outpath" ] || fatalf 'Output from the parameters "%s" was: %s' "$*" "$outpath"
-    exit 1
+    exit 22 # EINVAL
 
 # if we don't have an output path, then figure one out.
 elif [ -z "$outpath" ]; then
@@ -175,24 +175,38 @@ else
     logf 'Output path determined from parameters was "%s".' "$outpath"
 fi
 
-# if we weren't supposed to build anything, then output our result and exit.
-if [ "$DRYRUN" -gt 0 ]; then
-    realize_path "$outdir/$outpath"
-    exit 0
-fi
-
-# next step is to check to see if the file already exists and bail if it does.
+# now we need to check if the destination path already exists.
 outsubdir=`dirname -- "$outpath"`
 outfile=`basename -- "$outpath"`
 
+# if we weren't supposed to build anything, then output our result and exit.
+if [ "$DRYRUN" -gt 0 ]; then
+    rpath=`realize_path "$outdir/$outpath"`
+    rdir=`dirname -- "$rpath"`
+
+    rc=0
+    if [ -e "$rpath" ]; then
+        fatalf 'Output path "%s" and its file "%s" already exists.' "$rdir" "$outfile"
+        rc=17   # EEXIST
+
+    elif [ -d "$rdir" ]; then
+        fatalf 'Output path "%s" already exists, but the filename (%s) does not.' "$rdir" "$outfile"
+        rc=21   # EISDIR
+    fi
+
+    printf '%s\n' "$rpath"
+    exit "$rc"
+fi
+
+# next step is to check to see if the file or directory already exists and bail if it does.
 if [ -d "$outdir/$outsubdir" ] ; then
     if [ ! -f "$outdir/$outsubdir/$outfile" ]; then
         fatalf 'Output path "%s" already exists, but the filename (%s) does not.' "$outdir/$outsubdir" "$outfile"
-        exit 1
+        exit 21 # EISDIR
     fi
-    logf 'Output path "%s" and its file "%s" already exists.' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile"
+    fatalf 'Output path "%s" and its file "%s" already exists.' "$outdir/$outsubdir" "$outdir/$outsubdir/$outfile"
     printf '%s\n' "$outdir/$outsubdir/$outfile"
-    exit 0
+    exit 17 # EEXIST
 fi
 
 # figure out the machine type so that we can choose the correct disassembler to build with.
@@ -200,7 +214,7 @@ logf 'Attempting to determine the machine type for "%s"' "$inpath"
 machine=`"$PYTHON" "$SYRINGE/bin/pe.py" -p --path 'FileHeader:Machine' -- "$inpath" 2>/dev/null`
 if [ "$?" -gt 0 ]; then
     fatalf 'Error trying to parse PE file : %s' "$inpath"
-    exit 1
+    exit 8  # ENOEXEC
 fi
 logf 'The PE machine type was determined as #%s.' "$machine"
 
@@ -224,7 +238,7 @@ case "$machine" in
 
     *)
         fatalf 'Unsupported machine type (%s) when reading executable file : %s' "$machine" "$inpath"
-        exit 1
+        exit 95 # ENOTSUP
         ;;
 esac
 
@@ -258,7 +272,7 @@ if [ $? -gt 0 ]; then
 
     logf 'Cleaning path "%s" due to build failure.' "$outdir/$outsubdir"
     cd "$outdir" && rmdir -p -- "$outsubdir" 1>&2
-    exit 1
+    exit 104    # ECONNRESET (heh)
 fi
 
 logf 'Done!'
