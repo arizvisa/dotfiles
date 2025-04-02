@@ -127,7 +127,18 @@ unset which_pager which_pager_args
 # nl(1) is stupid by default, due to not using a proper field separator.
 nl()
 {
-    "`type -P nl`" -w32 -nrn -v0 -ba -s $'\t' "$@" | sed -e $'s/^ *//g' ;
+    local nl="`type -P nl`"
+    #nl_()
+    #{
+    #    "$nl" -w32 -nrn -v0 -ba -s $'\t' "$@" | sed -e $'s/^ *//g'
+    #}
+    #nl_ "$@"
+
+    # we do this printf(1) craziness so that suspending the
+    # process will display the commandline like an alias.
+    printf -v quoted ' %q' "$@"
+    printf -v nl_ "%q -v 0 -b a -n rn -s '\t' %s | sed -e 's/^ *//g'" "$nl" "$quoted"
+    eval "$nl_"
 }
 
 # just some shortcuts for viewing the head or tail of a file.
