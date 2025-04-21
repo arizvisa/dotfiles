@@ -421,6 +421,10 @@ get_find_expressions_for_patterns()
     for directory in "${exclude[@]}"; do
         relative=`relative_to "${directory}"`
         case "${relative}" in
+            ./*)
+                exclude_parameters+=( '-o' -path "${relative##./}" )
+                exclude_parameters+=( '-o' -path "${relative##./}/*" )
+            ;;
             */\*)
                 exclude_parameters+=( '-o' -path "${relative}" )
             ;;
