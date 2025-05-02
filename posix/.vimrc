@@ -34,11 +34,11 @@ set number
 
 if has('statusline') && has('byte_offset')
     "set statusline=%<%f\ %h%w%m%r%=%-0.(%l,%c%V\ (0x%O)%)\ %P
-    set statusline=%<%f\ %h%w%m%r%=[%\{winnr()\}]\ %-0.(%l,%c%V\ (0x%O)%)\ %P
+    set statusline=%<%f\ %h%w%m%r%=[%\{bufnr()\}]\ %-0.(%l,%c%V\ (0x%O)%)\ %P
 elseif has('byte_offset')
     set ruler
     "set rulerformat=%24(%=%.(%l,%c%V\ (0x%O)\ %P%)%)
-    set rulerformat=%32(%=[%\{winnr()\}]\ %.(%l,%c%V\ (0x%O)\ %P%)%)
+    set rulerformat=%32(%=[%\{bufnr()\}]\ %.(%l,%c%V\ (0x%O)\ %P%)%)
 else
     set ruler
 endif
