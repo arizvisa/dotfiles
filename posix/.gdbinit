@@ -714,20 +714,32 @@ define show_regs64
 end
 
 define show_stack32
+    set variable $_data_rows = 8
+
     emit "\n-=[stack]=-\n"
     if $access($sp, sizeof(long))
-        emit $hexdump($sp, 4 * sizeof(long), 'I')
-        #x/6wx $sp
+        if $argc > 0
+            emit $hexdump($sp, $arg0 * 0x10 / sizeof(int), 'I')
+        else
+            emit $hexdump($sp, $_data_rows * 0x10 / sizeof(int), 'I')
+            #x/6wx $sp
+        end
     else
         emit $sprintf("... address %p not available ...\n", $esp)
     end
 end
 
 define show_stack64
+    set variable $_data_rows = 8
+
     emit "\n-=[stack]=-\n"
     if $access($sp, sizeof(long))
-        emit $hexdump($sp, 1 * sizeof(long), 'L')
-        #x/6gx $sp
+        if $argc > 0
+            emit $hexdump($sp, $arg0 * 0x10 / sizeof(long), 'L')
+        else
+            emit $hexdump($sp, $_data_rows * 0x10 / sizeof(long), 'L')
+            #x/6gx $sp
+        end
     else
         emit $sprintf("... address %p not available ...\n", $rsp)
     end
@@ -765,16 +777,24 @@ define show_code32
     set variable $_max_instruction = 0x10 - 1
     # FIXME: better way to figure this out per-architecture?
 
+    if $arg0 > 0
+        set variable $pre = $arg0 / 2
+        set variable $post = $arg0 / 2 + $arg0 % 2
+    else
+        set variable $pre = 3
+        set variable $post = 4
+    end
+
     emit "\n-=[disassembly]=-\n"
     if $access($pc, 1)
-        if $access($pc + -3 * $_max_instruction, 1)
-            x/-3i $pc
+        if $access($pc + -$pre * $_max_instruction, 1)
+            eval "x/%di $pc", -$pre
         else
             emit $sprintf("...")
         end
 
-        if $access($pc + +4 * $_max_instruction, 1)
-            x/4i $pc
+        if $access($pc + +$post * $_max_instruction, 1)
+            eval "x/%di $pc", +$post
         else
             x/i $pc
         end
@@ -787,15 +807,23 @@ define show_code64
     set variable $_max_instruction = 0x10 - 1
     # FIXME: better way to figure this out per-architecture?
 
+    if $argc > 0
+        set variable $pre = $arg0 / 2
+        set variable $post = $arg0 / 2 + $arg0 % 2
+    else
+        set variable $pre = 3
+        set variable $post = 4
+    end
+
     emit "\n-=[disassembly]=-\n"
     if $access($pc, 1)
-        if $access($pc + -3 * $_max_instruction, 1)
-            x/-3i $pc
+        if $access($pc + -$pre * $_max_instruction, 1)
+            eval "x/%di $pc", -$pre
         else
             emit $sprintf("...")
         end
-        if $access($pc + +4 * $_max_instruction, 1)
-            x/4i $pc
+        if $access($pc + +$post * $_max_instruction, 1)
+            eval "x/%di $pc", +$post
         else
             x/i $pc
         end
@@ -857,24 +885,40 @@ end
 define here32
     show_regs32
     show_stack32
-    show_code32
+    if $argc > 0
+        show_code32 $arg0
+    else
+        show_code32
+    end
 end
 
 define here64
     show_regs64
     show_stack64
-    show_code64
+    if $argc > 0
+        show_code64 $arg0
+    else
+        show_code64
+    end
 end
 
 ### stepping
 define n
     nexti
-    here
+    if $argc > 0
+        here $arg0
+    else
+        here
+    end
 end
 
 define s
     stepi
-    here
+    if $argc > 0
+        here $arg0
+    else
+        here
+    end
 end
 
 ### conditional definitions based on the arch
@@ -906,17 +950,30 @@ define show_code
 end
 
 define here
-    if sizeof(void*) == 4
-        here32
-    end
-    if sizeof(void*) == 8
-        here64
+    if $argc > 0
+        if sizeof(void*) == 4
+            here32 $arg0
+        end
+        if sizeof(void*) == 8
+            here64 $arg0
+        end
+    else
+        if sizeof(void*) == 4
+            here32
+        end
+        if sizeof(void*) == 8
+            here64
+        end
     end
 end
 
 # needs to be defined in order to replace the help command
 define h
-    here
+    if $argc > 0
+        here $arg0
+    else
+        here
+    end
 end
 
 ### shortcuts
