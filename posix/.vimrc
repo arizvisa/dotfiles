@@ -310,9 +310,6 @@ if has("eval")
     if has('quickfix')
         noremap <silent> <F5> <Cmd>if getqflist({'winid':0}).winid == 0 \| copen \| else \| cclose \| endif<CR>
         autocmd QuickFixCmdPost * copen
-        if has('cscope')
-            set cscopequickfix=s-,c-,d-,i-,t-,e-,a-
-        endif
     endif
 endif
 
