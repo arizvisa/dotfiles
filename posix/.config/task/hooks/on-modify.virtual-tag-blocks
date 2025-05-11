@@ -26,9 +26,6 @@ commands:
 """
 import sys, json, subprocess, logging, itertools
 
-# FIXME: instead of raising an exception, we need to output feedback so that the
-#        host will update the tasks with the actions that have been performed.
-
 EVENTS = {'on-launch', 'on-exit', 'on-add', 'on-modify'}
 COMMANDS = {
     'edit',
@@ -383,7 +380,7 @@ def extract_tasks_from_blocks(client, string):
             continue
 
         msg_format = 'found {:d} nonexisting task{:s}' 
-        logging.fatal(msg_format.format(len(failed), plural))
+        logging.info(msg_format.format(len(failed), plural))
         raise UnknownTaskIdentifier(failed)
 
     # now we can combine our results with the uuids.
@@ -412,7 +409,7 @@ def extract_tasks_from_blocks(client, string):
             continue
 
         msg_format = 'found {:d} non-existing task{:s}' 
-        logging.fatal(msg_format.format(len(failed), plural))
+        logging.info(msg_format.format(len(failed), plural))
         raise UnknownTaskIdentifier(failed)
 
     # gather our results and then return them.
@@ -502,6 +499,7 @@ def on_modification(client, args):
         tasks_description = ' '.join(map("{!s}".format, tasks))
         raise ExecutionError(msg_format.format(tasks_description))
 
+    print("[{:s}] The specified tasks ({!s}) were updated to depend on the specified task ({!s}).".format('virtual-tag-blocks', ','.join(map("{!s}".format, tasks)), new['uuid']))
     return new
 
 def on_addition(client, args):
@@ -588,6 +586,7 @@ def on_addition(client, args):
         tasks_description = ' '.join(map("{!s}".format, tasks))
         raise ExecutionError(msg_format.format(tasks_description))
 
+    print("[{:s}] The specified tasks ({!s}) were updated to depend on the new task.".format('virtual-tag-blocks', ','.join(map("{!s}".format, tasks))))
     return
 
 # if we're undoing something, then just pass it through. however, because
@@ -599,11 +598,12 @@ def handle_undo(args, old, new):
     return new
 
 if __name__ == '__main__':
-    import sys, os
+    import sys, os, errno
 
     # now we can actually setup the logging for the script.
-    logging = setup_logging(__name__, sys.stderr)
-    logging.setLevel('WARNING')
+    logger = setup_logging(__name__, sys.stderr)
+    logger.setLevel(logging.ERROR)
+    logging = logger
 
     # input stream (stdin) to consume stuff from host program.
     try:
@@ -637,15 +637,40 @@ if __name__ == '__main__':
 
     # FIXME: add support for on-add, which only reads a single line of json from
     #        the host program instead of the two for on-modify.
-    if event in {'on-modify'}:
-        modified = on_modification(client, args)
+    try:
+        if event in {'on-modify'}:
+            modified = on_modification(client, args)
 
-    elif event in {'on-add'}:
-        modified = on_addition(client, args)
+        elif event in {'on-add'}:
+            modified = on_addition(client, args)
 
-    else:
-        logging.fatal("Unimplemented hook type: {:s}".format(event))
-        raise UnsupportedHookType(event)
+        else:
+            logging.fatal("Unimplemented hook type: {:s}".format(event))
+            raise UnsupportedHookType(event)
+
+    except InvalidFormat as E:
+        print("[{:s}] An exception was raised while trying to read the tasks to block: {!r}".format('virtual-tag-blocks', E))
+        sys.exit(errno.EINVAL)
+
+    except UnknownTaskIdentifier as E:
+        print("[{:s}] An unknown task was specified in the blocked tasks: {!r}".format('virtual-tag-blocks', E))
+        logging.fatal("Unknown task identifier: {!r}".format(E), exc_info=True)
+        sys.exit(errno.ENOENT)
+
+    except (RuntimeError, SystemError) as E:
+        print("[{:s}] An error occurred while trying to communicate to taskwarrior: {!r}".format('virtual-tag-blocks', E))
+        logging.fatal("System error: {!r}".format(E), exc_info=True)
+        sys.exit(errno.ENOTSUP)
+
+    except LookupError as E:
+        print("[{:s}] An error occurred while trying to query the selected tasks: {!r}".format('virtual-tag-blocks', E))
+        logging.fatal("unable to look up the selected tasks: {!r}".format(E), exc_info=True)
+        sys.exit(errno.ENOENT)
+
+    except Exception as E:
+        print("[{:s}] An exception occurred while trying to set the blocked tasks: {!r}".format('virtual-tag-blocks', E))
+        logging.fatal("unexpected exception: {!r}".format(E), exc_info=True)
+        sys.exit(-1)
 
     ## read information from the host program, pass them and the arguments to our
     ## entrypoint. whatever the entrypoint returns, we just write to the screen.
