@@ -8,6 +8,7 @@ let g:loaded_annotation = v:true
 
 """ FIXME: the things in this script need to be renamed and refactored into
 """        their own autoload library as the `annotation#frontend` namespace.
+let g:annotation_property = 'annotation'
 
 function! AddState(bufnum)
     let state = annotation#state#new(a:bufnum)
@@ -38,10 +39,10 @@ function! RemoveStateIdempotent(bufnum)
 endfunction
 
 function! AddProperty(bufnum, lnum, col, end_lnum, end_col)
-    let newprops = {'lnum': a:lnum, 'end_lnum': a:end_lnum}
+    let newprops = {'lnum': a:lnum, 'col': a:col, 'end_lnum': a:end_lnum, 'end_col': a:end_col}
     let [new, linenumbers] = annotation#state#newprop(a:bufnum, newprops)
 
-    let new.type = 'annotation'
+    let new.type = g:annotation_property
     let new.bufnr = a:bufnum
     let new.end_lnum = a:end_lnum
     let new.end_col = a:end_col
@@ -87,12 +88,12 @@ function! GetPropertyData(bufnum, lnum, col)
     endif
 
     let data = annotation#state#getdata(a:bufnum, property.id)
-    echoconsole printf('Fetching data: %s', data)
+    echoconsole printf('Fetching data for property %d: %s', property.id, data)
     return [property, data]
 endfunction
 
 function! SetPropertyData(bufnum, lnum, col)
-    let property = annotation#property#get(a:bufnum, a:col, a:lnum, 'annotation')
+    let property = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
     if empty(property)
         throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
     elseif !exists('property.id')
@@ -118,7 +119,7 @@ augroup annotations
     autocmd BufDelete * call RemoveStateIdempotent(expand('<abuf>'))
 augroup END
 
-call prop_type_add('annotation', {'highlight': 'DiffText', 'override': v:true})
+call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
 
 xmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
 nmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
