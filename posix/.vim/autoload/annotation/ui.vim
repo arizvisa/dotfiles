@@ -1,0 +1,168 @@
+"" user-interface
+
+" FIXME: The `popup_atcursor` function can display a dialog relative to the
+"        cursor. This could be used with a mouse to select and annotate.
+
+" This dictionary contains the window ids for all the popups that are visible.
+let s:POPUP_WINDOWS = {}
+
+function s:add_popup(id)
+  if exists('s:POPUP_WINDOWS[a:id]')
+    throw printf('annotation.DuplicateWindowError: the specified window id (%d) is already being tracked.', a:id)
+  endif
+
+  " Get all the information we can about the popup window.
+  let pos = popup_getpos(a:id)
+  let info = popup_getoptions(a:id)
+  if empty(pos)
+    throw printf('annotation.WindowNotFoundError: the specified window id (%d) could not be found while getting its position.', a:id)
+  elseif empty(info)
+    throw printf('annotation.WindowNotFoundError: the specified window id (%d) could not be found while getting its options.', a:id)
+  endif
+
+  " Stash the information that was retrieved.
+  let s:POPUP_WINDOWS[a:id] = [pos, info]
+  return [pos, info]
+endfunction
+
+function s:remove_popup(id)
+  if !exists('s:POPUP_WINDOWS[a:id]')
+    throw printf('annotation.MissingWindowError: the specified window id (%d) does not exist and cannot be removed.', a:id)
+  endif
+
+  " Just need to remove it.
+  return remove(s:POPUP_WINDOWS, a:id)
+endfunction
+
+function s:has_popup(id)
+  return exists('s:POPUP_WINDOWS[a:id]')
+endfunction
+
+" Create a popup dialog with the specified text and title for the given property
+" (dictionary), and return its window id. If the `persist` parameter is false,
+" then the dialog will be hidden when moving off of the text property.
+function! annotation#ui#propertytooltip(text, title, property, persist)
+  let popup = #{
+  \ close: 'button',
+  \ wrap: v:false,
+  \ drag: v:true,
+  \ resize: v:true,
+  \ border: [1,1,1,1],
+  \ scrollbar: v:false,
+  \ zindex: a:persist? 100 : 1000,
+  \ posinvert: v:true,
+  \ padding: [0,1,0,1],
+  \}
+
+  " Verify that all the correct keys exist in the property dictionary.
+  if !exists('a:property.lnum')
+    throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified property dictionary: %s', 'lnum', a:property) 
+  elseif !exists('a:property.col')
+    throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified property dictionary: %s', 'col', a:property) 
+  elseif !exists('a:property.end_lnum')
+    throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified property dictionary: %s', 'end_lnum', a:property) 
+  elseif !exists('a:property.end_col')
+    throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified property dictionary: %s', 'end_col', a:property) 
+  endif
+
+  " Attach the popup to the selected property and give it a title.
+  let popup.textprop = a:property['type']
+  let popup.textpropid = a:property['id']
+  let popup.title = a:title
+
+  " Position it in a sane location, and then figure out whether the popup should
+  " autohide when moving off the property or persist it until explicitly closed.
+  let popup.pos = 'botleft'
+  let popup.moved = a:persist? [0, 0, 0] : [a:property['lnum'], a:property['col'], a:property['end_col']]
+
+  " The last thing we need to do is to create a closure/callback that can be
+  " used to determine when the popup dialog has been closed by the user.
+  function! Closed(id, result) closure
+    echoconsole printf('Dialog %d (%s) returned: %s', a:id, a:title, a:result)
+    call s:remove_popup(a:id)
+  endfunction
+
+  let popup.callback = funcref('Closed')
+
+  " If the specified text is a string, then split it up by newlines. Otherwise
+  " pass through whatever type it was that we were given.
+  let lines = (type(a:text) == v:t_string)? split(a:text, "\n") : a:text
+  let id = popup_create(lines, popup)
+  return s:add_popup(id)
+endfunction
+
+" Create a popup dialog as a menu for the dictionary of selected items.
+" XXX: Because the Vim popup api is fucking retarded and there's no way to
+"      block execution, the caller has to specify the callback that the result
+"      is sent to using the `send` parameter. Nice one, Bram... You fuck.
+function! annotation#ui#menu(items, title, options, send)
+  if type(a:items) != v:t_dict
+    throw printf('annotation.InvalidTypeError: the specified parameter is of an invalid type (%d): %s', type(a:items), a:items)
+  endif
+
+  " Start out by converting the dictionary of items into a list containing each
+  " description and whatever hotkey was chosen.
+  let descriptions = []
+  let l:labels = {}
+  for key in sort(keys(a:items), 'n')
+    let index = 1 + len(descriptions)
+    let l:labels[index] = key
+    let value = a:items[key]
+    call add(descriptions, printf('%d. %s', index, value))
+  endfor
+
+  " Define a closure for selecting things from the menu.
+  function! Selected(id, index) closure
+    if !exists('l:labels[a:index]')
+      throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified labels dictionary: %s', a:index, l:labels) 
+    endif
+
+    " Convert the index into the label defined by the caller.
+    let label = l:labels[a:index]
+    echoconsole printf('Dialog %d (%s) returned %d -> %s', a:id, a:title, a:index, label)
+    call a:send(a:id, label)
+
+    " Now we can remove the popup from our tracking dictionary.
+    call s:remove_popup(a:id)
+  endfunction
+
+  " Define a closure for allowing the user to use numbers for selecting things.
+  function! Shortcuts(id, key) closure
+    "if exists('a:items[a:key]')
+    "  let index = hotkeys[a:key]
+    "  call popup_close(a:id, index)
+    "  return v:true
+    "endif
+
+    let index = stridx('1234567890', a:key)
+    if index >= 0
+      call popup_close(a:id, 1 + index)
+      return v:true
+    endif
+
+    return popup_filter_menu(a:id, a:key)
+  endfunction
+
+  " Now we can assign the options to be used by the menu.
+  let menuoptions = copy(a:options)
+  let menuoptions.title = a:title
+
+  " Then we can assign our closures before creating the popup menu.
+  let menuoptions.callback = funcref('Selected')
+  let menuoptions.filter = funcref('Shortcuts')
+
+  let l:wid = popup_menu(descriptions, menuoptions)
+  echoconsole printf('Created popup dialog with window id %d', l:wid)
+  call s:add_popup(l:wid)
+
+  " Because VIM is fucking retarded, we can't block until the popup has been
+  " clicked. So, we just return nothing here since the real result is sent to
+  " the callback. Emacs is just soooo much fucking better than Vim.
+endfunction
+
+" FIXME: the logic for creating and placing signs needs to be implemented.
+
+" Pretty much for examining the available windows while debugging...
+function! annotation#ui#WINDOWS()
+  return s:POPUP_WINDOWS
+endfunction
