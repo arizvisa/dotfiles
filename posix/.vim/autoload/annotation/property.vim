@@ -141,9 +141,9 @@ function! annotation#property#getbounds(bufnum, x, y, type_or_id)
     return l:failure
   elseif l:y1 <= a:y && a:y < l:y2
     return [l:x1, l:y1, l:x2, l:y2]
-  else
-    return l:failure
   endif
+
+  return l:failure
 endfunction
 
 " Return the boundaries for the block containing the specified text property at
@@ -175,9 +175,9 @@ function! annotation#property#getblock(bufnum, x, y, type_or_id)
   let l:failure = [a:x, a:y, a:x, a:y]
   if l:x1 <= a:x && a:x <= l:x2 && l:y1 <= a:y && a:y <= l:y2
     return [l:x1, l:y1, l:x2, l:y2]
-  else
-    return l:failure
   endif
+
+  return l:failure
 endfunction
 
 " return the X-Y pair for the specified property in the buffer "bufnum" by
@@ -204,6 +204,7 @@ function! annotation#property#scanbackward(bufnum, x, y, type_or_id)
     let [l:key['col'], l:key['lnum']] = [len(getline(top - 1)), top - 1]
     let result = prop_find(l:key, 'b')
   endif
+
   return empty(result)? [a:y, a:x] : [result['lnum'], result['col']]
 endfunction
 
@@ -231,6 +232,7 @@ function! annotation#property#scanforward(bufnum, x, y, type_or_id)
     let [l:key['col'], l:key['lnum']] = [1, bottom + 1]
     let result = prop_find(l:key, 'f')
   endif
+
   return empty(result)? [a:y, a:x] : [result['lnum'], result['col']]
 endfunction
 
@@ -295,6 +297,8 @@ function! annotation#property#get(bufnum, x, y, type_or_id)
   for l:property in l:found
     return l:property
   endfor
+
+  return {}
 endfunction
 
 " Return all the properties and their boundaries at the specified coordinate of
