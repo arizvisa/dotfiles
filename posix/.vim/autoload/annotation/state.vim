@@ -35,6 +35,11 @@ function! annotation#state#new(bufnum)
   return s:STATE[a:bufnum]
 endfunction
 
+" Return whether the state for the specified buffer has been initialized.
+function! annotation#state#exists(bufnum)
+  return exists('s:STATE[a:bufnum]')? v:true : v:false
+endfunction
+
 " Load the state in "contents" for the buffer specified by its number.
 function! annotation#state#load(bufnum, contents)
   if exists('s:STATE[a:bufnum]')
@@ -189,7 +194,17 @@ function! annotation#state#newprop(bufnum, property)
   return [l:newproperty, l:lines]
 endfunction
 
-" Modify the property specified by id for the specified buffer number.
+" Return whether the specified buffer has a property with the given id.
+function! annotation#state#hasprop(bufnum, id)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif !exists('s:STATE[a:bufnum].props')
+    throw printf('annotation.MissingPropertyError: properties for buffer %d do not exist.', a:id, a:bufnum)
+  endif
+  return exists('s:STATE[a:bufnum].props[a:id]')? v:true : v:false
+endfunction
+
+" Modify the property specified by id for the given buffer number.
 function! annotation#state#updateprop(bufnum, id, property)
   if !exists('s:STATE[a:bufnum]')
     throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
