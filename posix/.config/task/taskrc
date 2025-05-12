@@ -35,7 +35,7 @@ report.details.filter=status:pending -WAITING
 report.details.columns=id,start.age,entry.age,depends,priority,project,tags,recur,scheduled.countdown,due.remaining,until.remaining,description,urgency
 
 # dates report
-report.dates.filter=(status:pending or status:waiting) (+DUE or +OVERDUE or +BLOCKED) limit:page
+report.dates.filter=(status:pending or status:waiting) (+DUE or +OVERDUE or +BLOCKED or +BLOCKING) limit:page
 report.dates.labels=ID,Age,Due,Date,Scheduled,Depends,Priority,Project,Tags,Description
 report.dates.columns=id,entry.age,due.remaining,due,scheduled,depends,priority,project,tags,description.truncated_count
 report.dates.sort=due+,urgency-,project+
