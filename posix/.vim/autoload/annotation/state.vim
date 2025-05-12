@@ -79,7 +79,7 @@ endfunction
 
 " Return a list of the lines that should be covered by the specified property.
 function! s:get_property_lines(property)
-  if !exists('a:property['lnum']')
+  if !exists('a:property.lnum')
     throw printf('annotation.InvalidPropertyError: could not determine line number from property: %s', a:property)
   endif
 
