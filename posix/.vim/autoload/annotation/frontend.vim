@@ -93,3 +93,27 @@ function! annotation#frontend#set_property_data(bufnum, lnum, col, data, id=g:an
     let updated = annotation#state#setdata(a:bufnum, property.id, newdata)
     return [property, updated]
 endfunction
+
+function! annotation#frontend#show_property_data(bufnum, lnum, col, data, id=g:annotation_property, persist=v:false)
+    let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
+    if empty(property)
+        throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
+    elseif !exists('property.id')
+        throw printf('annotation.MissingKeyError: a required key (%s) was missing from the property in buffer %d at line %d column %d.', 'id', a:bufnum, a:lnum, a:col)
+    endif
+
+    let [property, rows] = annotation#state#getprop(a:bufnum, property.id)
+    if type(a:data) == v:t_func
+        let lines = a:data(property)
+    elseif type(a:data) == v:t_string
+        let lines = split(a:data, "\n")
+    elseif type(a:data) == v:t_list
+        let lines = a:data
+    else
+        throw printf('annotation.InvalidPropertyError: the data that was specified to be shown for property %d is an unsupported type (%d).', property.id, type(a:data))
+    endif
+
+    let title = printf('Annotation #%d', property.id)
+    let [winpos, wininfo] = annotation#ui#propertytooltip(lines, title, property, a:persist)
+    return [winpos, wininfo]
+endfunction
