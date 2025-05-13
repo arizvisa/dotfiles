@@ -40,6 +40,14 @@ function! annotation#state#exists(bufnum)
   return exists('s:STATE[a:bufnum]')? v:true : v:false
 endfunction
 
+" Return the state for the specified buffer number.
+function! annotation#state#get(bufnum)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.DuplicateStateError: state for buffer %d does not exist.', a:bufnum)
+  endif
+  return s:STATE[a:bufnum]
+endfunction
+
 " Load the state in "contents" for the buffer specified by its number.
 function! annotation#state#load(bufnum, contents)
   if exists('s:STATE[a:bufnum]')
