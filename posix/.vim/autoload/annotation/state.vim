@@ -318,7 +318,7 @@ function! annotation#state#getprop(bufnum, id)
 endfunction
 
 " Return a list of all the property ids associated with the specified buffer.
-function! annotation#state#get(bufnum)
+function! annotation#state#properties(bufnum)
   if !exists('s:STATE[a:bufnum]')
     throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
   elseif exists('s:STATE[a:bufnum].props')
