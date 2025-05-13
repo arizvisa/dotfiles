@@ -77,20 +77,12 @@ function! annotation#frontend#set_property_data(bufnum, lnum, col, data, id=g:an
         throw printf('annotation.MissingKeyError: a required key (%s) was missing from the property in buffer %d at line %d column %d.', 'id', a:bufnum, a:lnum, a:col)
     endif
 
-    let updated = annotation#state#setdata(a:bufnum, property.id, a:data)
-    return [property, updated]
-endfunction
-
-function! annotation#frontend#modify_property_data(bufnum, lnum, col, setter, id=g:annotation_property)
-    let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
-    if empty(property)
-        throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
-    elseif !exists('property.id')
-        throw printf('annotation.MissingKeyError: a required key (%s) was missing from the property in buffer %d at line %d column %d.', 'id', a:bufnum, a:lnum, a:col)
+    if type(a:data) == v:t_func
+        let [property, rows] = annotation#state#getprop(a:bufnum, property.id)
+        let newdata = a:data(property)
+    else
+        let newdata = a:data
     endif
-
-    let data = annotation#state#getdata(a:bufnum, property.id)
-    let newdata = a:setter(data)
 
     let updated = annotation#state#setdata(a:bufnum, property.id, newdata)
     return [property, updated]
