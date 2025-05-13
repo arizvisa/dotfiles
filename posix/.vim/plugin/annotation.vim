@@ -35,6 +35,29 @@ function! TestSetPropertyData(property)
     return data
 endfunction
 
+function! ShowMenu(property)
+    let items = {1: 'First item', 2: 'Second item', 3: 'Third item'}
+    let title = 'Choose one'
+    function! DoIt(id, label) closure
+        function! SetData(property) closure
+            let data = annotation#state#getdata(a:property.bufnr, a:property.id)
+            if !exists('data.notes')
+                let data.notes = []
+            endif
+            let data.notes += [printf('Line %d: (%s) %s', len(data.notes), a:label, items[a:label])]
+            return data
+        endfunction
+        call annotation#frontend#set_property_data(a:property.bufnr, a:property.lnum, a:property.col, funcref('SetData'))
+    endfunction
+    call annotation#ui#menu(items, title, {}, funcref('DoIt'))
+endfunction
+
+function! DoMenu()
+    let prop = annotation#property#get(bufnr(), col('.'), line('.'), 'annotation')
+    let [property, _] = annotation#state#getprop(bufnr(), prop.id)
+    call ShowMenu(property)
+endfunction
+
 xmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
 nmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
 nmap <C-m>x <Cmd>call annotation#frontend#del_property(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
