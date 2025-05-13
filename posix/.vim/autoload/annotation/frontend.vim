@@ -1,5 +1,6 @@
 let g:annotation_property = 'annotation'
 
+" Add a new buffer to the current annotation state.
 function! annotation#frontend#add_buffer(bufnum)
   if !annotation#state#exists(a:bufnum)
     let state = annotation#state#new(a:bufnum)
@@ -9,6 +10,7 @@ function! annotation#frontend#add_buffer(bufnum)
   return state
 endfunction
 
+" Remove a buffer from the current annotation state.
 function! annotation#frontend#del_buffer(bufnum)
   if annotation#state#exists(a:bufnum)
     return annotation#state#remove(a:bufnum)
@@ -16,6 +18,7 @@ function! annotation#frontend#del_buffer(bufnum)
   return {}
 endfunction
 
+" Add a new property to the state for the specified buffer.
 function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
     let newprops = {'lnum': a:lnum, 'col': a:col, 'end_lnum': a:end_lnum, 'end_col': a:end_col}
     let [new, linenumbers] = annotation#state#newprop(a:bufnum, newprops)
@@ -33,6 +36,7 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
     return annotation#property#get(a:bufnum, a:col, a:lnum, id)
 endfunction
 
+" Remove a property from the state for the specified buffer.
 function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_property)
     let bounds = annotation#property#bounds(a:bufnum, a:col, a:lnum)
     let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
@@ -57,6 +61,7 @@ function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_pr
     return result
 endfunction
 
+" Return the property data for the specified property from the given buffer.
 function! annotation#frontend#get_property_data(bufnum, lnum, col, id=g:annotation_property)
     let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
     if empty(property)
@@ -69,6 +74,7 @@ function! annotation#frontend#get_property_data(bufnum, lnum, col, id=g:annotati
     return [property, data]
 endfunction
 
+" Set the property data for the specified property from the given buffer.
 function! annotation#frontend#set_property_data(bufnum, lnum, col, data, id=g:annotation_property)
     let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
     if empty(property)
