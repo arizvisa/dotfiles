@@ -78,7 +78,6 @@ function! annotation#ui#propertytooltip(text, title, property, persist)
   " The last thing we need to do is to create a closure/callback that can be
   " used to determine when the popup dialog has been closed by the user.
   function! Closed(id, result) closure
-    echoconsole printf('Dialog %d (%s) returned: %s', a:id, a:title, a:result)
     call s:remove_popup(a:id)
   endfunction
 
@@ -119,7 +118,6 @@ function! annotation#ui#menu(items, title, options, send)
 
     " Convert the index into the label defined by the caller.
     let label = l:labels[a:index]
-    echoconsole printf('Dialog %d (%s) returned %d -> %s', a:id, a:title, a:index, label)
     call a:send(a:id, label)
 
     " Now we can remove the popup from our tracking dictionary.
@@ -152,7 +150,6 @@ function! annotation#ui#menu(items, title, options, send)
   let menuoptions.filter = funcref('Shortcuts')
 
   let l:wid = popup_menu(descriptions, menuoptions)
-  echoconsole printf('Created popup dialog with window id %d', l:wid)
   call s:add_popup(l:wid)
 
   " Because VIM is fucking retarded, we can't block until the popup has been
