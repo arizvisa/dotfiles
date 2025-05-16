@@ -32,6 +32,16 @@ function! annotation#state#new(bufnum)
   " maps property id to completely arbitrary metadata.
   let s:STATE[a:bufnum].annotations = {}
 
+  " maps sign id to its name and line number.
+  let s:STATE[a:bufnum].signs = {}
+
+  " maps line number to its sign ids.
+  let s:STATE[a:bufnum].signpositions = {}
+
+  " tracks sign ids that have been deleted and are not in use. this is used in a
+  " similar fashion to the "availableprops" field.
+  let s:STATE[a:bufnum].availablesigns = []
+
   return s:STATE[a:bufnum]
 endfunction
 
@@ -87,6 +97,20 @@ function! s:get_next_property_id(bufnum)
     return len(l:bufferstate.props)
   else
     return remove(l:bufferstate.availableprops, 0)
+  endif
+endfunction
+
+" Return a new unique sign id by its buffer number.
+function! s:get_next_sign_id(bufnum)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  endif
+
+  let l:bufferstate = s:STATE[a:bufnum]
+  if empty(l:bufferstate.availablesigns)
+    return len(l:bufferstate.signs)
+  else
+    return remove(l:bufferstate.availablesigns, 0)
   endif
 endfunction
 
@@ -362,6 +386,131 @@ function! annotation#state#setdata(bufnum, id, data)
   let l:result = get(l:bufferstate.annotations, a:id, {})
   let l:bufferstate.annotations[a:id] = copy(a:data)
   return l:result
+endfunction
+
+" Add a new sign to the state for the specified buffer number.
+function! annotation#state#newsign(bufnum, line, name, group=v:none)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif type(a:id) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to add a sign with an id using an unsupported type (%d).', type(a:id))
+  elseif type(a:line) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to add a sign at a line number using an unsupported type (%d).', type(a:line))
+  elseif type(a:name) != v:t_string || empty(a:name)
+    let message = printf('a name with an unsupported type (%d).', type(a:name))
+    throw printf('annotation.InvalidParameterError: unable to add a sign at line number %d using %s.', type(a:line), empty(a:name)? 'an empty name' : message)
+  elseif a:group != v:none && type(a:group) != v:t_string
+    throw printf('annotation.InvalidParameterError: unable to add sign "%s" at line number %d using a group with an unsupported type (%d).', a:name, a:line, type(a:group))
+  endif
+
+  " assign some local variables that we can use to access the sign state.
+  let l:bufferstate = s:STATE[a:bufnum]
+  let l:id = s:get_next_sign_id(a:bufnum)
+
+  " if the id already exists, then we raise an exception without removing it.
+  " this way the next time we get called, the id will be a different one.
+  if exists('l:bufferstate.signs[l:id]')
+    throw printf('annotation.DuplicateSignError: buffer %d already has a sign with id %d.', a:bufnum, l:id)
+  elseif !exists('l:bufferstate.signpositions[a:line]')
+    let l:bufferstate.signpositions[a:line] = {}
+  endif
+
+  " now we can assign our signdata that we'll state into the sign states.
+  let signdata = {'id': l:id, 'lnum': a:line, 'name': a:name, 'bufnr': a:bufnum}
+  if a:group != v:none
+    let signdata['group'] = a:group
+  endif
+
+  " now we can assign our sign data, update the sign positions so that we can
+  " store a dictionary at the line number, and then return the calculated id.
+  let l:bufferstate.signs[l:id] = signdata
+
+  if !exists('l:bufferstate.signpositions[a:line]')
+    let l:bufferstate.signpositions[a:line] = {}
+  endif
+  let l:bufferstate.signpositions[a:line][l:id] = {}
+  return l:id
+endfunction
+
+" Remove a sign from the state for the specified buffer number.
+function! annotation#state#removesign(bufnum, id)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif type(a:id) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to remove a sign with an id using an unsupported type (%d).', type(a:id))
+  endif
+
+  " assign the buffer state so that we can access the sign state.
+  let l:bufferstate = s:STATE[a:bufnum]
+
+  " first check that the sign exists so that we can remove it. after removal, we
+  " need to add the id back into the availablesigns so it can be reused.
+  if !exists('l:bufferstate.signs[a:id]')
+    throw printf('annotation.MissingSignError: sign %d from buffer %d does not exist.', a:id, a:bufnum)
+  endif
+
+  let signdata = remove(l:bufferstate.signs, a:id)
+  call add(l:bufferstate.availablesigns, a:id)
+
+  " use the line number to remove the sign from our stored positions.
+  let line = signdata.lnum
+  let positionstate = l:bufferstate.signpositions[l:line]
+  let positiondata = exists('positionstate[a:id]')? remove(positionstate, a:id) : {}
+
+  " do a final check of the signpositions to remove the line if it is empty.
+  if empty(positionstate)
+    call remove(l:bufferstate.signpositions, l:line)
+  endif
+
+  return positiondata
+endfunction
+
+" Return all the sign ids at the given line of the specified buffer.
+function! annotation#state#getsigns(bufnum, line)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif type(a:line) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to get the sign for buffer %d using a line number of an unsupported type (%d).', a:bufnum, type(a:line))
+  endif
+
+  let l:bufferstate = s:STATE[a:bufnum]
+
+  " If there are no signs at the given line number, then return nothing.
+  if !exists('l:bufferstate.signpositions[a:line]')
+    return []
+  endif
+
+  " Otherwise, extract the position state and return all the ids.
+  let positionstate = l:bufferstate.signpositions[a:line]
+  return keys(positionstate)
+endfunction
+
+" Return the data stored for the specified sign.
+function! annotation#state#hassign(bufnum, id)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif type(a:id) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to get the sign for buffer %d using an id of an unsupported type (%d).', a:bufnum, type(a:id))
+  endif
+
+  " Grab the data for the specified sign number from the buffer state.
+  let l:bufferstate = s:STATE[a:bufnum]
+endfunction
+
+" Return the data stored for the given sign belonging to the specifed buffer.
+function! annotation#state#getsign(bufnum, id)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif type(a:id) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to get the sign for buffer %d using an id of an unsupported type (%d).', a:bufnum, type(a:id))
+  endif
+
+  " Grab the data for the specified sign number from the buffer state.
+  let l:bufferstate = s:STATE[a:bufnum]
+  if !exists('l:bufferstate.signs[a:id]')
+    throw printf('annotation.MissingSignError: sign %d from buffer %d does not exist.', a:id, a:bufnum)
+  endif
+  return l:bufferstate.signs[a:id]
 endfunction
 
 " Pretty much for examining the state while debugging...
