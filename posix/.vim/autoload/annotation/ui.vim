@@ -99,6 +99,9 @@ function! annotation#ui#menu(items, title, options, send)
     throw printf('annotation.InvalidTypeError: the specified parameter is of an invalid type (%d): %s', type(a:items), a:items)
   endif
 
+  " We need this so that every closure we generate is a unique function.
+  let s:MENU_RECURSE = {}
+
   " Start out by converting the dictionary of items into a list containing each
   " description and whatever hotkey was chosen.
   let descriptions = []
@@ -111,7 +114,7 @@ function! annotation#ui#menu(items, title, options, send)
   endfor
 
   " Define a closure for selecting things from the menu.
-  function! Selected(id, index) closure
+  function! s:MENU_RECURSE.Selected(id, index) closure
     if !exists('l:labels[a:index]')
       throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified labels dictionary: %s', a:index, l:labels) 
     endif
@@ -125,7 +128,7 @@ function! annotation#ui#menu(items, title, options, send)
   endfunction
 
   " Define a closure for allowing the user to use numbers for selecting things.
-  function! Shortcuts(id, key) closure
+  function! s:MENU_RECURSE.Shortcuts(id, key) closure
     "if exists('a:items[a:key]')
     "  let index = hotkeys[a:key]
     "  call popup_close(a:id, index)
@@ -146,8 +149,8 @@ function! annotation#ui#menu(items, title, options, send)
   let menuoptions.title = a:title
 
   " Then we can assign our closures before creating the popup menu.
-  let menuoptions.callback = funcref('Selected')
-  let menuoptions.filter = funcref('Shortcuts')
+  let menuoptions.callback = s:MENU_RECURSE.Selected
+  let menuoptions.filter = s:MENU_RECURSE.Shortcuts
 
   let l:wid = popup_menu(descriptions, menuoptions)
   call s:add_popup(l:wid)
