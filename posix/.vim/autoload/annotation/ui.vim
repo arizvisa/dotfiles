@@ -217,6 +217,13 @@ function! annotation#ui#signat(bufnum, line)
     return res
 endfunction
 
+" Read input specified by the user and then return it to the caller.
+" FIXME: would be cool to allow editing things in a popup, or allow editing
+"        user-applied text with vim keybindings.
+function! annotation#ui#readinput(prompt='?', default='')
+  return input(a:prompt, a:default)
+endfunction
+
 " Pretty much for examining the available windows while debugging...
 function! annotation#ui#WINDOWS()
   return s:POPUP_WINDOWS
