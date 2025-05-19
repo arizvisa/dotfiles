@@ -415,3 +415,17 @@ function! annotation#property#selectblock(bufnum, x, y, type_or_id)
   " positions and return the result.
   return mapnew(l:lines, {index, line -> slice(line, x1 - 1, x2)})
 endfunction
+
+" FIXME: add some functions that can be used to load and save the properties
+"        associated within a buffer. we need to be able to build a property map
+"        to handle the difference between the seraialized and runtime states.
+
+function! annotation#property#save(bufnum)
+  " FIXME: is it better for us to iterate through all the properties in the
+  "        document instead of trusting that we got from `annotation#state`?
+endfunction
+
+function! annotation#property#load(bufnum, content)
+  " FIXME: we need to read from content all the property boundaries so that we
+  "        can recreate them one-by-one.
+endfunction

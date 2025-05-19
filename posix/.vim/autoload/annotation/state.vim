@@ -62,9 +62,30 @@ endfunction
 function! annotation#state#load(bufnum, contents)
   if exists('s:STATE[a:bufnum]')
     throw printf('annotation.DuplicateStateError: state for buffer %d already exists.', a:bufnum)
+  elseif type(a:propertymap) != v:t_dict
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to an unsupported type (%d).', a:bufnum, type(a:propertymap))
+  elseif !exists('a:contents.positions')
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'positions')
+  elseif !exists('a:contents.annotations')
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'annotations')
+  elseif !exists('a:contents.propertymap')
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'map')
   endif
 
-  " FIXME: deserialize a:contents into the state for the buffer number
+  " Grab the state of the buffer that we're loading annotations into.
+  let l:bufferstate = s:STATE[a:bufnum]
+  let l:annotationstate = l:bufferstate.annotations
+
+  " Unpack our serialized data so that we can get at the annotations.
+  let propertyresults = a:contents.positions
+  let annotationresults = a:contents.annotations
+  let propertymap = a:contents.propertymap
+
+  " Now we can load them into the current buffer.
+  for id in keys(annotationresults)
+    let newid = propertymap[id]
+    let l:annotationstate[newid] = annotationresults[id]
+  endfor
 endfunction
 
 " Return the state for the buffer specified by its number.
@@ -73,8 +94,30 @@ function! annotation#state#save(bufnum)
     throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
   endif
 
-  " FIXME: serialize state for the buffer number and return it.
+  " Start by grabbing the state of the current buffer.
   let l:bufferstate = s:STATE[a:bufnum]
+
+  " Then we can go through all of the available properties and transform them
+  " into a dictionary that can look up the different serialize items.
+  let properties = l:bufferstate.props
+  let propertyfields = ['lnum','col','end_lnum','end_col','type']
+
+  let propertyresults = {}
+  for key in keys(properties)
+    let property = properties[key]
+    for field in propertyfields
+      if exists('property[field]')
+        let propertyresults[field] = property[field]
+      else
+        let propertyresults[field] = v:none
+      endif
+    endfor
+  endfor
+
+  " Now we can grab the annotations (which are already fine as-is), and then
+  " return all the things to the caller in order to continue processing.
+  let annotations = l:bufferstate.annotations
+  return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction
 
 " Remove and return the state for the buffer specified by buffer number.
