@@ -242,6 +242,7 @@ function! annotation#state#newprop(bufnum, property)
   let l:newproperty = copy(a:property)
   let l:newid = s:get_next_property_id(a:bufnum)
   let l:newproperty.id = l:newid
+  let l:newproperty.bufnr = a:bufnum
 
   " now we can add it to the buffer state.
   let l:bufferstate.props[l:newid] = l:newproperty

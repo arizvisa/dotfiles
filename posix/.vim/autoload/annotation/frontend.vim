@@ -33,7 +33,9 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
     endif
 
     let id = prop_add(a:lnum, a:col, new)
-    return annotation#property#get(a:bufnum, a:col, a:lnum, id)
+    let key = annotation#property#get(a:bufnum, a:col, a:lnum, id)
+    let [result, lines] = annotation#state#getprop(a:bufnum, key.id)
+    return result
 endfunction
 
 " Remove a property from the state for the specified buffer.
