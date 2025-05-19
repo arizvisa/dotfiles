@@ -70,7 +70,6 @@ function! BuildMenuFromAnnotations(property)
         let description = notes[index]
         let items[index] = description
     endfor
-    echoconsole 4
     return items
 endfunction
 
@@ -125,8 +124,14 @@ function! RemoveAnnotation(property, title='Removing')
         echomsg printf('Selected %s: %s', a:label, items[a:label])
         let [_, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
         let removed = remove(data.notes, a:label)
+
         echomsg printf('Removed %s: %s', a:label, removed)
-        call annotation#frontend#set_property_data(a:property.bufnr, a:property.lnum, a:property.col, data, a:property.id)
+        if empty(data.notes)
+            echomsg printf('Removing entire property: %s', a:property)
+            call annotation#frontend#del_property(a:property.bufnr, a:property.lnum, a:property.col)
+        else
+            call annotation#frontend#set_property_data(a:property.bufnr, a:property.lnum, a:property.col, data, a:property.id)
+        endif
     endfunction
 
     let options = {}
@@ -167,15 +172,62 @@ function! ShowAnnotationEditMenu(property, title='Edit')
     call annotation#ui#menu(items, a:title, options, funcref('ShowSelected'))
 endfunction
 
-function! DoMenu()
-    let prop = annotation#property#get(bufnr(), col('.'), line('.'), 'annotation')
+function! ShowAnnotationAddMenu(property, title='Edit')
+    let [_, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
+
+    let items = {}
+    let items[1] = '1. Add a new annotation to the current line.'
+
+    if exists('data.notes') && !empty(data.notes)
+        let items[2] = '2. Modify an existing annotation of the current line.'
+        let items[3] = '3. Remove a specific annotation from the current line.'
+    endif
+    let items[4] = '4. Abort'
+
+    function! ShowSelected(id, label) closure
+        if exists('data[a:label]')
+            echomsg printf('Selected %s: %s', a:label, data[a:label])
+        else
+            echomsg printf('Selected %s', a:label)
+        endif
+
+        if a:label == 1
+            call AddAnnotation(a:property, a:title)
+        elseif a:label == 2
+            call ModifyAnnotation(a:property, a:title)
+        elseif a:label == 3
+            call RemoveAnnotation(a:property, a:title)
+        else
+            echomsg printf('Abort!')
+            call annotation#frontend#del_property(a:property.bufnr, a:property.lnum, a:property.col)
+        endif
+    endfunction
+
+    let options = {}
+    call annotation#ui#menu(items, a:title, options, funcref('ShowSelected'))
+endfunction
+
+function! SelectProperty(bufnum, lnum, col, id)
+    echoconsole printf('%d %d %d %s', a:bufnum, a:col, a:lnum, a:id)
+    let prop = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
+    if empty(prop)
+        throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
+    endif
     let [property, _] = annotation#state#getprop(bufnr(), prop.id)
-    "call ShowMenu(property)
     call ShowAnnotationEditMenu(property)
 endfunction
 
-xmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
-nmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
+function! AddProperty(bufnum, lnum, col, end_lnum, end_col)
+    let property = annotation#frontend#add_property(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
+    let [property, _] = annotation#state#getprop(a:bufnum, property.id)
+    call ShowAnnotationAddMenu(property)
+endfunction
+
+"xmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
+"nmap <C-m>n <Esc><Cmd>call annotation#frontend#add_property(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
+xmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
+nmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
 nmap <C-m>x <Cmd>call annotation#frontend#del_property(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
-nmap <C-m>N <Cmd>call annotation#frontend#set_property_data(bufnr(), getpos('.')[1], getpos('.')[2], funcref('TestSetPropertyData'))<CR>
+"nmap <C-m>N <Cmd>call annotation#frontend#set_property_data(bufnr(), getpos('.')[1], getpos('.')[2], funcref('TestSetPropertyData'))<CR>
+nmap <C-m>N <Cmd>call SelectProperty(bufnr(), getpos('.')[1], getpos('.')[2], g:annotation_property)<CR>
 nmap <C-m>? <Cmd>call annotation#frontend#show_property_data(bufnr(), getpos('.')[1], getpos('.')[2], funcref('TestGetPropertyData'))<CR>
