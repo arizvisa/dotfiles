@@ -115,7 +115,10 @@ function! annotation#ui#menu(items, title, options, send)
 
   " Define a closure for selecting things from the menu.
   function! s:MENU_RECURSE.Selected(id, index) closure
-    if !exists('l:labels[a:index]')
+    if a:index < 0
+      return v:false
+
+    elseif !exists('l:labels[a:index]')
       throw printf('annotation.MissingKeyError: a required key (%s) was missing from the specified labels dictionary: %s', a:index, l:labels) 
     endif
 
@@ -125,17 +128,12 @@ function! annotation#ui#menu(items, title, options, send)
 
     " Now we can remove the popup from our tracking dictionary.
     call s:remove_popup(a:id)
+    return v:true
   endfunction
 
   " Define a closure for allowing the user to use numbers for selecting things.
   function! s:MENU_RECURSE.Shortcuts(id, key) closure
-    "if exists('a:items[a:key]')
-    "  let index = hotkeys[a:key]
-    "  call popup_close(a:id, index)
-    "  return v:true
-    "endif
-
-    let index = stridx('1234567890', a:key)
+    let index = stridx('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', a:key)
     if index >= 0
       call popup_close(a:id, 1 + index)
       return v:true
