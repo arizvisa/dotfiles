@@ -32,8 +32,8 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
         throw printf('annotation.MissingPropertyError: No identifier was found for new property in buffer %d.', a:bufnum)
     endif
 
-    let id = prop_add(a:lnum, a:col, new)
-    let key = annotation#property#get(a:bufnum, a:col, a:lnum, id)
+    let id = prop_add(new.lnum, new.col, new)
+    let key = annotation#property#get(a:bufnum, new.col, new.lnum, id)
     let [result, lines] = annotation#state#getprop(a:bufnum, key.id)
     return result
 endfunction
