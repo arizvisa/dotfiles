@@ -22,6 +22,10 @@ function! s:add_property_data_item(property)
     " get user input.
     let annotation = annotation#ui#readinput('Add: ')
 
+    if empty(annotation)
+        return v:false
+    endif
+
     " initialize the data if it hasn't been done yet.
     if !exists('data.notes')
         let data.notes = {}
@@ -32,6 +36,7 @@ function! s:add_property_data_item(property)
     let data.notes[key] = annotation
 
     call annotation#frontend#set_property_data(a:property.bufnr, a:property.lnum, a:property.col, copy(data), a:property.id)
+    return v:true
 endfunction
 
 " Modify the data at the specified index associated with the selected property.
@@ -40,11 +45,17 @@ function! s:modify_property_data_item(property, index)
 
     " get user input, using the original data as the default.
     let old = data.notes[a:index]
+
     let new = annotation#ui#readinput('Modify: ', old)
+    if empty(new)
+        return v:false
+    endif
+
     let data.notes[a:index] = new
 
     " write it back into the property data.
     call annotation#frontend#set_property_data(a:property.bufnr, a:property.lnum, a:property.col, copy(data), a:property.id)
+    return v:true
 endfunction
 
 " Display a menu for selecting an annotation item and editing it.
@@ -65,11 +76,9 @@ function! s:remove_property_data(property, title='Removing')
     let items = annotation#menu#build(a:property)
 
     function! RemoveSelected(id, label) closure
-        echomsg printf('Selected %s: %s', a:label, items[a:label])
         let [_, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
         let removed = remove(data.notes, a:label)
 
-        echomsg printf('Removed %s: %s', a:label, removed)
         if empty(data.notes)
             echomsg printf('Removing entire property: %s', a:property)
             call annotation#frontend#del_property(a:property.bufnr, a:property.lnum, a:property.col)
@@ -80,6 +89,7 @@ function! s:remove_property_data(property, title='Removing')
 
     let options = {}
     call annotation#ui#menu(items, a:title, options, funcref('RemoveSelected'))
+    return v:true
 endfunction
 
 " Display the annotation menu for the specified property.
@@ -96,23 +106,20 @@ function! s:show_annotation_menu(property, title, callbacks)
     let items[4] = 'Abort'
 
     function! ShowSelected(id, label) closure
-        if exists('data[a:label]')
-            echomsg printf('Selected %s: %s', a:label, data[a:label])
-        else
-            echomsg printf('Selected %s', a:label)
-        endif
-
         let l:Callback = exists('a:callbacks[a:label]')? a:callbacks[a:label] : v:none
+
         if a:label == 1
-            call s:add_property_data_item(a:property)
+            let ok = s:add_property_data_item(a:property)
         elseif a:label == 2
-            call s:modify_property_data(a:property)
+            let ok = s:modify_property_data(a:property)
         elseif a:label == 3
-            call s:remove_property_data(a:property)
+            let ok = s:remove_property_data(a:property)
+        else
+            let ok = v:false
         endif
 
         if l:Callback != v:none
-            call l:Callback(a:property, a:label)
+            call l:Callback(a:property, a:label, ok)
         endif
     endfunction
 
@@ -121,13 +128,34 @@ function! s:show_annotation_menu(property, title, callbacks)
 endfunction
 
 " Display a menu for adding a new annotation to a text property.
-function! annotation#menu#add(property, title='Edit')
+function! annotation#menu#add(property, title='Add')
     let l:callbacks = {}
 
-    function! s:AbortFunction(selected, label) closure
+    function! s:CancelAddition(selected, label, ok) closure
+        if a:ok
+            return
+        endif
+
+        echomsg printf('User canceled the addition of an annotation: %s', a:selected)
+        call annotation#frontend#del_property(a:selected.bufnr, a:selected.lnum, a:selected.col)
+    endfunction
+
+    function! s:CancelModification(selected, label, ok) closure
+        if a:ok
+            return
+        endif
+
+        echomsg printf('User canceled the modification of an annotation: %s', a:selected)
+        call annotation#frontend#del_property(a:selected.bufnr, a:selected.lnum, a:selected.col)
+    endfunction
+
+    function! s:AbortFunction(selected, label, ok) closure
         echomsg printf('User aborted the addition of an annotation: %s', a:selected)
         call annotation#frontend#del_property(a:selected.bufnr, a:selected.lnum, a:selected.col)
     endfunction
+
+    let l:callbacks[1] = funcref('s:CancelAddition')
+    let l:callbacks[2] = funcref('s:CancelModification')
     let l:callbacks[4] = funcref('s:AbortFunction')
 
     call s:show_annotation_menu(a:property, a:title, l:callbacks)
@@ -137,9 +165,28 @@ endfunction
 function! annotation#menu#modify(property, title='Edit')
     let l:callbacks = {}
 
+    function! s:CancelAddition(selected, label, ok) closure
+        if a:ok
+            return
+        endif
+
+        echomsg printf('User canceled the addition of an annotation: %s', a:selected)
+    endfunction
+
+    function! s:CancelModification(selected, label, ok) closure
+        if a:ok
+            return
+        endif
+
+        echomsg printf('User canceled the modification of an annotation: %s', a:selected)
+    endfunction
+
     function! s:AbortFunction(selected, label) closure
         echomsg printf('User aborted modification of the specified annotation: %s', a:selected)
     endfunction
+
+    let l:callbacks[1] = funcref('s:CancelAddition')
+    let l:callbacks[2] = funcref('s:CancelModification')
     let l:callbacks[4] = funcref('s:AbortFunction')
 
     call s:show_annotation_menu(a:property, a:title, l:callbacks)
