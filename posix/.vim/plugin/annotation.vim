@@ -21,7 +21,6 @@ augroup END
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
 
 function! ModifyProperty(bufnum, lnum, col)
-    echoconsole printf('%d %d %d', a:bufnum, a:col, a:lnum)
     let prop = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
     if empty(prop)
         throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
@@ -56,7 +55,7 @@ function! GetPropertyData(property)
 endfunction
 
 xmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
-nmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), line('.'), match(getline('.'), '\S'), line('.'), col('$'))<CR>
+nmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
 nmap <C-m>x <Cmd>call RemoveProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 nmap <C-m>N <Cmd>call ModifyProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 nmap <C-m>? <Cmd>call ShowProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
