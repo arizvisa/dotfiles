@@ -21,11 +21,15 @@ augroup END
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
 
 function! ModifyProperty(bufnum, lnum, col)
-    let prop = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
-    if empty(prop)
+    let property = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
+    if empty(property)
         throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
     endif
-    let [property, _] = annotation#state#getprop(bufnr(), prop.id)
+    call ModifyPropertyItem(a:bufnum, property)
+endfunction
+
+function! ModifyPropertyItem(bufnum, property)
+    let [property, _] = annotation#state#getprop(a:bufnum, a:property.id)
     call annotation#menu#modify(property)
 endfunction
 
@@ -44,7 +48,6 @@ endfunction
 
 function! GetPropertyData(property)
     let [property, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
-    echoconsole printf('Fetched data from property %d: %s', property.id, data)
     let notes = exists('data.notes')? data.notes : {}
 
     let res = []
@@ -54,8 +57,20 @@ function! GetPropertyData(property)
     return res
 endfunction
 
-xmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
-nmap <C-m>n <Esc><Cmd>call AddProperty(bufnr(), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
-nmap <C-m>x <Cmd>call RemoveProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
-nmap <C-m>N <Cmd>call ModifyProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
+" FIXME: should check for overlapping properties too.
+function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
+    let properties = annotation#property#at(a:bufnum, a:col, a:lnum)
+
+    if empty(properties)
+        call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
+    else
+        let ids = keys(properties)
+        let first = ids[0]
+        call ModifyPropertyItem(a:bufnum, properties[first])
+    endif
+endfunction
+
+xmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
+nmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
+nmap <C-m>d <Cmd>call RemoveProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 nmap <C-m>? <Cmd>call ShowProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
