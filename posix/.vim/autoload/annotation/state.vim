@@ -105,18 +105,19 @@ function! annotation#state#save(bufnum)
   let propertyresults = {}
   for key in keys(properties)
     let property = properties[key]
+    let propertyresults[key] = exists('propertyresults[key]')? propertyresults[key] : {}
     for field in propertyfields
       if exists('property[field]')
-        let propertyresults[field] = property[field]
+        let propertyresults[key][field] = property[field]
       else
-        let propertyresults[field] = v:none
+        let propertyresults[key][field] = v:none
       endif
     endfor
   endfor
 
   " Now we can grab the annotations (which are already fine as-is), and then
   " return all the things to the caller in order to continue processing.
-  let annotations = l:bufferstate.annotations
+  let annotationresults = l:bufferstate.annotations
   return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction
 

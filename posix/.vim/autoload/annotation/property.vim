@@ -421,11 +421,26 @@ endfunction
 "        to handle the difference between the seraialized and runtime states.
 
 function! annotation#property#save(bufnum)
+  let state = annotation#state#save(a:bufnum)
   " FIXME: is it better for us to iterate through all the properties in the
   "        document instead of trusting that we got from `annotation#state`?
 endfunction
 
 function! annotation#property#load(bufnum, content)
+  if !exists('a:content.positions')
+    throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'positions')
+  elseif !exists('a:content.annotations')
+    throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'annotations')
+  elseif !exists('a:content.propertymap')
+    throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'propertymap')
+  endif
+
   " FIXME: we need to read from content all the property boundaries so that we
   "        can recreate them one-by-one.
+  call annotation#state#load(a:bufnum, a:content)
+
+  let positions = a:content['positions']
+  let annotations = a:content['annotations']
+  let propertymap = a:content['propertymap']
+  return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction
