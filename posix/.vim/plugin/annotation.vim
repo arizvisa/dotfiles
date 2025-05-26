@@ -74,7 +74,30 @@ function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
     endif
 endfunction
 
+function! CursorForward(bufnum, lnum, col)
+    let [x, y] = annotation#property#scanforward(a:bufnum, a:col, a:lnum, g:annotation_property)
+    if [a:col, a:lnum] != [x, y]
+        let res = (cursor(y, x) < 0)? v:false : v:true
+    else
+        let res = v:false
+    endif
+    return res
+endfunction
+
+function! CursorBackward(bufnum, lnum, col)
+    let [x, y] = annotation#property#scanbackward(a:bufnum, a:col, a:lnum, g:annotation_property)
+    if [a:col, a:lnum] != [x, y]
+        let res = (cursor(y, x) < 0)? v:false : v:true
+    else
+        let res = v:false
+    endif
+    return res
+endfunction
+
 xmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
 nmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
 nmap <C-m>d <Cmd>call RemoveProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 nmap <C-m>? <Cmd>call ShowProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
+
+nmap <C-m>[ <Cmd>call CursorBackward(bufnr(), line('.'), col('.'))<CR>
+nmap <C-m>] <Cmd>call CursorForward(bufnr(), line('.'), col('.'))<CR>

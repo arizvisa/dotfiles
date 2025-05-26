@@ -40,6 +40,12 @@ function! s:find_property_lines(bufnum, x, y, type_or_id)
     call add(l:properties, l:property)
     let l:index = l:index + 1
   endwhile
+  while l:index < len(l:stupid) && get(l:stupid[l:index], 'end', 0) == 1 && get(l:stupid[l:index], 'lnum', -1) == a:y
+    let l:property = l:stupid[l:index]
+    call add(l:properties, l:property)
+    let l:index = l:index + 1
+  endwhile
+
   if l:index < len(l:stupid)
     call add(l:properties, l:stupid[l:index])
   endif
@@ -115,10 +121,17 @@ endfunction
 function! annotation#property#getbounds(bufnum, x, y, type_or_id)
 
   let l:properties = s:find_property_lines(a:bufnum, a:x, a:y, a:type_or_id)
-  if empty(l:properties) | return [a:x, a:y, a:x, a:y] | endif
 
-  if len(l:properties) == 1
+  if empty(l:properties)
+    return [a:x, a:y, a:x, a:y]
+
+  elseif len(l:properties) == 1
     let [l:property] = l:properties
+    let [l:lnum, l:left, l:right] = [l:property['lnum'], l:property['col'], l:property['col'] + l:property['length'] - 1]
+    return [l:left, l:lnum, l:right, l:lnum]
+
+  elseif len(uniq(sort(mapnew(l:properties[:-1], {index, property -> property['id']})))) != 1
+    let l:property = l:properties[0]
     let [l:lnum, l:left, l:right] = [l:property['lnum'], l:property['col'], l:property['col'] + l:property['length'] - 1]
     return [l:left, l:lnum, l:right, l:lnum]
   endif
@@ -194,18 +207,20 @@ function! annotation#property#scanbackward(bufnum, x, y, type_or_id)
     throw printf('annotation.InvalidParameterError: unable to determine the key using an unsupported type (%d)', type(a:type_or_id))
   endif
 
-  if left == right && top == bottom
+  if a:y > bottom
     let [l:key['col'], l:key['lnum']] = [a:x, a:y]
-    let result = prop_find(l:key, 'b')
-  elseif left > 1
+  elseif a:y > top && a:y < bottom
     let [l:key['col'], l:key['lnum']] = [left - 1, top]
-    let result = prop_find(l:key, 'b')
+  elseif a:y == bottom && a:x <= right
+    let [l:key['col'], l:key['lnum']] = [left - 1, top]
+  elseif a:y == top && a:x >= left
+    let [l:key['col'], l:key['lnum']] = [left - 1, top]
   else
-    let [l:key['col'], l:key['lnum']] = [len(getline(top - 1)), top - 1]
-    let result = prop_find(l:key, 'b')
+    let [l:key['col'], l:key['lnum']] = [a:x, a:y]
   endif
 
-  return empty(result)? [a:y, a:x] : [result['lnum'], result['col']]
+  let result = prop_find(l:key, 'b')
+  return empty(result)? [a:x, a:y] : [result['col'], result['lnum']]
 endfunction
 
 " return the X-Y pair for the specified property in the buffer "bufnum" by
@@ -222,18 +237,20 @@ function! annotation#property#scanforward(bufnum, x, y, type_or_id)
     throw printf('annotation.InvalidParameterError: unable to determine the key using an unsupported type (%d)', type(a:type_or_id))
   endif
 
-  if left == right && top == bottom
+  if a:y < top
     let [l:key['col'], l:key['lnum']] = [a:x, a:y]
-    let result = prop_find(l:key, 'f')
-  elseif right < len(getline(bottom))
+  elseif a:y > top && a:y < bottom
     let [l:key['col'], l:key['lnum']] = [right + 1, bottom]
-    let result = prop_find({l:key}, 'f')
+  elseif a:y == top && a:x >= left
+    let [l:key['col'], l:key['lnum']] = [right + 1, bottom]
+  elseif a:y == bottom && a:x <= right
+    let [l:key['col'], l:key['lnum']] = [right + 1, bottom]
   else
-    let [l:key['col'], l:key['lnum']] = [1, bottom + 1]
-    let result = prop_find(l:key, 'f')
+    let [l:key['col'], l:key['lnum']] = [a:x, a:y]
   endif
 
-  return empty(result)? [a:y, a:x] : [result['lnum'], result['col']]
+  let result = prop_find(l:key, 'f')
+  return empty(result)? [a:x, a:y] : [result['col'], result['lnum']]
 endfunction
 
 " return all the properties in the specified buffer at the specified coordinate.
