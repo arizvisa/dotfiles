@@ -68,6 +68,7 @@ function! s:modify_property_data(property, title='Modifying')
 
     let options = {}
     call annotation#ui#menu(items, a:title, options, funcref('s:ModifySelected'))
+    return v:true
 endfunction
 
 " Display a menu for selecting an annotation item and removing it.
