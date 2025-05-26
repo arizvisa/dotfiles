@@ -59,14 +59,13 @@ endfunction
 
 " FIXME: should check for overlapping properties too.
 function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
-    let properties = annotation#property#at(a:bufnum, a:col, a:lnum)
+    let ids = annotation#state#find_bounds(a:bufnum, a:col, a:lnum, a:end_col, a:end_lnum)
 
-    if empty(properties)
+    if empty(ids)
         call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
     else
-        let ids = keys(properties)
-        let first = ids[0]
-        call ModifyPropertyItem(a:bufnum, properties[first])
+        let [property, lines] = annotation#state#getprop(a:bufnum, ids[0])
+        call ModifyPropertyItem(a:bufnum, property)
     endif
 endfunction
 
