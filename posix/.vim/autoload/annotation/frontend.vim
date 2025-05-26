@@ -119,3 +119,23 @@ function! annotation#frontend#show_property_data(bufnum, lnum, col, data, id=g:a
     let [winpos, wininfo] = annotation#ui#propertytooltip(lines, title, property, a:persist)
     return [winpos, wininfo]
 endfunction
+
+function! annotation#frontend#load_buffer(bufstr, filename)
+    let infile = printf('%s.annotations', a:filename)
+    if filereadable(infile)
+        let inlines = readfile(infile)
+        let input = join(inlines, "\n")
+        let indata = json_decode(input)
+        call annotation#property#load(str2nr(a:bufstr), indata)
+    endif
+endfunction
+
+function! annotation#frontend#save_buffer(bufstr, filename)
+    let outfile = printf('%s.annotations', a:filename)
+    let output = annotation#property#save(str2nr(a:bufstr))
+    if (!empty(output) && !filereadable(outfile)) || filewritable(outfile)
+        let outdata = json_encode(output)
+        let outlines = split(outdata, "\n")
+        let res = writefile(outlines, outfile, 's')
+    endif
+endfunction
