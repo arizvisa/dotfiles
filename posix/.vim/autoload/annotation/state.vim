@@ -406,6 +406,77 @@ function! annotation#state#properties(bufnum)
   endif
 endfunction
 
+" Return a list of property ids for the specified buffer overlapping the given
+" range of the specified line number.
+function! annotation#state#find_line(bufnum, start, stop, lnum)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  elseif a:start == a:stop
+    return s:properties_at_point(a:bufnum, a:start, a:lnum)
+  endif
+
+  " Grab the buffer state.
+  let l:bufferstate = s:STATE[a:bufnum]
+  let l:bufferlines = l:bufferstate.lines
+  let l:bufferprops = l:bufferstate.props
+
+  " Greab the ids that are applied to the specified line number.
+  let ids = exists('l:bufferlines[a:lnum]')? l:bufferlines[a:lnum] : []
+
+  " Check the properties at the specified line number and add them if we
+  " overlap.
+  let result = []
+  for id in ids
+    let propertydata = l:bufferprops[id]
+    if a:start <= propertydata['end_col'] && a:stop >= propertydata['col']
+      call add(result, id)
+    endif
+  endfor
+  return result
+endfunction
+
+" Return a list of property ids for the specified buffer at the specified point.
+function! s:properties_at_point(bufnum, col, lnum)
+  if !exists('s:STATE[a:bufnum]')
+    throw printf('annotation.MissingStateError: state for buffer %d does not exist.', a:bufnum)
+  endif
+
+  " Grab the buffer state.
+  let l:bufferstate = s:STATE[a:bufnum]
+  let l:bufferlines = l:bufferstate.lines
+  let l:bufferprops = l:bufferstate.props
+
+  " Grab the ids for the specified line number.
+  let ids = exists('l:bufferlines[a:lnum]')? l:bufferlines[a:lnum] : []
+
+  " Check the properties at the specified line number and add them if we
+  " overlap.
+  let result = []
+  for id in ids
+    let propertydata = l:bufferprops[id]
+    if a:col == propertydata['col']
+      call add(result, id)
+    endif
+  endfor
+  return result
+endfunction
+
+" Return a list of property ids for the specified buffer at the specified point.
+function! annotation#state#find_bounds(bufnum, col, lnum, end_col, end_lnum)
+  if a:lnum == a:end_lnum && a:col == a:end_col
+    return s:properties_at_point(a:bufnum, a:col, a:lnum)
+  elseif a:lnum == a:end_lnum
+    return annotation#state#find_line(a:bufnum, a:col, a:end_col, a:lnum)
+  endif
+
+  let results = []
+  for line in range(a:lnum, a:end_lnum)
+    let lineresults = annotation#state#find_line(a:bufnum, a:col, a:end_col, line)
+    call extend(results, lineresults)
+  endfor
+  return uniq(sort(results))
+endfunction
+
 " Return the annotation for the specified property id in the given buffer.
 function! annotation#state#getdata(bufnum, id)
   if !exists('s:STATE[a:bufnum]')
