@@ -42,6 +42,7 @@ function! AddProperty(bufnum, lnum, col, end_lnum, end_col)
 endfunction
 
 function! RemoveProperty(bufnum, lnum, col)
+    echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
     call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, g:annotation_property)
 endfunction
 
@@ -65,7 +66,8 @@ function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
     let ids = annotation#state#find_bounds(a:bufnum, a:col, a:lnum, a:end_col, a:end_lnum)
 
     if empty(ids)
-        call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
+        let maxcol = 1 + strwidth(getline(a:end_lnum))
+        call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
     else
         let [property, lines] = annotation#state#getprop(a:bufnum, ids[0])
         call ModifyPropertyItem(a:bufnum, property)
