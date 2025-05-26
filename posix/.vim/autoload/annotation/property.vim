@@ -422,8 +422,22 @@ endfunction
 
 function! annotation#property#save(bufnum)
   let state = annotation#state#save(a:bufnum)
+
   " FIXME: is it better for us to iterate through all the properties in the
   "        document instead of trusting that we got from `annotation#state`?
+  let positions = state['positions']
+  let annotations = state['annotations']
+  let propertymap = state['propertymap']
+
+  " FIXME: Scan the current list of properties and figure out how to translate
+  "        them to a property id number that is based at 0. This way the loader
+  "        can translate the id number to whatever free properties that are
+  "        currently loaded for the target buffer.
+  if empty(positions) && empty(annotations) && empty(propertymap)
+    return {}
+  endif
+
+  return state
 endfunction
 
 function! annotation#property#load(bufnum, content)
@@ -437,10 +451,40 @@ function! annotation#property#load(bufnum, content)
 
   " FIXME: we need to read from content all the property boundaries so that we
   "        can recreate them one-by-one.
-  call annotation#state#load(a:bufnum, a:content)
-
   let positions = a:content['positions']
   let annotations = a:content['annotations']
   let propertymap = a:content['propertymap']
+
+  " First grab all of the ids that are available
+  let ids = sort(keys(positions))
+
+  " Then iterate through each of them and use the property data to recreate the
+  " property in the current buffer.
+  let used = []
+  for id in ids
+    if !exists('annotations[id]')
+      throw printf('annotation.MissingAnnotationError: unable to find the annotations for property %d.', id)
+    endif
+
+    " Get the property data and adjust its fields to add it to the specified
+    " buffer number.
+    let propertydata = positions[id]
+    let propertydata['bufnr'] = a:bufnum
+    let propertydata['id'] = id
+
+    let newid = prop_add(propertydata.lnum, propertydata.col, propertydata)
+    call add(used, newid)
+  endfor
+
+  " Finally we can repopulate our property results.
+  let propertyresults = {}
+  let annotationresults = {}
+  for id in used
+    let propertyresults[id] = copy(positions[id])
+    let annotationresults[id] = deepcopy(annotations[id])
+  endfor
+
+  " Now we can just load the annotation data from the content.
+  call annotation#state#load(a:bufnum, a:content)
   return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction

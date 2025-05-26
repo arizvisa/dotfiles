@@ -60,21 +60,27 @@ endfunction
 
 " Load the state in "contents" for the buffer specified by its number.
 function! annotation#state#load(bufnum, contents)
-  if exists('s:STATE[a:bufnum]')
-    throw printf('annotation.DuplicateStateError: state for buffer %d already exists.', a:bufnum)
-  elseif type(a:propertymap) != v:t_dict
-    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to an unsupported type (%d).', a:bufnum, type(a:propertymap))
-  elseif !exists('a:contents.positions')
+  if !exists('a:contents.positions')
     throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'positions')
   elseif !exists('a:contents.annotations')
     throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'annotations')
   elseif !exists('a:contents.propertymap')
     throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'map')
+  elseif type(a:contents.propertymap) != v:t_dict
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to an unsupported type (%d).', a:bufnum, type(a:propertymap))
   endif
 
   " Grab the state of the buffer that we're loading annotations into.
-  let l:bufferstate = s:STATE[a:bufnum]
+  let l:bufferstate = annotation#state#exists(a:bufnum)? annotation#state#get(a:bufnum) : annotation#state#new(a:bufnum)
+
+  if !exists('l:bufferstate.positions')
+    let l:bufferstate.positions = {}
+  elseif !exists('l:bufferstate.annotations')
+    let l:bufferstate.annotations = {}
+  endif
+
   let l:annotationstate = l:bufferstate.annotations
+  let l:propertystate = l:bufferstate.props
 
   " Unpack our serialized data so that we can get at the annotations.
   let propertyresults = a:contents.positions
@@ -83,9 +89,29 @@ function! annotation#state#load(bufnum, contents)
 
   " Now we can load them into the current buffer.
   for id in keys(annotationresults)
-    let newid = propertymap[id]
+    let newid = exists('propertymap[id]')? propertymap[id] : id
     let l:annotationstate[newid] = annotationresults[id]
   endfor
+
+  " Figure out what property ids are not being used and add them to the
+  " buffer state under the "availableprops" key.
+  let ids = sort(keys(propertyresults))
+
+  let unused = []
+  for id in range(min(ids), max(ids))
+    let newid = exists('propertymap[id]')? propertymap[id] : id
+    if !exists('propertyresults[newid]')
+      call add(unused, newid)
+    else
+      let propertydata = copy(propertyresults[id])
+      let propertydata.id = newid
+      let l:propertystate[newid] = propertydata
+    endif
+  endfor
+
+  " Combine the unused id list with the available property id lists.
+  let total = uniq(sort(l:bufferstate.availableprops + unused))
+  let l:bufferstate.availableprops = total
 endfunction
 
 " Return the state for the buffer specified by its number.
@@ -108,16 +134,21 @@ function! annotation#state#save(bufnum)
     let propertyresults[key] = exists('propertyresults[key]')? propertyresults[key] : {}
     for field in propertyfields
       if exists('property[field]')
-        let propertyresults[key][field] = property[field]
+        let propertyresults[key][field] = copy(property[field])
       else
         let propertyresults[key][field] = v:none
       endif
     endfor
   endfor
 
+  " FIXME: the purpose of the "propertymap" field is to allow loading multiple
+  "        annotations on the same file. it is intended to be populated by the
+  "        `annotation#property` namespace to translate a serialized property to
+  "        the current property id space for the specified buffer.
+
   " Now we can grab the annotations (which are already fine as-is), and then
   " return all the things to the caller in order to continue processing.
-  let annotationresults = l:bufferstate.annotations
+  let annotationresults = deepcopy(l:bufferstate.annotations)
   return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction
 
