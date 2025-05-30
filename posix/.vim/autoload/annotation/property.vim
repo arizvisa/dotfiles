@@ -309,12 +309,31 @@ function! annotation#property#get(bufnum, x, y, type_or_id)
     throw printf('annotation.InvalidParameterError: unable to determine the key using an unsupported type (%d)', type(type_or_id))
   endif
 
-  " return only the first matching one.
+  " Grab all of the properties at the specified line number.
   let l:found = prop_list(a:y, l:key)
+
+  " Now we iterate through them finding the start and stop columns in order to
+  " figure out which property the caller is trying to select.
   for l:property in l:found
-    return l:property
+    let start = l:property['col']
+
+    " Figure out whether we were given the stop column or if we have to
+    " calculate the column index by ourselves using the property length.
+    if exists('l:property.end_col')
+      let stop = l:property['end_col']
+    elseif exists('l:property.length')
+      let stop = start + l:property['length']
+    else
+      throw printf('annotation.InvalidPropertyError: unable to determine the end of the specified property at line %d column %d: %s', a:y, start, l:property)
+    endif
+
+    " If the column (x) is within the property span, then return it.
+    if a:x >= start && a:x <= stop
+      return l:property
+    endif
   endfor
 
+  " Otherwise the property wasn't found, and we need to return empty.
   return {}
 endfunction
 
