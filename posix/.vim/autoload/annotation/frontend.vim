@@ -34,8 +34,7 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
 
     let id = prop_add(new.lnum, new.col, new)
     let key = annotation#property#get(a:bufnum, new.col, new.lnum, id)
-    let [result, lines] = annotation#state#getprop(a:bufnum, key.id)
-    return result
+    return annotation#state#getprop(a:bufnum, key.id)
 endfunction
 
 " Remove a property from the state for the specified buffer.
@@ -59,8 +58,7 @@ function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_pr
         throw printf('annotation.VimFunctionError: the `%s` function could not delete the following property from lines %d..%d: %s', 'prop_remove', top, bottom, removal)
     endif
 
-    let [result, lines] = annotation#state#removeprop(a:bufnum, property.id)
-    return result
+    return annotation#state#removeprop(a:bufnum, property.id)
 endfunction
 
 " Return the property data for the specified property from the given buffer.
@@ -86,7 +84,7 @@ function! annotation#frontend#set_property_data(bufnum, lnum, col, data, id=g:an
     endif
 
     if type(a:data) == v:t_func
-        let [property, rows] = annotation#state#getprop(a:bufnum, property.id)
+        let property = annotation#state#getprop(a:bufnum, property.id)
         let newdata = a:data(property)
     else
         let newdata = a:data
@@ -104,7 +102,7 @@ function! annotation#frontend#show_property_data(bufnum, lnum, col, data, id=g:a
         throw printf('annotation.MissingKeyError: a required key (%s) was missing from the property in buffer %d at line %d column %d.', 'id', a:bufnum, a:lnum, a:col)
     endif
 
-    let [property, rows] = annotation#state#getprop(a:bufnum, property.id)
+    let property = annotation#state#getprop(a:bufnum, property.id)
     if type(a:data) == v:t_func
         let lines = a:data(property)
     elseif type(a:data) == v:t_string

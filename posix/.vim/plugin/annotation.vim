@@ -32,7 +32,7 @@ function! ModifyProperty(bufnum, lnum, col)
 endfunction
 
 function! ModifyPropertyItem(bufnum, property)
-    let [property, _] = annotation#state#getprop(a:bufnum, a:property.id)
+    let property = annotation#state#getprop(a:bufnum, a:property.id)
     call annotation#menu#modify(property)
 endfunction
 
@@ -69,7 +69,7 @@ function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
         let maxcol = 1 + strwidth(getline(a:end_lnum))
         call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
     else
-        let [property, lines] = annotation#state#getprop(a:bufnum, ids[0])
+        let property = annotation#state#getprop(a:bufnum, ids[0])
         call ModifyPropertyItem(a:bufnum, property)
     endif
 endfunction

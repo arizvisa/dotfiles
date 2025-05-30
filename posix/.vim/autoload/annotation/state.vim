@@ -267,7 +267,7 @@ function! annotation#state#removeprop(bufnum, id)
     call remove(l:bufferstate.annotations, l:id)
   endif
 
-  return [l:property, l:lines]
+  return l:property
 endfunction
 
 " Add a new property to the state for the specified buffer number.
@@ -400,7 +400,7 @@ function! annotation#state#updateprop(bufnum, id, property)
 
   " that was it. we can now return the new property (with id), and the lines
   " numbers that it actually references.
-  return [l:new, l:lines]
+  return l:new
 endfunction
 
 " Return the property and line numbers from the specified buffer number and id.
@@ -413,25 +413,24 @@ function! annotation#state#getprop(bufnum, id)
 
   let [l:id, l:bufferstate] = [a:id, s:STATE[a:bufnum]]
 
-  " grab the property, and use it to get the lines that it has been applied to.
+  " grab the property and the lines for the current buffer.
   let l:property = l:bufferstate.props[l:id]
   let l:bufferlines = l:bufferstate.lines
 
-  let l:lines = []
+  " iterate through all the lines for the property, and update the lines for the
+  " current buffer if we couldn't find the property id inside the current line.
   for l:lnum in s:get_property_lines(l:property)
-    if !exists('l:bufferlines[l:lnum]')
-      continue
-    endif
-
     let l:bufferline = exists('l:bufferlines[l:lnum]')? l:bufferlines[l:lnum] : []
     let l:bufferlines[l:lnum] = l:bufferline
+
+    " FIXME: we should do a sorted insert here so we get better than O(n)
     if index(l:bufferline, l:id) < 0
       call add(l:bufferline, l:id)
     endif
   endfor
 
   " that was it.
-  return [l:property, l:lines]
+  return l:property
 endfunction
 
 " Return a list of all the property ids associated with the specified buffer.
