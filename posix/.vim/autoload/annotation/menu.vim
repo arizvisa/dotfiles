@@ -182,7 +182,7 @@ function! annotation#menu#modify(property, title='Edit')
         echomsg printf('User canceled the modification of an annotation: %s', a:selected)
     endfunction
 
-    function! s:AbortFunction(selected, label) closure
+    function! s:AbortFunction(selected, label, ok) closure
         echomsg printf('User aborted modification of the specified annotation: %s', a:selected)
     endfunction
 
