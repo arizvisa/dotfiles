@@ -42,8 +42,11 @@ function! AddProperty(bufnum, lnum, col, end_lnum, end_col)
 endfunction
 
 function! RemoveProperty(bufnum, lnum, col)
-    echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
-    call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, g:annotation_property)
+    let current = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
+    if !empty(current)
+        echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
+        call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, current['id'])
+    endif
 endfunction
 
 function! ShowProperty(bufnum, lnum, col)
