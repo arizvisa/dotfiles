@@ -150,12 +150,15 @@ function! annotation#property#filter_by_point(properties, x, y)
     let [left, right] = spans[index]
     let top = property['lnum']
     let bottom = exists('property.end_lnum')? property['end_lnum'] : top
+    let fromproplist = exists('property.start') && exists('property.stop')
 
     " Verify whether the span of the property contains the specified point.
     if a:y > top && a:y < bottom
       call add(result, property)
     elseif a:y != top && a:y != bottom
       continue
+    elseif !fromproplist && a:x >= left && a:x < right
+      call add(result, property)
     elseif property['start'] == 0 && property['end'] == 0
       call add(result, property)
     elseif property['start'] == 1 && property['end'] == 1 && a:x >= left && a:x < right
@@ -182,12 +185,15 @@ function! annotation#property#filter_by_span(properties, start, stop, y)
     let [left, right] = spans[index]
     let top = property['lnum']
     let bottom = exists('property.end_lnum')? property['end_lnum'] : top
+    let fromproplist = exists('property.start') && exists('property.stop')
 
     " Check if the property overlaps with the specified span.
     if a:y > top && a:y < bottom
       call add(result, property)
     elseif a:y != top && a:y != bottom
       continue
+    elseif !fromproplist && a:start < right && a:stop >= left
+      call add(result, property)
     elseif property['start'] == 0 && property['end'] == 0
       call add(result, property)
     elseif property['start'] == 1 && property['end'] == 1 && a:start < right && a:stop >= left
@@ -208,22 +214,27 @@ endfunction
 function! annotation#property#getbounds(bufnum, x, y, type_or_id)
 
   let l:properties = s:find_property_lines(a:bufnum, a:x, a:y, a:type_or_id)
+  let l:filtered = annotation#property#filter_by_point(l:properties, a:x, a:y)
 
-  if empty(l:properties)
+  if empty(l:filtered)
     return [a:x, a:y, a:x, a:y]
-
-  elseif len(l:properties) == 1
-    let [l:property] = l:properties
-    let [l:lnum, l:left, l:right] = [l:property['lnum'], l:property['col'], l:property['col'] + l:property['length'] - 1]
-    return [l:left, l:lnum, l:right, l:lnum]
-
-  elseif len(uniq(sort(mapnew(l:properties[:-1], {index, property -> property['id']})))) != 1
-    let l:property = l:properties[0]
-    let [l:lnum, l:left, l:right] = [l:property['lnum'], l:property['col'], l:property['col'] + l:property['length'] - 1]
-    return [l:left, l:lnum, l:right, l:lnum]
   endif
 
-  let l:filtered = filter(l:properties, "v:val['start'] != 0 || v:val['end'] != 0")
+  let ids = uniq(sort(mapnew(l:filtered, {index, property -> property['id']})))
+  if len(l:filtered) == 1
+    let [l:property] = l:filtered
+    let l:lnum = l:property['lnum']
+    let [l:left, l:right] = s:find_property_span(l:property)
+    return [l:left, l:lnum, l:right - 1, l:lnum]
+
+  elseif len(ids) != 1
+    let l:filtered = annotation#property#filter_by_point(l:filtered, a:x, a:y)
+    let l:property = l:filtered[0]
+    let l:lnum = l:property['lnum']
+    let [l:left, l:right] = s:find_property_span(l:property)
+    return [l:left, l:lnum, l:right - 1, l:lnum]
+  endif
+
   let l:filteredlines = mapnew(l:filtered, {index, property -> property['lnum']})
 
   let [l:top, l:bottom] = [min(l:filteredlines), max(l:filteredlines)]
@@ -402,20 +413,10 @@ function! annotation#property#get(bufnum, x, y, type_or_id)
   " Now we iterate through them finding the start and stop columns in order to
   " figure out which property the caller is trying to select.
   for l:property in l:found
-    let start = l:property['col']
-
-    " Figure out whether we were given the stop column or if we have to
-    " calculate the column index by ourselves using the property length.
-    if exists('l:property.end_col')
-      let stop = l:property['end_col']
-    elseif exists('l:property.length')
-      let stop = start + l:property['length']
-    else
-      throw printf('annotation.InvalidPropertyError: unable to determine the end of the specified property at line %d column %d: %s', a:y, start, l:property)
-    endif
+    let [start, stop] = s:find_property_span(l:property)
 
     " If the column (x) is within the property span, then return it.
-    if a:x >= start && a:x <= stop
+    if a:x >= start && a:x < stop
       return l:property
     endif
   endfor
