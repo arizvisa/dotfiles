@@ -81,6 +81,7 @@ function! annotation#state#load(bufnum, contents)
 
   let l:annotationstate = l:bufferstate.annotations
   let l:propertystate = l:bufferstate.props
+  let l:bufferlines = l:bufferstate.lines
 
   " Unpack our serialized data so that we can get at the annotations.
   let propertyresults = a:contents.positions
@@ -106,6 +107,15 @@ function! annotation#state#load(bufnum, contents)
       let propertydata = copy(propertyresults[id])
       let propertydata.id = newid
       let l:propertystate[newid] = propertydata
+
+      for l:lnum in s:get_property_lines(l:propertydata)
+        let l:bufferline = exists('l:bufferlines[l:lnum]')?  l:bufferlines[l:lnum] : []
+        let l:bufferlines[l:lnum] = l:bufferline
+
+        if index(l:bufferline, l:id) < 0
+          call add(l:bufferline, l:id)
+        endif
+      endfor
     endif
   endfor
 
@@ -413,12 +423,11 @@ function! annotation#state#getprop(bufnum, id)
       continue
     endif
 
-    let l:bufferline = l:bufferlines[l:lnum]
+    let l:bufferline = exists('l:bufferlines[l:lnum]')? l:bufferlines[l:lnum] : []
+    let l:bufferlines[l:lnum] = l:bufferline
     if index(l:bufferline, l:id) < 0
-      continue
+      call add(l:bufferline, l:id)
     endif
-
-    call add(l:lines, l:lnum)
   endfor
 
   " that was it.
