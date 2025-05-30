@@ -116,6 +116,93 @@ function! s:find_property_block(bufnum, x, y, type_or_id)
   return prop_list(l:start, l:listkey)
 endfunction
 
+" Return the start and end column of the specified property. The end column
+" references the text immediately following the property.
+function! s:find_property_span(property)
+  if !exists('a:property.col')
+    throw printf('annotation.InvalidPropertyError: unable to determine the start of the specified property: %s', a:property)
+  else
+    let start = a:property['col']
+  endif
+
+  " Figure out whether we were given the stop column or if we have to
+  " calculate the column index by ourselves using the property length.
+  if exists('a:property.end_col')
+    let stop = a:property['end_col']
+  elseif exists('a:property.length')
+    let stop = start + a:property['length']
+  else
+    throw printf('annotation.InvalidPropertyError: unable to determine the end of the specified property at line %d column %d: %s', a:y, start, a:property)
+  endif
+
+  " Now we can return the span that was calculated.
+  return [start, stop]
+endfunction
+
+" Filter a list of properties by the specified coordinate.
+function! annotation#property#filter_by_point(properties, x, y)
+  let spans = mapnew(a:properties, 's:find_property_span(v:val)')
+
+  " Iterate through the list of properties extracting the span from each one.
+  let result = []
+  for index in range(len(a:properties))
+    let property = a:properties[index]
+    let [left, right] = spans[index]
+    let top = property['lnum']
+    let bottom = exists('property.end_lnum')? property['end_lnum'] : top
+
+    " Verify whether the span of the property contains the specified point.
+    if a:y > top && a:y < bottom
+      call add(result, property)
+    elseif a:y != top && a:y != bottom
+      continue
+    elseif property['start'] == 0 && property['end'] == 0
+      call add(result, property)
+    elseif property['start'] == 1 && property['end'] == 1 && a:x >= left && a:x < right
+      call add(result, property)
+    elseif property['start'] == 1 && property['end'] == 0 && a:x >= left
+      call add(result, property)
+    elseif property['start'] == 0 && property['end'] == 1 && a:x < right
+      call add(result, property)
+    endif
+  endfor
+
+  " Then we can return our results.
+  return result
+endfunction
+
+" Filter a list of properties that overlap the specified span.
+function! annotation#property#filter_by_span(properties, start, stop, y)
+  let spans = mapnew(a:properties, 's:find_property_span(v:val)')
+
+  " Go through the list of properties extracting the span for each one.
+  let result = []
+  for index in range(len(a:properties))
+    let property = a:properties[index]
+    let [left, right] = spans[index]
+    let top = property['lnum']
+    let bottom = exists('property.end_lnum')? property['end_lnum'] : top
+
+    " Check if the property overlaps with the specified span.
+    if a:y > top && a:y < bottom
+      call add(result, property)
+    elseif a:y != top && a:y != bottom
+      continue
+    elseif property['start'] == 0 && property['end'] == 0
+      call add(result, property)
+    elseif property['start'] == 1 && property['end'] == 1 && a:start < right && a:stop >= left
+      call add(result, property)
+    elseif property['start'] == 1 && property['end'] == 0 && a:stop >= left
+      call add(result, property)
+    elseif property['start'] == 0 && property['end'] == 1 && a:start < right
+      call add(result, property)
+    endif
+  endfor
+
+  " That was it, we can now return our results.
+  return result
+endfunction
+
 " Return the start and stop interval for the property of the specified type or
 " id at the given coordinate.
 function! annotation#property#getbounds(bufnum, x, y, type_or_id)
