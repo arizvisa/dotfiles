@@ -62,14 +62,19 @@ function! GetPropertyData(property)
 endfunction
 
 " FIXME: should check for overlapping properties too.
-function! AddOrModifyProperty(bufnum, lnum, col, end_lnum, end_col)
+function! AddOrModifyProperty(bufnum, y, x, lnum, col, end_lnum, end_col)
     let ids = annotation#state#find_bounds(a:bufnum, a:col, a:lnum, a:end_col, a:end_lnum)
+    let properties = mapnew(ids, 'annotation#state#getprop(a:bufnum, v:val)')
+    let current = annotation#property#get(a:bufnum, a:x, a:y, g:annotation_property)
 
-    if empty(ids)
+    if empty(ids) && empty(current)
         let maxcol = 1 + strwidth(getline(a:end_lnum))
         call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
-    else
-        let property = annotation#state#getprop(a:bufnum, ids[0])
+    elseif !empty(current)
+        call ModifyPropertyItem(a:bufnum, current)
+    elseif a:lnum == a:end_lnum
+        let filtered = annotation#property#filter_by_span(properties, a:col, a:end_col, a:lnum)
+        let property = filtered[0]
         call ModifyPropertyItem(a:bufnum, property)
     endif
 endfunction
@@ -94,8 +99,8 @@ function! CursorBackward(bufnum, lnum, col)
     return res
 endfunction
 
-xmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
-nmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
+xmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), col('.'), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
+nmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), col('.'), line('.'), 1 + match(getline('.'), '\S'), line('.'), col('$'))<CR>
 nmap <C-m>d <Cmd>call RemoveProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 nmap <C-m>? <Cmd>call ShowProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 
