@@ -39,26 +39,31 @@ endfunction
 
 " Remove a property from the state for the specified buffer.
 function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_property)
-    let bounds = annotation#property#bounds(a:bufnum, a:col, a:lnum)
     let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
+    let bounds = annotation#property#bounds(a:bufnum, a:col, a:lnum)
     if empty(property)
         throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
     elseif !exists('bounds[property.id]')
         throw printf('annotation.MissingPropertyError: no property boundaries were found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
+    else
+        let selected = annotation#state#removeprop(a:bufnum, property.id)
     endif
 
-    let removal = copy(property)
-    let removal['type'] = property.type
+    " Create the dictionary key for selecting the specific property.
+    let removal = {'both': v:true}
     let removal['bufnr'] = a:bufnum
-    let removal['id'] = property.id
+    let removal['type'] = selected.type
+    let removal['id'] = selected.id
 
+    " Actually remove the property from the buffer.
     let [left, top, right, bottom] = bounds[property.id]
-    let removed = prop_remove(removal, top, bottom)
+    let removed = (top == bottom)? prop_remove(removal, top) : prop_remove(removal, top, bottom)
     if removed < 1
         throw printf('annotation.VimFunctionError: the `%s` function could not delete the following property from lines %d..%d: %s', 'prop_remove', top, bottom, removal)
     endif
 
-    return annotation#state#removeprop(a:bufnum, property.id)
+    " Return the property data that was removed.
+    return selected
 endfunction
 
 " Return the property data for the specified property from the given buffer.
