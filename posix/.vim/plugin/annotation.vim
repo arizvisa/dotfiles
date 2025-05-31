@@ -19,6 +19,7 @@ augroup annotations
 
   autocmd BufReadPost * call annotation#frontend#load_buffer(expand('<abuf>'), expand('<afile>'))
   autocmd BufWritePost * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
+  autocmd BufLeave * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
 augroup END
 
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})

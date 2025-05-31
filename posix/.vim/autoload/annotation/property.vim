@@ -608,7 +608,9 @@ function! annotation#property#load(bufnum, content)
     let annotationresults[id] = deepcopy(annotations[id])
   endfor
 
-  " Now we can just load the annotation data from the content.
+  " Now we can just load the annotation data from the content and mark the
+  " buffer as readonly to avoid accidentally changing it.
   call annotation#state#load(a:bufnum, a:content)
+  execute printf('%dbufdo setlocal readonly', a:bufnum)
   return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction

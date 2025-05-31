@@ -23,15 +23,22 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
   let newprops = {'lnum': a:lnum, 'col': a:col, 'end_lnum': a:end_lnum, 'end_col': a:end_col}
   let [new, linenumbers] = annotation#state#newprop(a:bufnum, newprops)
 
+  " Set up the dictionary that we will use to create the property.
   let new.type = g:annotation_property
   let new.bufnr = a:bufnum
   let new.end_lnum = a:end_lnum
   let new.end_col = a:end_col
 
+  " If the id number wasn't created, then abort the addition of a property.
   if !exists('new.id')
     throw printf('annotation.MissingPropertyError: No identifier was found for new property in buffer %d.', a:bufnum)
   endif
 
+  " Since we're adding a property, set the buffer to readonly to avoid shifting
+  " the text properties around in case the user ends up editing the buffer.
+  execute printf('%dbufdo setlocal readonly', a:bufnum)
+
+  " Now we can go ahead and add the property, and then return its data.
   let id = prop_add(new.lnum, new.col, new)
   let key = annotation#property#get(a:bufnum, new.col, new.lnum, id)
   return annotation#state#getprop(a:bufnum, key.id)
