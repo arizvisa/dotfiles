@@ -109,3 +109,5 @@ nmap <C-m>? <Cmd>call ShowProperty(bufnr(), getpos('.')[1], getpos('.')[2])<CR>
 
 nmap <C-m>[ <Cmd>call CursorBackward(bufnr(), line('.'), col('.'))<CR>
 nmap <C-m>] <Cmd>call CursorForward(bufnr(), line('.'), col('.'))<CR>
+nmap <C-m><C-[> <Cmd>call CursorBackward(bufnr(), line('.'), col('.'))<CR>
+nmap <C-m><C-]> <Cmd>call CursorForward(bufnr(), line('.'), col('.'))<CR>
