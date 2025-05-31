@@ -10,16 +10,21 @@ let g:loaded_annotation = v:true
 """        their own autoload library as the `annotation#frontend` namespace.
 let g:annotation_property = 'annotation'
 
-" FIXME: need some event for dealing with (empty) buffers created at startup
 augroup annotations
   autocmd!
+
+  " Managing the scope of a buffer by adding and removing the annotation state.
   autocmd BufRead * call annotation#frontend#add_buffer(expand('<abuf>'))
   autocmd BufAdd * call annotation#frontend#add_buffer(expand('<abuf>'))
   autocmd BufDelete * call annotation#frontend#del_buffer(expand('<abuf>'))
 
+  " Loading and saving the annotations associated with a buffer.
   autocmd BufReadPost * call annotation#frontend#load_buffer(expand('<abuf>'), expand('<afile>'))
   autocmd BufWritePost * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
   autocmd BufLeave * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
+
+  " Add the initial empty buffer that exists on startup.
+  autocmd VimEnter * call annotation#frontend#add_buffer(expand('<abuf>'))
 augroup END
 
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
