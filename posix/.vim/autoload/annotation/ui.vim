@@ -160,62 +160,62 @@ endfunction
 
 " Place a sign at the specified line of the given buffer.
 function! annotation#ui#placesign(bufnum, line, name, group=v:none)
-    if type(a:bufnum) != v:t_number
-        throw printf('annotation.InvalidParameterError: unable to place a sign in the specified buffer due to it being an unsupported type (%d).', type(a:bufnum))
-    elseif type(a:line) != v:t_number
-        throw printf('annotation.InvalidParameterError: unable to place a sign at the specified line of buffer %d due to it being an unsupported type (%d).', a:bufnum, type(a:line))
-    elseif type(a:name) != v:t_string
-        throw printf('annotation.InvalidParameterError: unable to place a sign at line %d of buffer %d due to its name being an unsupported type (%d).', a:line, a:bufnum, type(a:name))
-    elseif a:group != v:none && type(a:group) != v:t_string
-        throw printf('annotation.InvalidParameterError: unable to place a sign "%s" at line %d of buffer %d due to its group being an unsupported type (%d).', a:name, a:line, a:bufnum, type(a:group))
-    endif
+  if type(a:bufnum) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to place a sign in the specified buffer due to it being an unsupported type (%d).', type(a:bufnum))
+  elseif type(a:line) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to place a sign at the specified line of buffer %d due to it being an unsupported type (%d).', a:bufnum, type(a:line))
+  elseif type(a:name) != v:t_string
+    throw printf('annotation.InvalidParameterError: unable to place a sign at line %d of buffer %d due to its name being an unsupported type (%d).', a:line, a:bufnum, type(a:name))
+  elseif a:group != v:none && type(a:group) != v:t_string
+    throw printf('annotation.InvalidParameterError: unable to place a sign "%s" at line %d of buffer %d due to its group being an unsupported type (%d).', a:name, a:line, a:bufnum, type(a:group))
+  endif
 
-    " calculate the group name for the sign, and its location dictionary.
-    let groupname = (a:group == v:none)? '' : a:group
-    let location = {'lnum': a:line}
+  " calculate the group name for the sign, and its location dictionary.
+  let groupname = (a:group == v:none)? '' : a:group
+  let location = {'lnum': a:line}
 
-    " then we can create it to get its id, and then place it.
-    let id = annotation#state#newsign(a:bufnum, a:line, a:name, a:group)
-    let res = sign_place(id, groupname, a:name, a:bufnum, location)
-    if id == res
-        return id
-    endif
+  " then we can create it to get its id, and then place it.
+  let id = annotation#state#newsign(a:bufnum, a:line, a:name, a:group)
+  let res = sign_place(id, groupname, a:name, a:bufnum, location)
+  if id == res
+    return id
+  endif
 
-    " if our id and resulting id are different, then abort completely.
-    throw printf('annotation.InternalError: the sign "%s" placed at line %d of buffer %d has an id (%d) that is different from the one calculated (%d).', a:name, a:line, a:bufnum, res, id)
+  " if our id and resulting id are different, then abort completely.
+  throw printf('annotation.InternalError: the sign "%s" placed at line %d of buffer %d has an id (%d) that is different from the one calculated (%d).', a:name, a:line, a:bufnum, res, id)
 endfunction
 
 " Remove a sign at the given line number from the specified buffer.
 function! annotation#ui#unplacesign(bufnum, id)
-    if type(a:bufnum) != v:t_number
-        throw printf('annotation.InvalidParameterError: unable to unplace the sign from the specified buffer due to it being an unsupported type (%d).', type(a:bufnum))
-    elseif type(a:id) != v:t_number
-        throw printf('annotation.InvalidParameterError: unable to unplace a sign from buffer %d due to its id being an unsupported type (%d).', a:bufnum, type(a:id))
-    endif
+  if type(a:bufnum) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to unplace the sign from the specified buffer due to it being an unsupported type (%d).', type(a:bufnum))
+  elseif type(a:id) != v:t_number
+    throw printf('annotation.InvalidParameterError: unable to unplace a sign from buffer %d due to its id being an unsupported type (%d).', a:bufnum, type(a:id))
+  endif
 
-    " remove the specified sign and grab the line number from its data.
-    let signdata = annotation#state#removesign(a:bufnum, a:id)
+  " remove the specified sign and grab the line number from its data.
+  let signdata = annotation#state#removesign(a:bufnum, a:id)
 
-    " now we need to collect the parameters to unplace the sign...
-    let groupname = exists('signdata.group')? signdata.group : ''
-    let location = {'buffer': signdata.bufnr, 'id': signdata.id}
+  " now we need to collect the parameters to unplace the sign...
+  let groupname = exists('signdata.group')? signdata.group : ''
+  let location = {'buffer': signdata.bufnr, 'id': signdata.id}
 
-    " ...and then we can remove it.
-    let res = sign_unplace(groupname, location)
-    if res < 0
-        throw printf('annotation.InternalError: unable to unplace the sign (%d) at line %d of buffer %d.', signdata.id, signdata.line, signdata.bufnr)
-    endif
+  " ...and then we can remove it.
+  let res = sign_unplace(groupname, location)
+  if res < 0
+    throw printf('annotation.InternalError: unable to unplace the sign (%d) at line %d of buffer %d.', signdata.id, signdata.line, signdata.bufnr)
+  endif
 
-    return signdata
+  return signdata
 endfunction
 
 " Return all of the sign ids for a given buffer and line number.
 function! annotation#ui#signat(bufnum, line)
-    let res = {}
-    for id in annotation#state#getsigns(a:bufnum, a:line)
-        let res[id] = annotation#state#getsign(a:bufnum, id)
-    endfor
-    return res
+  let res = {}
+  for id in annotation#state#getsigns(a:bufnum, a:line)
+    let res[id] = annotation#state#getsign(a:bufnum, id)
+  endfor
+  return res
 endfunction
 
 " Read input specified by the user and then return it to the caller.
