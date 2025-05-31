@@ -36,6 +36,8 @@ function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
 
   " Since we're adding a property, set the buffer to readonly to avoid shifting
   " the text properties around in case the user ends up editing the buffer.
+  " FIXME: check if the 'setlocal readonly' will output an error message about
+  "        there being no write since the last change.
   execute printf('%dbufdo setlocal readonly', a:bufnum)
 
   " Now we can go ahead and add the property, and then return its data.

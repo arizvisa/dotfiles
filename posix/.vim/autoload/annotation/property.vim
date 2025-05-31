@@ -545,13 +545,13 @@ endfunction
 "        to handle the difference between the seraialized and runtime states.
 
 function! annotation#property#save(bufnum)
-  let state = annotation#state#save(a:bufnum)
+  let state = annotation#state#exists(a:bufnum)? annotation#state#save(a:bufnum) : {}
 
   " FIXME: is it better for us to iterate through all the properties in the
   "        document instead of trusting that we got from `annotation#state`?
-  let positions = state['positions']
-  let annotations = state['annotations']
-  let propertymap = state['propertymap']
+  let positions = get(state, 'positions', {})
+  let annotations = get(state, 'annotations', {})
+  let propertymap = get(state, 'propertymap', {})
 
   " FIXME: Scan the current list of properties and figure out how to translate
   "        them to a property id number that is based at 0. This way the loader
@@ -575,9 +575,9 @@ function! annotation#property#load(bufnum, content)
 
   " FIXME: we need to read from content all the property boundaries so that we
   "        can recreate them one-by-one.
-  let positions = a:content['positions']
-  let annotations = a:content['annotations']
-  let propertymap = a:content['propertymap']
+  let positions = get(a:content, 'positions', {})
+  let annotations = get(a:content, 'annotations', {})
+  let propertymap = get(a:content, 'propertymap', {})
 
   " First grab all of the ids that are available
   let ids = sort(keys(positions))
@@ -610,7 +610,14 @@ function! annotation#property#load(bufnum, content)
 
   " Now we can just load the annotation data from the content and mark the
   " buffer as readonly to avoid accidentally changing it.
-  call annotation#state#load(a:bufnum, a:content)
-  execute printf('%dbufdo setlocal readonly', a:bufnum)
-  return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
+  if !empty(a:content)
+    call annotation#state#load(a:bufnum, a:content)
+
+    " FIXME: check if the 'setlocal readonly' will output an error message about
+    "        there being no write since the last change.
+    execute printf('%dbufdo setlocal readonly', a:bufnum)
+    return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
+  endif
+
+  return {}
 endfunction
