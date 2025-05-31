@@ -2,7 +2,7 @@
 """ XXX: This is _very_ preliminary and still being experimented with.
 
 if exists('g:loaded_annotation') && g:loaded_annotation
-    finish
+  finish
 endif
 let g:loaded_annotation = v:true
 
@@ -12,94 +12,94 @@ let g:annotation_property = 'annotation'
 
 " FIXME: need some event for dealing with (empty) buffers created at startup
 augroup annotations
-    autocmd!
-    autocmd BufRead * call annotation#frontend#add_buffer(expand('<abuf>'))
-    autocmd BufAdd * call annotation#frontend#add_buffer(expand('<abuf>'))
-    autocmd BufDelete * call annotation#frontend#del_buffer(expand('<abuf>'))
+  autocmd!
+  autocmd BufRead * call annotation#frontend#add_buffer(expand('<abuf>'))
+  autocmd BufAdd * call annotation#frontend#add_buffer(expand('<abuf>'))
+  autocmd BufDelete * call annotation#frontend#del_buffer(expand('<abuf>'))
 
-    autocmd BufReadPost * call annotation#frontend#load_buffer(expand('<abuf>'), expand('<afile>'))
-    autocmd BufWritePost * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
+  autocmd BufReadPost * call annotation#frontend#load_buffer(expand('<abuf>'), expand('<afile>'))
+  autocmd BufWritePost * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
 augroup END
 
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
 
 function! ModifyProperty(bufnum, lnum, col)
-    let property = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
-    if empty(property)
-        throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
-    endif
-    call ModifyPropertyItem(a:bufnum, property)
+  let property = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
+  if empty(property)
+    throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
+  endif
+  call ModifyPropertyItem(a:bufnum, property)
 endfunction
 
 function! ModifyPropertyItem(bufnum, property)
-    let property = annotation#state#getprop(a:bufnum, a:property.id)
-    call annotation#menu#modify(property)
+  let property = annotation#state#getprop(a:bufnum, a:property.id)
+  call annotation#menu#modify(property)
 endfunction
 
 function! AddProperty(bufnum, lnum, col, end_lnum, end_col)
-    let property = annotation#frontend#add_property(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
-    call annotation#menu#add(property)
+  let property = annotation#frontend#add_property(a:bufnum, a:lnum, a:col, a:end_lnum, a:end_col)
+  call annotation#menu#add(property)
 endfunction
 
 function! RemoveProperty(bufnum, lnum, col)
-    let current = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
-    if !empty(current)
-        echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
-        call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, current['id'])
-    endif
+  let current = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
+  if !empty(current)
+    echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
+    call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, current['id'])
+  endif
 endfunction
 
 function! ShowProperty(bufnum, lnum, col)
-    call annotation#frontend#show_property_data(a:bufnum, a:lnum, a:col, funcref('GetPropertyData'))
+  call annotation#frontend#show_property_data(a:bufnum, a:lnum, a:col, funcref('GetPropertyData'))
 endfunction
 
 function! GetPropertyData(property)
-    let [property, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
-    let notes = exists('data.notes')? data.notes : {}
+  let [property, data] = annotation#frontend#get_property_data(a:property.bufnr, a:property.lnum, a:property.col, a:property.id)
+  let notes = exists('data.notes')? data.notes : {}
 
-    let res = []
-    for id in sort(keys(notes))
-        call add(res, printf('%s: %s', 1 + len(res), notes[id]))
-    endfor
-    return res
+  let res = []
+  for id in sort(keys(notes))
+    call add(res, printf('%s: %s', 1 + len(res), notes[id]))
+  endfor
+  return res
 endfunction
 
 " FIXME: should check for overlapping properties too.
 function! AddOrModifyProperty(bufnum, y, x, lnum, col, end_lnum, end_col)
-    let ids = annotation#state#find_bounds(a:bufnum, a:col, a:lnum, a:end_col, a:end_lnum)
-    let properties = mapnew(ids, 'annotation#state#getprop(a:bufnum, v:val)')
-    let current = annotation#property#get(a:bufnum, a:x, a:y, g:annotation_property)
+  let ids = annotation#state#find_bounds(a:bufnum, a:col, a:lnum, a:end_col, a:end_lnum)
+  let properties = mapnew(ids, 'annotation#state#getprop(a:bufnum, v:val)')
+  let current = annotation#property#get(a:bufnum, a:x, a:y, g:annotation_property)
 
-    if empty(ids) && empty(current)
-        let maxcol = 1 + strwidth(getline(a:end_lnum))
-        call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
-    elseif !empty(current)
-        call ModifyPropertyItem(a:bufnum, current)
-    elseif a:lnum == a:end_lnum
-        let filtered = annotation#property#filter_by_span(properties, a:col, a:end_col, a:lnum)
-        let property = filtered[0]
-        call ModifyPropertyItem(a:bufnum, property)
-    endif
+  if empty(ids) && empty(current)
+    let maxcol = 1 + strwidth(getline(a:end_lnum))
+    call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
+  elseif !empty(current)
+    call ModifyPropertyItem(a:bufnum, current)
+  elseif a:lnum == a:end_lnum
+    let filtered = annotation#property#filter_by_span(properties, a:col, a:end_col, a:lnum)
+    let property = filtered[0]
+    call ModifyPropertyItem(a:bufnum, property)
+  endif
 endfunction
 
 function! CursorForward(bufnum, lnum, col)
-    let [x, y] = annotation#property#scanforward(a:bufnum, a:col, a:lnum, g:annotation_property)
-    if [a:col, a:lnum] != [x, y]
-        let res = (cursor(y, x) < 0)? v:false : v:true
-    else
-        let res = v:false
-    endif
-    return res
+  let [x, y] = annotation#property#scanforward(a:bufnum, a:col, a:lnum, g:annotation_property)
+  if [a:col, a:lnum] != [x, y]
+    let res = (cursor(y, x) < 0)? v:false : v:true
+  else
+    let res = v:false
+  endif
+  return res
 endfunction
 
 function! CursorBackward(bufnum, lnum, col)
-    let [x, y] = annotation#property#scanbackward(a:bufnum, a:col, a:lnum, g:annotation_property)
-    if [a:col, a:lnum] != [x, y]
-        let res = (cursor(y, x) < 0)? v:false : v:true
-    else
-        let res = v:false
-    endif
-    return res
+  let [x, y] = annotation#property#scanbackward(a:bufnum, a:col, a:lnum, g:annotation_property)
+  if [a:col, a:lnum] != [x, y]
+    let res = (cursor(y, x) < 0)? v:false : v:true
+  else
+    let res = v:false
+  endif
+  return res
 endfunction
 
 xmap <C-m>n <Esc><Cmd>call AddOrModifyProperty(bufnr(), line('.'), col('.'), getpos("'<")[1], getpos("'<")[2], getpos("'>")[1], 1 + getpos("'>")[2])<CR>
