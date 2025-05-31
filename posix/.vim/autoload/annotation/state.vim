@@ -309,7 +309,7 @@ function! annotation#state#newprop(bufnum, property)
   endfor
 
   " now we can return the new property to the caller.
-  return [l:newproperty, l:lines]
+  return l:newproperty
 endfunction
 
 " Return whether the specified buffer has a property with the given id.

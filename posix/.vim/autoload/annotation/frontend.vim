@@ -21,7 +21,7 @@ endfunction
 " Add a new property to the state for the specified buffer.
 function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
   let newprops = {'lnum': a:lnum, 'col': a:col, 'end_lnum': a:end_lnum, 'end_col': a:end_col}
-  let [new, linenumbers] = annotation#state#newprop(a:bufnum, newprops)
+  let new = annotation#state#newprop(a:bufnum, newprops)
 
   " Set up the dictionary that we will use to create the property.
   let new.type = g:annotation_property
