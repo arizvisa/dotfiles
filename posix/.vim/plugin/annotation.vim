@@ -25,9 +25,30 @@ augroup annotations
 
   " Add the initial empty buffer that exists on startup.
   autocmd VimEnter * call annotation#frontend#add_buffer(expand('<abuf>'))
+  autocmd SessionLoadPost * call LoadAnnotionsForBuffers()
 augroup END
 
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
+
+function! LoadAnnotionsForBuffers()
+  let filtered = []
+  for bufinfo in getbufinfo()
+    if exists('bufinfo.name')
+      call add(filtered, bufinfo)
+    endif
+  endfor
+
+  " Iterate through all of the buffers where we have a path, add if they don't
+  " exist and then try to load them.
+  for bufinfo in filtered
+    if !bufloaded(bufinfo.bufnr)
+      call bufload(bufinfo.bufnr)
+    endif
+    if bufloaded(bufinfo.bufnr)
+      call annotation#frontend#load_buffer(bufinfo.bufnr, bufinfo.name)
+    endif
+  endfor
+endfunction
 
 function! ModifyProperty(bufnum, lnum, col)
   let property = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
