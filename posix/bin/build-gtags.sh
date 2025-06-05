@@ -437,7 +437,7 @@ get_find_expressions_for_patterns()
 
     local -a parameters=()
     while read -d $'\0' pattern; do
-        parameters+=( '-o' -type "f" -name "${pattern}" )
+        parameters+=( '-o' -type "f" -wholename "${pattern}" )
     done
 
     local -a patterns=()
