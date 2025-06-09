@@ -15,6 +15,15 @@
 " CSCOPE_DB is the list of paths to each database file you want to use.
 " if the variable isn't specified, the current directory is checked
 
+" FIXME:
+"        we need to overload the quickfix commands to that we can add locations
+"        to the tagstack. specifically:
+"
+"        * `copen`
+"        * `cnext` and `cprev`
+"        * etc.. etc.
+"
+
 if has("cscope")
     let s:rcfilename = fnamemodify($MYVIMRC, ":t")
     let s:pathsep = (has("unix") || &shellslash)? '/' : '\'
@@ -68,23 +77,23 @@ if has("cscope")
     function! cscope#map()
         "echomsg "Enabling normal-mode maps for cscope in buffer " | echohl LineNr | echon bufnr("%") | echohl None | echon " (" | echohl MoreMsg | echon bufname("%") | echohl None | echon ")."
         if has("gui_running") && !has("win32")
-            nnoremap <buffer> <C-S-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-            nnoremap <buffer> <C-S-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-S-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>c :lcscope find c <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>d :lcscope find d <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>e :lcscope find e <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>f :lcscope find f <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>g :lcscope find g <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>i :lcscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+            nnoremap <buffer> <C-S-_>s :lcscope find s <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-S-_>t :lcscope find t <C-R>=expand("<cword>")<CR><CR>
         else
-            nnoremap <buffer> <C-_>c :cscope find c <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>d :cscope find d <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>e :cscope find e <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>f :cscope find f <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>g :cscope find g <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>i :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-            nnoremap <buffer> <C-_>s :cscope find s <C-R>=expand("<cword>")<CR><CR>
-            nnoremap <buffer> <C-_>t :cscope find t <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>c :lcscope find c <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>d :lcscope find d <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>e :lcscope find e <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>f :lcscope find f <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>g :lcscope find g <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>i :lcscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+            nnoremap <buffer> <C-_>s :lcscope find s <C-R>=expand("<cword>")<CR><CR>
+            nnoremap <buffer> <C-_>t :lcscope find t <C-R>=expand("<cword>")<CR><CR>
         endif
     endfunction
 
@@ -144,8 +153,8 @@ if has("cscope")
 
         " if a database is available, then add the cscope_db
         if s:cstype == "gtags-cscope"
-            " gtags-cscope apparently doesn't need the path prefix
-            execute printf("silent cscope add %s", fnameescape(l:path))
+            " gtags-cscope apparently handles the -P prefix differently...
+            execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(getcwd(), ":p:h")))
         else
             " cscope apparently needs the path prefix
             execute printf("silent cscope add %s %s", fnameescape(l:path), fnameescape(fnamemodify(l:directory, ":p:h")))
