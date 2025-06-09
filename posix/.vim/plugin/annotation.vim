@@ -26,6 +26,9 @@ augroup annotations
   " Add the initial empty buffer that exists on startup.
   autocmd VimEnter * call annotation#frontend#add_buffer(expand('<abuf>'))
   autocmd SessionLoadPost * call LoadAnnotionsForBuffers()
+
+  " If vim is leaving, then try and save the current buffer.
+  autocmd VimLeavePre * call annotation#frontend#save_buffer(expand('<abuf>'), expand('<afile>'))
 augroup END
 
 call prop_type_add(g:annotation_property, {'highlight': 'DiffText', 'override': v:true})
