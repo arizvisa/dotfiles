@@ -595,26 +595,40 @@ if has("eval") && has("autocmd")
         endtry
     endfunction
 
+    "" fix first-column/last-column braces for c-like languages.
+    "" these are all ripped from *section* in the help.
+    function! s:map_c_braces()
+        nnoremap <silent> <buffer> [[ ?{<CR><Cmd>nohlsearch<CR>w99[{
+        nnoremap <silent> <buffer> ][ /}<CR><Cmd>nohlsearch<CR>b99]}
+        nnoremap <silent> <buffer> ]] j0?{<CR><Cmd>nohlsearch<CR>w99[{%/{<CR><Cmd>nohlsearch<CR>
+        nnoremap <silent> <buffer> [] k$/}<CR><Cmd>nohlsearch<CR>b99]}%?}<CR><Cmd>nohlsearch<CR>
+
+        "onoremap <silent> <buffer> [[ ?{<CR>w99[{<Cmd>nohlsearch<CR>
+        "onoremap <silent> <buffer> ][ /}<CR>b99]}<Cmd>nohlsearch<CR>
+        "onoremap <silent> <buffer> ]] j0?{<CR>w99[{%/{<CR><Cmd>nohlsearch<CR>
+        "onoremap <silent> <buffer> [] k$/}<CR>b99]}%?}<CR><Cmd>nohlsearch<CR>
+    endfunction
+
     "" assign mappings that deal with braces for languages where vim support is weird
     function! s:map_braces()
 
         " find the previous/next brace at the current column
-        nnoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wnb')<CR>
-        onoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wnb')<CR>
-        nnoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wn')<CR>
-        onoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\|\%<%dc{\_.', col('.'), col('.')), 'Wn')<CR>
+        nnoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\\|\%%>.c{\_.', col('.')), 'Wnb')<CR>
+        onoremap <silent> <buffer> { :call <SID>matchjump(printf('\%%%dc{\_.\\\|\%%>.c{\_.', col('.')), 'Wnb')<CR>
+        nnoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\\|\%%>.c{\_.', col('.')), 'Wn')<CR>
+        onoremap <silent> <buffer> } :call <SID>matchjump(printf('\%%%dc{\_.\\\|\%%>.c{\_.', col('.')), 'Wn')<CR>
 
         " find the enclosing block/brace or the next block
-        nnoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
-        onoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
-        nnoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
-        onoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
+        nnoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wnb')<CR>
+        onoremap <silent> <buffer> [[ :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wnb')<CR>
+        nnoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wn')<CR>
+        onoremap <silent> <buffer> ]] :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wn')<CR>
 
         " aliases for the prior two mappings
-        nnoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
-        onoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%<%dc\zs{\_.', col('.')), 'Wnb')<CR>
-        nnoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
-        onoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>%dc\zs{\_.', col('.')), 'Wn')<CR>
+        nnoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wnb')<CR>
+        onoremap <silent> <buffer> [] :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wnb')<CR>
+        nnoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wn')<CR>
+        onoremap <silent> <buffer> ][ :call <SID>matchjump(printf('\%%>.c\zs{\_.'), 'Wn')<CR>
     endfunction
 
     if has("autocmd")
@@ -623,6 +637,16 @@ if has("eval") && has("autocmd")
             autocmd!
             autocmd BufNewFile,BufRead *.asm,*.[sS],*.lst call dist#ft#FTasm()
             autocmd FileType assembler setlocal expandtab tabstop=2 shiftwidth=2
+        augroup end
+
+        augroup c
+            autocmd!
+            autocmd FileType c call s:map_c_braces()
+        augroup end
+
+        augroup cpp
+            autocmd!
+            autocmd FileType cpp call s:map_c_braces()
         augroup end
 
         augroup cs
