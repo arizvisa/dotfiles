@@ -494,7 +494,15 @@ class process_mappings(workspace):
         index = next(iterable, 0)
         headers = rows[:index][-1].rsplit(None, 4)
         iterable = itertools.chain(filter(None, headers[:1][0].rsplit('  ')), headers[1:])
-        fields = [header.strip() for header in iterable]
+        split = [header for header in iterable]
+
+        # Hack to find columns that are the same size as the "Start Addr" field.
+        if len(split) != 6:
+            expected = len("{:#0{:d}x}".format(0, 2 + 32 // 4))
+            target = split[0]
+            split = itertools.chain([target[:expected], target[expected:]], split[1:])
+
+        fields = [header.strip() for header in split]
         if any(name not in fields for name in cls.expected_field_names):
             gdb.write("The expected field names ({!s}) were changed by gdb to {!s}".format(cls.expected_field_names, fields))
         return [{field : value for field, value in zip(fields, row.strip().split())} for row in rows[index:]]
