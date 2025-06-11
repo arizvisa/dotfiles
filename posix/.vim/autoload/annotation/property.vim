@@ -615,7 +615,7 @@ function! annotation#property#load(bufnum, content)
 
     " FIXME: check if the 'setlocal readonly' will output an error message about
     "        there being no write since the last change.
-    execute printf('%dbufdo setlocal readonly', a:bufnum)
+    execute printf('%dbufdo setlocal buftype=nowrite readonly', a:bufnum)
     return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
   endif
 
