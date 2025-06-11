@@ -20,6 +20,33 @@ curl_support()
     "$CURL" "${CURL_PARAMS[@]}" $1 2>&1 | grep -q URL
 }
 
+curl_head()
+{
+    ec=0
+
+    # First try making a HEAD request with the --head parameter.
+    CURL_HEAD_PARAMS=(--head --no-show-error)
+    "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "${CURL_HEAD_PARAMS[@]}" "$@"
+
+    ec=$?
+    if [ "$ec" -eq 0 ]; then
+        return $ec
+    fi
+
+    # Otherwise make a regular GET request, but clamping the file size and
+    # writing the response headers to stdout.
+    CURL_HEAD_PARAMS=(--no-show-error --max-filesize 1 --output /dev/null --dump-header - )
+    "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "${CURL_HEAD_PARAMS[@]}" "$@"
+
+    # On success, we should get the "maximum file size exceeded" error (63).
+    ec=$?
+    if [ "$ec" -eq 63 ]; then
+        return 0
+    fi
+
+    return $ec
+}
+
 curl_get()
 {
     "$CURL" "${CURL_PARAMS[@]}" "${CURL_ARGS[@]}" "$@"
@@ -75,7 +102,7 @@ openssl_digest_sorted()
 httpsize()
 {
     url=$1
-    curl_get --head -- "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//' | xargs printf '%d\n'
+    curl_head -- "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//' | xargs printf '%d\n'
 }
 
 filesize()
