@@ -3,6 +3,9 @@
 
 if exists('g:loaded_annotation') && g:loaded_annotation
   finish
+elseif !has('textprop')
+  echohl WarningMsg | echo printf("Refusing to load the annotation.vim plugin due to the host editor missing the \"%s\" feature.", 'textprop') | echohl None
+  finish
 endif
 let g:loaded_annotation = v:true
 
