@@ -1,4 +1,5 @@
 #!/bin/sh
+ulimit -v unlimited
 
 ## figure out the binary
 case "${os}" in
@@ -8,7 +9,14 @@ windows)
     args=
     ;;
 posix)
-    prog="google-chrome"
+    if type -p 'google-chrome' >/dev/null ; then
+        prog='google-chrome'
+    elif type -p 'chromium-browser' >/dev/null ; then
+        prog='chromium-browser'
+    else
+        echo $0: no chrome-compatible browser was found in path
+        exit 1
+    fi
     path=`which "$prog" | xargs dirname`
     args=
     ;;
