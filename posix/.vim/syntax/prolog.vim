@@ -392,7 +392,7 @@ syntax keyword prologDirective_hook contained attr_unify_hook exception file_sea
 syntax keyword prologDirective_events contained prolog_listen prolog_unlisten
 syntax keyword prologDirective_tabling contained table
 syntax keyword prologDirective_trace contained prolog_trace_interception prolog_skip_frame prolog_skip_level
-syntax keyword prologDirective_chr contained chr_constraint chr_type
+syntax keyword prologDirective_chr contained chr_constraint chr_type chr_option
 
 syntax cluster prologDirective add=prologDirective_words
 syntax cluster prologDirective add=prologDirective_words
