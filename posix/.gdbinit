@@ -777,7 +777,7 @@ define show_code32
     set variable $_max_instruction = 0x10 - 1
     # FIXME: better way to figure this out per-architecture?
 
-    if $arg0 > 0
+    if $argc > 0
         set variable $pre = $arg0 / 2
         set variable $post = $arg0 / 2 + $arg0 % 2
     else
