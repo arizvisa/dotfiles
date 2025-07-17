@@ -689,8 +689,18 @@ class process_mappings(workspace):
             [(_, ea)] = candidates
             return ea
 
-        def invoke(self, parameter):
+        def invoke(self, *parameters):
             integerish = {gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_INT}
+            if not(parameters):
+                pc = gdb.parse_and_eval('$pc')
+                return self.by_address(int(pc))
+
+            elif len(parameters) != 1:
+                raise gdb.GdbError('Expected 0 or 1 parameter for $baseaddress')
+
+            else:
+                [parameter] = parameters
+
             if parameter.type.is_string_like:
                 return self.by_string(parameter.string())
             elif parameter.type.is_scalar and parameter.type.code in integerish:
