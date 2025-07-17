@@ -599,7 +599,6 @@ class process_mappings(workspace):
 
     import os.path
 
-    @functions.add
     class baseaddress(function):
         def by_path(self, path):
             field = self.workspace.expected_field_names[-1]
@@ -706,6 +705,23 @@ class process_mappings(workspace):
             elif parameter.type.is_scalar and parameter.type.code in integerish:
                 return self.by_address(int(parameter))
             return self.by_reference(parameter)
+
+    @functions.add
+    class baseoffset(baseaddress):
+        def invoke(self, *parameters):
+            integerish = {gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_INT}
+            pc = gdb.parse_and_eval('$pc')
+            [parameter] = parameters if parameters else [pc]
+            if parameter.type.is_string_like:
+                pc, ea = pc, self.by_string(parameter.string())
+            elif parameter.type.is_scalar and parameter.type.code in integerish:
+                pc, ea = int(parameter), self.by_address(int(parameter))
+            else:
+                pc, ea = int(parameter), self.by_reference(parameter)
+            return gdb.parse_and_eval("{:#x} - {:#x}".format(pc, ea))
+
+    # XXX: now we can get rid of the baseaddress function
+    baseaddress = functions.add(baseaddress)
 
     EXPORTS = {item for item in itertools.chain(commands, functions)}
 
@@ -1192,7 +1208,7 @@ class breakpoints(uses_an_address):
     class bp(command):
         COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
         def invoke(self, s, from_tty):
-            args = gdb.string_to_argv(s)
+            args = gdb.string_to_argv(s)    # FIXME: this stupid function removes quotes from all the arguments
             addr = args.pop(0)
             escaped_addr = self.workspace.escape_address(addr)
             if len(args) > 0 and args[0].startswith('~'):
