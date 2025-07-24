@@ -532,21 +532,44 @@ if has("eval") && has("autocmd")
         execute printf('%dwincmd w', l:cwin)
     endfunction
 
-    " Execute a normal mode command for every line in a visual mode
-    " selection. This takes care to honor the visually-selected column.
+    " Execute a normal-mode command for every line in a visual mode selection,
+    " and will execute the specified command in each of the left-most columns.
     function! VisualNormalCommand(command)
-        let [l:cleft, l:cright] = [col("'<") - 1, col("'>") - 1]
-        let [l:left, l:right] = [min([l:cleft, l:cright]), max([l:cleft, l:cright])]
+        let l:mode = visualmode()
+
+        " Grab the boundaries from the last visual mode, and then guess whether
+        " the right-side of the visual selection is in the last (max) column.
         let [l:top, l:bottom] = [line("'<"), line("'>")]
-        if l:cleft > 0 && l:cleft == l:cright
-            exec printf("%d,%dnormal 0%dl%s", l:top, l:bottom, l:cleft, a:command)
-        elseif l:cleft > 0 && l:cleft < l:cright
-            exec printf("%d,%dnormal 0%dl%dx%s", l:top, l:bottom, l:cleft, l:cright - l:cleft, a:command)
-        elseif l:cleft == l:cright
+        let [l:cleft, l:cright] = [col("'<") - 1, col("'>") - 1]
+        let [l:left_, l:right_] = [min([l:cleft, l:cright]), max([l:cleft, l:cright])]
+        let [l:left, l:right] = [l:left_, (l:right_ >= v:maxcol)? len(getline("'>")) : l:right_]
+
+        " Copy all of the text that is selected. If we're in regular visual
+        " mode, then we only need to slice the first and last lines. If we're in
+        " visual-block mode (^V), then we need to slice up every single line.
+        let [l:lines, l:fixup] = [getline(l:top, l:bottom), (&selection ==# 'inclusive')? 1 : 0]
+        if empty(l:lines) || l:mode == 'V'
+            let l:lines = l:lines
+        elseif l:mode == 'v'
+            let l:lines[0] = slice(lines[0], l:left)
+            let l:lines[-1] = slice(lines[-1], 0, l:right + l:fixup)
+        elseif l:mode == ''
+            let l:fixup = (&selection ==# 'inclusive')? 1 : 0
+            let l:lines = mapnew(l:lines, 'slice(v:val, l:left, l:right + l:fixup)')
+        else
+            throw printf('E359: Unsupported visual mode (%s) was returned.', l:mode)
+        endif
+
+        " Start applying the specified command to the selected line numbers at
+        " the starting left column. If the selection is for the first column,
+        " then we don't need to use `l` to move to the correct column.
+        if l:cleft <= 1
             exec printf("%d,%dnormal 0%s", l:top, l:bottom, a:command)
         else
-            exec printf("%d,%dnormal 0%dx%s", l:top, l:bottom, l:cright - l:cleft, a:command)
+            exec printf("%d,%dnormal 0%dl%s", l:top, l:bottom, l:cleft, a:command)
         endif
+
+        return l:lines
     endfunction
 
     "" allow for window zoom/unzoom in the current tab
