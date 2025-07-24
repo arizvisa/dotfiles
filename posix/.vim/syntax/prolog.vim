@@ -258,6 +258,8 @@ syntax keyword prologLibrary_nb_set contained add_nb_set empty_nb_set gen_nb_set
 syntax cluster prologLibrary add=prologLibrary_nb_set
 syntax keyword prologLibrary_error contained current_encoding current_type domain_error existence_error has_type instantiation_error is_of_type must_be permission_error representation_error resource_error syntax_error type_error uninstantiation_error
 syntax cluster prologLibrary add=prologLibrary_error
+syntax keyword prologLibrary_main contained argv_options argv_usage cli_parse_debug_options cli_enable_development_system
+syntax cluster prologLibrary add=prologLibrary_main
 
 highlight link prologLibrary_qualified  prologLibrary
 highlight link prologLibrary_lists prologLibrary
@@ -282,6 +284,7 @@ highlight link prologLibrary_prolog_xref prologLibrary
 highlight link prologLibrary_prolog_pack prologLibrary
 highlight link prologLibrary_nb_set prologLibrary
 highlight link prologLibrary_error prologLibrary
+highlight link prologLibrary_main prologLibrary
 
 " prolog.vim has no idea what an atom is apparently.
 "syn region prologAtom start='\w' end='\>'
@@ -393,6 +396,7 @@ syntax keyword prologDirective_events contained prolog_listen prolog_unlisten
 syntax keyword prologDirective_tabling contained table
 syntax keyword prologDirective_trace contained prolog_trace_interception prolog_skip_frame prolog_skip_level
 syntax keyword prologDirective_chr contained chr_constraint chr_type chr_option
+syntax keyword prologDirective_record contained record
 
 syntax cluster prologDirective add=prologDirective_words
 syntax cluster prologDirective add=prologDirective_words
@@ -405,6 +409,7 @@ syntax cluster prologDirective add=prologDirective_events
 syntax cluster prologDirective add=prologDirective_tabling
 syntax cluster prologDirective add=prologDirective_trace
 syntax cluster prologDirective add=prologDirective_chr
+syntax cluster prologDirective add=prologDirective_record
 
 highlight link prologDirective_words prologDirective
 highlight link prologDirective_conditionals prologDirective
@@ -415,6 +420,7 @@ highlight link prologDirective_hook prologDirective
 highlight link prologDirective_events prologDirective
 highlight link prologDirective_tabling prologDirective
 highlight link prologDirective_chr prologDirective
+highlight link prologDirective_record prologDirective
 
 syntax keyword prologOption_use_module_option contained library
 syntax keyword prologOption_create_prolog_flag_option contained access type keep
