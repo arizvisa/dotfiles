@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, importlib
 import builtins, os, operator, math, functools, itertools, sys, types   # boomfist
 
 # remove crlf from std{out,err} because CPython is pretty fucking stupid
@@ -58,7 +58,7 @@ fcondition = lambda *critiques: lambda *truths: \
         lambda *a, **k: next((true for crit, true in critiques_and_truths if crit(*a, **k)), false if builtins.callable(false) else fconstant(false))(*a, **k) \
     )(false=truths[len(critiques)])
 # return a closure that takes a list of functions to execute with the provided arguments
-fthrough = lambda *Fa: lambda *a, **k: builtins.tuple(F(*a, **k) for F in Fa)
+fthrough = fcomap = lambda *Fa: lambda *a, **k: builtins.tuple(F(*a, **k) for F in Fa)
 #lazy = lambda F, state={}: lambda *a, **k: state[(F, a, builtins.tuple(builtins.sorted(k.items())))] if (F, a, builtins.tuple(builtins.sorted(k.items()))) in state else state.setdefault((F, a, builtins.tuple(builtins.sorted(k.items()))), F(*a, **k))
 #lazy = lambda F, *a, **k: lambda *ap, **kp: F(*(a + ap), **{ key : value for key, value in itertools.chain(k.items(), kp.items())})
 # return a memoized closure that's lazy and only executes when evaluated
