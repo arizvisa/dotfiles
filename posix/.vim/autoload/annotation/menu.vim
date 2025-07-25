@@ -179,6 +179,7 @@ function! annotation#menu#add(property, title='Add')
   let l:callbacks[1] = funcref('s:CancelAddition')
   let l:callbacks[2] = funcref('s:CancelModification')
   let l:callbacks[4] = funcref('s:AbortFunction')
+  let l:callbacks[-1] = funcref('s:AbortFunction')
 
   " Now we can go ahead and show the menu.
   call s:show_annotation_menu(a:property, a:title, l:callbacks)
@@ -218,6 +219,7 @@ function! annotation#menu#modify(property, title='Edit')
   let l:callbacks[1] = funcref('s:CancelAddition')
   let l:callbacks[2] = funcref('s:CancelModification')
   let l:callbacks[4] = funcref('s:AbortFunction')
+  let l:callbacks[-1] = funcref('s:AbortFunction')
 
   " We can now use the callbacks to show the annotation menu.
   call s:show_annotation_menu(a:property, a:title, l:callbacks)

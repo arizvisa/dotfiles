@@ -115,7 +115,10 @@ function! annotation#ui#menu(items, title, options, send)
 
   " Define a closure for selecting things from the menu.
   function! s:MENU_RECURSE.Selected(id, index) closure
+
+    " If the user canceled, then send the cancel index to the caller.
     if a:index < 0
+      call a:send(a:id, a:index)
       return v:false
 
     elseif !exists('l:labels[a:index]')
