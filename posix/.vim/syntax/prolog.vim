@@ -46,7 +46,7 @@ let s:operators = [
 \    '@<', '@=<', '@>', '@>=',
 \    '\\=',
 \    '\\==',
-\    'as', 'is', 'of', 'in', '\<ins\>', '>:<', ':<',
+\    'as', 'is', 'of', 'in', '\<ins\>', '\<in_set\>', '>:<', ':<',
 \    '\\+',
 \    '+', '-', '/\\', '\\/', 'xor',
 \    '?',
@@ -260,6 +260,12 @@ syntax keyword prologLibrary_error contained current_encoding current_type domai
 syntax cluster prologLibrary add=prologLibrary_error
 syntax keyword prologLibrary_main contained argv_options argv_usage cli_parse_debug_options cli_enable_development_system
 syntax cluster prologLibrary add=prologLibrary_main
+syntax keyword prologLibrary_clpfd contained indomain label labeling all_distinct all_different sum scalar_product lex_chain tuples_in serialized element global_cardinality circuit cumulative disjoint2 automaton chain zcompare
+syntax cluster prologLibrary add=prologLibrary_clpfd
+syntax keyword prologLibrary_clpfd_domain contained fd_var fd_inf fd_sup fd_size fd_dom fd_degree transpose
+syntax cluster prologLibrary add=prologLibrary_clpfd_domain
+syntax keyword prologLibrary_clpfd_fdset contained fd_set is_fdset empty_fdset fdset_parts empty_interval fdset_interval fdset_singleton fdset_min fdset_max fdset_size list_to_fdset fdset_to_list range_to_fdset fdset_to_range fdset_add_element fdset_del_element fdset_disjoint fdset_intersect fdset_intersection fdset_member fdset_eq fdset_subset fdset_subtract fdset_union fdset_union fdset_complement
+syntax cluster prologLibrary add=prologLibrary_clpfd_fdset
 
 highlight link prologLibrary_qualified  prologLibrary
 highlight link prologLibrary_lists prologLibrary
@@ -285,6 +291,9 @@ highlight link prologLibrary_prolog_pack prologLibrary
 highlight link prologLibrary_nb_set prologLibrary
 highlight link prologLibrary_error prologLibrary
 highlight link prologLibrary_main prologLibrary
+highlight link prologLibrary_clpfd prologLibrary
+highlight link prologLibrary_clpfd_domain prologLibrary
+highlight link prologLibrary_clpfd_fdset prologLibrary
 
 " prolog.vim has no idea what an atom is apparently.
 "syn region prologAtom start='\w' end='\>'
