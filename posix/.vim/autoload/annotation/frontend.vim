@@ -147,10 +147,31 @@ endfunction
 
 function! annotation#frontend#save_buffer(bufstr, filename)
   let outfile = printf('%s.annotations', a:filename)
-  let output = annotation#property#save(str2nr(a:bufstr))
-  if (!empty(output) && !filereadable(outfile)) || filewritable(outfile)
-    let outdata = json_encode(output)
-    let outlines = split(outdata, "\n")
-    let res = writefile(outlines, outfile, 's')
+  let bufnum = (type(a:bufstr) == v:t_number)? a:bufstr : str2nr(a:bufstr)
+
+  " Figure out whether the specified buffer has some annotations or properties
+  " needing to be saved. If so, then make sure we can write the file and do it.
+  let is_empty = annotation#property#empty(bufnum)
+  if !is_empty
+
+    " If the file isn't readable, it doesn't exist. If it isn't writable, then
+    " we don't have permissions to do anything and we can skip over saving.
+    if !filereadable(outfile) || filewritable(outfile)
+      let output = annotation#property#save(str2nr(a:bufstr))
+      let outdata = json_encode(output)
+      let outlines = split(outdata, "\n")
+      let res = writefile(outlines, outfile, 's')
+    endif
+
+  " If the specified buffer doesn't have any annotations, then we need to check
+  " if the file is readable and writable so that we can remove it.
+  else
+    if filereadable(outfile) || filewritable(outfile)
+      if !delete(outfile)
+        echomsg printf('Removing annotation file (%s) for buffer %d due to no annotations being found.', outfile, bufnum)
+      else
+        echohl ErrorMsg | echomsg printf('annotation.InternalError: unable to remove the specified file: %s', outfile) | echohl None
+      endif
+    endif
   endif
 endfunction

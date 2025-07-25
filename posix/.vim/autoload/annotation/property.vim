@@ -548,7 +548,7 @@ function! annotation#property#save(bufnum)
   let state = annotation#state#exists(a:bufnum)? annotation#state#save(a:bufnum) : {}
 
   " FIXME: is it better for us to iterate through all the properties in the
-  "        document instead of trusting that we got from `annotation#state`?
+  "        document instead of trusting what we got from `annotation#state`?
   let positions = get(state, 'positions', {})
   let annotations = get(state, 'annotations', {})
   let propertymap = get(state, 'propertymap', {})
@@ -620,4 +620,20 @@ function! annotation#property#load(bufnum, content)
   endif
 
   return {}
+endfunction
+
+" Utility function used to determine if a file has no annotations applied to it.
+function! annotation#property#empty(bufnum)
+  let state = annotation#state#exists(a:bufnum)? annotation#state#save(a:bufnum) : {}
+
+  " Check if the saved state is empty, and then check if any fields are empty.
+  if empty(state)
+    return v:true
+  elseif empty(get(state, 'annotations', {}))
+    return v:true
+  elseif empty(get(state, 'props', {}))
+    return v:true
+  else
+    return v:false
+  endif
 endfunction
