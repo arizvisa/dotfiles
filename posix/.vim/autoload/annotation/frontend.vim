@@ -114,7 +114,8 @@ endfunction
 function! annotation#frontend#show_property_data(bufnum, lnum, col, data, id=g:annotation_property, persist=v:false)
   let property = annotation#property#get(a:bufnum, a:col, a:lnum, a:id)
   if empty(property)
-    throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
+    echohl ErrorMsg | echomsg printf('annotation.MissingPropertyError: unable to find a property to show at line %d column %d of buffer %d.', a:lnum, a:col, a:bufnum) | echohl None
+    return []
   elseif !exists('property.id')
     throw printf('annotation.MissingKeyError: a required key (%s) was missing from the property in buffer %d at line %d column %d.', 'id', a:bufnum, a:lnum, a:col)
   endif
