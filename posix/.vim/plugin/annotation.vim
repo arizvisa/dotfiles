@@ -4,7 +4,7 @@
 if exists('g:loaded_annotation') && g:loaded_annotation
   finish
 elseif !has('textprop')
-  echohl WarningMsg | echo printf("Refusing to load the annotation.vim plugin due to the host editor missing the \"%s\" feature.", 'textprop') | echohl None
+  echohl WarningMsg | echomsg printf("Refusing to load the annotation.vim plugin due to the host editor missing the \"%s\" feature.", 'textprop') | echohl None
   finish
 endif
 let g:loaded_annotation = v:true
@@ -103,11 +103,23 @@ function! AddOrModifyProperty(bufnum, y, x, lnum, col, end_lnum, end_col)
   let properties = mapnew(ids, 'annotation#state#getprop(a:bufnum, v:val)')
   let current = annotation#property#get(a:bufnum, a:x, a:y, g:annotation_property)
 
-  if empty(ids) && empty(current)
+  " If there is no text at the specified line number, then we throw up an error
+  " since there's no content that can be selected. Currently we do not support
+  " annotations spanning multiple lines.. when we do this code will need fixing.
+  let content = getline(a:lnum)
+  if empty(ids) && empty(current) && !strwidth(content) && a:lnum == a:end_lnum
+    echohl ErrorMsg | echomsg printf("annotation.MissingContentError: unable to add an annotation due to line %d having no columns (%d).", a:lnum, strwidth(content)) | echohl None
+
+  " If there are no annotations found, then go ahead and add a new one.
+  elseif empty(ids) && empty(current)
     let maxcol = 1 + strwidth(getline(a:end_lnum))
     call AddProperty(a:bufnum, a:lnum, a:col, a:end_lnum, min([a:end_col, maxcol]))
+
+  " If there were some annotation ids, then we can go ahead and modify it.
   elseif !empty(current)
     call ModifyPropertyItem(a:bufnum, current)
+
+  " Check the span of a single line to figure out the annotation to modify.
   elseif a:lnum == a:end_lnum
     let filtered = annotation#property#filter_by_span(properties, a:col, a:end_col, a:lnum)
     let property = filtered[0]
