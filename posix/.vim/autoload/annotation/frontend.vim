@@ -21,7 +21,7 @@ endfunction
 " Add a new property to the state for the specified buffer.
 function! annotation#frontend#add_property(bufnum, lnum, col, end_lnum, end_col)
   let newprops = {'lnum': a:lnum, 'col': a:col, 'end_lnum': a:end_lnum, 'end_col': a:end_col}
-  let new = annotation#state#newprop(a:bufnum, newprops)
+  let [new, _] = annotation#state#newprop(a:bufnum, newprops)
 
   " Set up the dictionary that we will use to create the property.
   let new.type = g:annotation_property
@@ -57,9 +57,9 @@ function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_pr
     throw printf('annotation.MissingPropertyError: no property was found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
   elseif !exists('bounds[property.id]')
     throw printf('annotation.MissingPropertyError: no property boundaries were found in buffer %d at line %d column %d.', a:bufnum, a:lnum, a:col)
-  else
-    let selected = annotation#state#removeprop(a:bufnum, property.id)
   endif
+
+  let [selected, lines] = annotation#state#removeprop(a:bufnum, property.id)
 
   " Create the dictionary key for selecting the specific property.
   let removal = {'both': v:true}
@@ -68,7 +68,9 @@ function! annotation#frontend#del_property(bufnum, lnum, col, id=g:annotation_pr
   let removal['id'] = selected.id
 
   " Actually remove the property from the buffer.
-  let [left, top, right, bottom] = bounds[property.id]
+  let [left, _, right, _] = bounds[property.id]
+  let [top, bottom] = [min(lines), max(lines)]
+
   let removed = (top == bottom)? prop_remove(removal, top) : prop_remove(removal, top, bottom)
   if removed < 1
     throw printf('annotation.VimFunctionError: the `%s` function could not delete the following property from lines %d..%d: %s', 'prop_remove', top, bottom, removal)

@@ -18,11 +18,14 @@ function! annotation#state#new(bufnum)
   " create a new state for the specified buffer number
   let s:STATE[a:bufnum] = {}
 
+  " maps property id to its {props} dictionary
+  let s:STATE[a:bufnum].props = {}
+
   " contains mappings for a line number to a list of property ids
   let s:STATE[a:bufnum].lines = {}
 
-  " maps property id to its {props} dictionary
-  let s:STATE[a:bufnum].props = {}
+  " tracks a reference count for each property
+  let s:STATE[a:bufnum].propcounts = {}
 
   " tracks property ids that have been deleted or are not in use anymore. if
   " this list is empty, then the next id can be determined by the number of
@@ -37,6 +40,9 @@ function! annotation#state#new(bufnum)
 
   " maps line number to its sign ids.
   let s:STATE[a:bufnum].signpositions = {}
+
+  " tracks a reference count for signs
+  let s:STATE[a:bufnum].signcounts = {}
 
   " tracks sign ids that have been deleted and are not in use. this is used in a
   " similar fashion to the "availableprops" field.
@@ -82,6 +88,8 @@ function! annotation#state#load(bufnum, contents)
   let l:propertystate = l:bufferstate.props
   let l:annotationstate = l:bufferstate.annotations
   let l:bufferlines = l:bufferstate.lines
+  let l:buffercounts = l:bufferstate.propcounts
+  let l:annotationstate = l:bufferstate.annotations
 
   " Unpack our serialized data so that we can get at the annotations.
   let propertyresults = a:contents.properties
@@ -114,6 +122,7 @@ function! annotation#state#load(bufnum, contents)
 
         if index(l:bufferline, l:id) < 0
           call add(l:bufferline, l:id)
+          let l:buffercounts[l:id] = get(l:buffercounts, l:id, 0) + 1
         endif
       endfor
     endif
@@ -221,15 +230,15 @@ function! annotation#state#removeprop(bufnum, id)
     throw printf('annotation.DuplicatePropertyError: property %d from buffer %d has already been deleted.', a:id, a:bufnum)
   endif
 
+  " get some locals so that we can access the metadata for the property.
   let [l:id, l:bufferstate] = [a:id, s:STATE[a:bufnum]]
-
-  " first remove the property, adding it to our list of available props.
-  let l:property = remove(l:bufferstate.props, l:id)
-  call add(l:bufferstate.availableprops, l:id)
-
-  " now we need to figure out which line numbers our property resides in.
   let l:bufferlines = l:bufferstate.lines
+  let l:buffercounts = l:bufferstate.propcounts
+  let l:bufferprops = l:bufferstate.props
 
+  let l:property = get(l:bufferprops, l:id)
+
+  " first we need need to figure out which line numbers our property resides in.
   let l:lines = []
   for l:lnum in s:get_property_lines(l:property)
     if !exists('l:bufferlines[l:lnum]')
@@ -256,18 +265,38 @@ function! annotation#state#removeprop(bufnum, id)
       call add(l:bufferline, l:removed)
     endif
 
+    " now we need to update the reference count fror the removed property.
+    if exists('l:buffercounts[l:id]') && l:buffercounts[l:id] > 0
+      let l:buffercounts[l:id] = l:buffercounts[l:id] - 1
+    else
+      let l:count = get(l:buffercounts, l:id, 0)
+      echoerr printf('annotation.AssertionError: expected a positive reference count for removed property %d at line %d, but the count (%d) is less than or equal to %d.', a:id, l:lnum, l:count, 0)
+    endif
+
+    " If the reference count for the property is less than or equal to zero,
+    " then we can just remove the property id from the reference counts.
+    if l:buffercounts[l:id] <= 0
+      call remove(l:buffercounts, l:id)
+    endif
+
     " if the buffer line is empty, then remove its entry completely.
     if empty(l:bufferline)
       call remove(l:bufferlines, l:lnum)
     endif
   endfor
 
-  " very last thing we need to do is to remove the annotations for the property.
-  if exists('l:bufferstate.annotations[l:id]')
-    call remove(l:bufferstate.annotations, l:id)
+  " now the very last thing to do is to check the reference counts and remove
+  " the property if it's the last one.
+  if get(l:buffercounts, l:id, 0) <= 0
+    let l:removed = remove(l:bufferprops, l:id)
+    call add(l:bufferstate.availableprops, l:id)
+
+    if exists('l:bufferstate.annotations[l:id]')
+      call remove(l:bufferstate.annotations, l:id)
+    endif
   endif
 
-  return l:property
+  return [l:property, l:lines]
 endfunction
 
 " Add a new property to the state for the specified buffer number.
@@ -279,6 +308,9 @@ function! annotation#state#newprop(bufnum, property)
   endif
 
   let l:bufferstate = s:STATE[a:bufnum]
+  let l:bufferlines = l:bufferstate.lines
+  let l:buffercounts = l:bufferstate.propcounts
+  let l:bufferprops = l:bufferstate.props
 
   " make a copy of the property, get a new id, and then attach it.
   let l:newproperty = copy(a:property)
@@ -287,12 +319,11 @@ function! annotation#state#newprop(bufnum, property)
   let l:newproperty.bufnr = a:bufnum
 
   " now we can add it to the buffer state.
-  let l:bufferstate.props[l:newid] = l:newproperty
+  let l:bufferprops[l:newid] = l:newproperty
 
-  " update the lines in the bufferstate with the new property id.
-  let l:bufferlines = l:bufferstate.lines
-
-  let l:lines = []
+  " update the lines in the bufferstate with the new property id,
+  " and track its reference count.
+  let l:newlines = []
   for l:lnum in s:get_property_lines(l:newproperty)
     if exists('l:bufferlines[l:lnum]')
       let l:bufferline = l:bufferlines[l:lnum]
@@ -301,15 +332,17 @@ function! annotation#state#newprop(bufnum, property)
       let l:bufferlines[l:lnum] = l:bufferline
     endif
 
+    " add the new property id to the line, and update its reference count.
     if index(l:bufferlines[l:lnum], l:newid) < 0
       call add(l:bufferline, l:newid)
+      let l:buffercounts[l:newid] = get(l:buffercounts, l:newid, 0) + 1
     endif
 
-    call add(l:lines, l:lnum)
+    call add(l:newlines, l:lnum)
   endfor
 
   " now we can return the new property to the caller.
-  return l:newproperty
+  return [l:newproperty, l:newlines]
 endfunction
 
 " Return whether the specified buffer has a property with the given id.
@@ -332,12 +365,16 @@ function! annotation#state#updateprop(bufnum, id, property)
     throw printf('annotation.InvalidPropertyError: target property for buffer %d already has an id (%d).', a:bufnum, a:property.id)
   endif
 
+  " assign some locals to access the different components of our state.
   let [l:id, l:bufferstate] = [a:id, s:STATE[a:bufnum]]
+  let l:bufferlines = l:bufferstate.lines
+  let l:buffercounts = l:bufferstate.propcounts
+  let l:bufferprops = l:bufferstate.props
+
+  let l:old = l:bufferprops[a:id]
 
   " start by grabbing the original property and the lines from the buffer state
   " so that we can go and remove all the lines associated with the property.
-  let l:old = l:bufferstate.props[a:id]
-  let l:bufferlines = l:bufferstate.lines
 
   let l:oldlines = []
   for l:lnum in s:get_property_lines(l:old)
@@ -360,8 +397,22 @@ function! annotation#state#updateprop(bufnum, id, property)
     if l:removed == l:id
       call add(l:oldlines, l:lnum)
     else
-      echoerr printf('annotation.AssertionError: expected removal of property %d from line %d, but the index (%d) points to property %d.', a:id, l:lnum, l:index, l:removed)
+      echoerr printf('annotation.AssertionError: expected removal of property %d from line %d, but the index (%d) points to property %s.', a:id, l:lnum, l:index, l:removed)
       call add(l:bufferline, l:removed)
+    endif
+
+    " now we update the reference count for the property that we removed.
+    if exists('l:buffercounts[l:id]') && l:buffercounts[l:id] > 0
+      let l:buffercounts[l:id] = l:buffercounts[l:id] - 1
+    else
+      let l:count = get(l:buffercounts, l:id, 0)
+      echoerr printf('annotation.AssertionError: expected a positive reference count for removed property %d at line %d, but the count (%d) is less than or equal to %d.', a:id, l:lnum, l:count, 0)
+    endif
+
+    " if the reference count for the property is <= 0, then we can just remove
+    " the property id from the reference counts.
+    if l:buffercounts[l:id] <= 0
+      call remove(l:buffercounts, l:id)
     endif
 
     " if bufferline for the line number is empty, then we can go ahead and
@@ -370,6 +421,12 @@ function! annotation#state#updateprop(bufnum, id, property)
       call remove(l:bufferlines, l:lnum)
     endif
   endfor
+
+  " if the reference count says the property still exists, then we complain
+  " about it and just assume that it was deleted anyways.
+  if get(l:buffercounts, l:id, 0) > 0
+      echoerr printf('annotation.AssertionError: expected the reference count for removed property %d at line %d to be less than or equal to %d, but the count (%d) is greater than %d.', a:id, l:lnum, 0, l:count, 0)
+  endif
 
   " FIXME: for the sake of debugging, we can probably log the old property and
   "        the lines that it was applied to.
@@ -381,6 +438,8 @@ function! annotation#state#updateprop(bufnum, id, property)
 
   " then we can update our lines in the buffer state with the property id.
   let l:bufferlines = l:bufferstate.lines
+  let l:buffercounts = l:bufferstate.counts
+  let l:bufferprops = l:bufferstate.props
 
   let l:lines = []
   for l:lnum in s:get_property_lines(l:newproperty)
@@ -391,8 +450,11 @@ function! annotation#state#updateprop(bufnum, id, property)
       let l:bufferlines[l:lnum] = l:bufferline
     endif
 
+    " if the id doesn't exist in the specified line, then add it and update the
+    " reference count that we're tracking for each property.
     if index(l:bufferlines[l:lnum], l:id) < 0
       call add(l:bufferline, l:id)
+      call add(l:buffercounts, 1 + get(l:buffercounts, l:id, 0))
     endif
 
     call add(l:lines, l:lnum)
@@ -400,7 +462,7 @@ function! annotation#state#updateprop(bufnum, id, property)
 
   " that was it. we can now return the new property (with id), and the lines
   " numbers that it actually references.
-  return l:new
+  return [l:new, l:lines]
 endfunction
 
 " Return the property and line numbers from the specified buffer number and id.
@@ -560,6 +622,10 @@ function! annotation#state#newsign(bufnum, line, name, group=v:none)
 
   " assign some local variables that we can use to access the sign state.
   let l:bufferstate = s:STATE[a:bufnum]
+  let l:buffersigns = l:bufferstate.signs
+  let l:bufferpositions = l:bufferstate.signpositions
+  let l:buffercounts = l:bufferstate.signcounts
+
   let l:id = s:get_next_sign_id(a:bufnum)
 
   " if the id already exists, then we raise an exception without removing it.
@@ -567,7 +633,7 @@ function! annotation#state#newsign(bufnum, line, name, group=v:none)
   if exists('l:bufferstate.signs[l:id]')
     throw printf('annotation.DuplicateSignError: buffer %d already has a sign with id %d.', a:bufnum, l:id)
   elseif !exists('l:bufferstate.signpositions[a:line]')
-    let l:bufferstate.signpositions[a:line] = {}
+    let l:bufferpositions[a:line] = {}
   endif
 
   " now we can assign our signdata that we'll state into the sign states.
@@ -578,12 +644,13 @@ function! annotation#state#newsign(bufnum, line, name, group=v:none)
 
   " now we can assign our sign data, update the sign positions so that we can
   " store a dictionary at the line number, and then return the calculated id.
-  let l:bufferstate.signs[l:id] = signdata
+  let l:buffersigns[l:id] = signdata
 
   if !exists('l:bufferstate.signpositions[a:line]')
-    let l:bufferstate.signpositions[a:line] = {}
+    let l:bufferpositions[a:line] = {}
   endif
-  let l:bufferstate.signpositions[a:line][l:id] = {}
+  let l:bufferpositions[a:line][l:id] = {}
+  let l:buffercounts[l:id] = get(l:buffercounts, l:id, 0) + 1
   return l:id
 endfunction
 
@@ -597,24 +664,41 @@ function! annotation#state#removesign(bufnum, id)
 
   " assign the buffer state so that we can access the sign state.
   let l:bufferstate = s:STATE[a:bufnum]
+  let l:buffersigns = l:bufferstate.signs
+  let l:bufferpositions = l:bufferstate.signpositions
+  let l:buffercounts = l:bufferstate.signcounts
 
   " first check that the sign exists so that we can remove it. after removal, we
   " need to add the id back into the availablesigns so it can be reused.
-  if !exists('l:bufferstate.signs[a:id]')
+  if !exists('l:buffersigns[a:id]')
     throw printf('annotation.MissingSignError: sign %d from buffer %d does not exist.', a:id, a:bufnum)
   endif
 
-  let signdata = remove(l:bufferstate.signs, a:id)
-  call add(l:bufferstate.availablesigns, a:id)
-
-  " use the line number to remove the sign from our stored positions.
+  " use the line number to remove the sign from our stored positions if the
+  " reference count allows us to.
   let line = signdata.lnum
-  let positionstate = l:bufferstate.signpositions[l:line]
-  let positiondata = exists('positionstate[a:id]')? remove(positionstate, a:id) : {}
+  "let positionstate = l:bufferpositions[l:line]
+  "let positiondata = exists('positionstate[a:id]')? remove(positionstate, a:id) : {}
+
+  " remove the specified sign, and update its reference count.
+  if exists('l:buffercounts[a:id]') && l:buffercounts[a:id] > 0
+    let l:buffercounts[a:id] = l:buffercounts[a:id] - 1
+  else
+    let l:count = get(l:buffercounts, a:id, 0)
+    echoerr printf('annotation.AssertionError: expected a positive reference count for removed sign %d at line %d, but the count (%d) is less than or equal to %d.', a:id, l:lnum, l:count, 0)
+  endif
+
+  " if the reference count is 0 or less, then we can actually remove the sign
+  " data that was created.
+  if get(l:buffercounts, a:id, 0) <= 0
+    call remove(l:buffercounts, a:id)
+    let signdata = remove(l:buffersigns, a:id)
+    call add(l:bufferstate.availablesigns, a:id)
+  endif
 
   " do a final check of the signpositions to remove the line if it is empty.
   if empty(positionstate)
-    call remove(l:bufferstate.signpositions, l:line)
+    call remove(l:bufferpositions, l:line)
   endif
 
   return positiondata

@@ -77,7 +77,6 @@ endfunction
 function! RemoveProperty(bufnum, lnum, col)
   let current = annotation#property#get(a:bufnum, a:col, a:lnum, g:annotation_property)
   if !empty(current)
-    echoconsole printf('Warning: the "%s" function does not remove properties spanning across multiple lines.', 'RemoveProperty')
     call annotation#frontend#del_property(a:bufnum, a:lnum, a:col, current['id'])
   endif
 endfunction
