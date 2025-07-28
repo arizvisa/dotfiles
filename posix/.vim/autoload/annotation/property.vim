@@ -549,7 +549,7 @@ function! annotation#property#save(bufnum)
 
   " FIXME: is it better for us to iterate through all the properties in the
   "        document instead of trusting what we got from `annotation#state`?
-  let positions = get(state, 'positions', {})
+  let properties = get(state, 'properties', {})
   let annotations = get(state, 'annotations', {})
   let propertymap = get(state, 'propertymap', {})
 
@@ -557,7 +557,7 @@ function! annotation#property#save(bufnum)
   "        them to a property id number that is based at 0. This way the loader
   "        can translate the id number to whatever free properties that are
   "        currently loaded for the target buffer.
-  if empty(positions) && empty(annotations) && empty(propertymap)
+  if empty(properties) && empty(annotations) && empty(propertymap)
     return {}
   endif
 
@@ -565,8 +565,8 @@ function! annotation#property#save(bufnum)
 endfunction
 
 function! annotation#property#load(bufnum, content)
-  if !exists('a:content.positions')
-    throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'positions')
+  if !exists('a:content.properties')
+    throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'properties')
   elseif !exists('a:content.annotations')
     throw printf('annotation.InvalidParameterError: unable to load properties from the specified dictionary due to a missing key (%s).', 'annotations')
   elseif !exists('a:content.propertymap')
@@ -575,12 +575,12 @@ function! annotation#property#load(bufnum, content)
 
   " FIXME: we need to read from content all the property boundaries so that we
   "        can recreate them one-by-one.
-  let positions = get(a:content, 'positions', {})
+  let properties = get(a:content, 'properties', {})
   let annotations = get(a:content, 'annotations', {})
   let propertymap = get(a:content, 'propertymap', {})
 
   " First grab all of the ids that are available
-  let ids = sort(keys(positions))
+  let ids = sort(keys(properties))
 
   " Then iterate through each of them and use the property data to recreate the
   " property in the current buffer.
@@ -592,7 +592,7 @@ function! annotation#property#load(bufnum, content)
 
     " Get the property data and adjust its fields to add it to the specified
     " buffer number.
-    let propertydata = positions[id]
+    let propertydata = properties[id]
     let propertydata['bufnr'] = a:bufnum
     let propertydata['id'] = id
 
@@ -604,7 +604,7 @@ function! annotation#property#load(bufnum, content)
   let propertyresults = {}
   let annotationresults = {}
   for id in used
-    let propertyresults[id] = copy(positions[id])
+    let propertyresults[id] = copy(properties[id])
     let annotationresults[id] = deepcopy(annotations[id])
   endfor
 
@@ -616,7 +616,7 @@ function! annotation#property#load(bufnum, content)
     " FIXME: check if the 'setlocal readonly' will output an error message about
     "        there being no write since the last change.
     execute printf('%dbufdo setlocal buftype=nowrite readonly', a:bufnum)
-    return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
+    return {'properties': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
   endif
 
   return {}
@@ -631,7 +631,7 @@ function! annotation#property#empty(bufnum)
     return v:true
   elseif empty(get(state, 'annotations', {}))
     return v:true
-  elseif empty(get(state, 'props', {}))
+  elseif empty(get(state, 'properties', {}))
     return v:true
   else
     return v:false

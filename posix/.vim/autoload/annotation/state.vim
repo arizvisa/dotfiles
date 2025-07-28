@@ -60,8 +60,8 @@ endfunction
 
 " Load the state in "contents" for the buffer specified by its number.
 function! annotation#state#load(bufnum, contents)
-  if !exists('a:contents.positions')
-    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'positions')
+  if !exists('a:contents.properties')
+    throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'properties')
   elseif !exists('a:contents.annotations')
     throw printf('annotation.InvalidParameterError: unable to load the specified contents for buffer %d due to missing the "%s" key.', a:bufnum, 'annotations')
   elseif !exists('a:contents.propertymap')
@@ -73,18 +73,18 @@ function! annotation#state#load(bufnum, contents)
   " Grab the state of the buffer that we're loading annotations into.
   let l:bufferstate = annotation#state#exists(a:bufnum)? annotation#state#get(a:bufnum) : annotation#state#new(a:bufnum)
 
-  if !exists('l:bufferstate.positions')
-    let l:bufferstate.positions = {}
+  if !exists('l:bufferstate.props')
+    let l:bufferstate.props = {}
   elseif !exists('l:bufferstate.annotations')
     let l:bufferstate.annotations = {}
   endif
 
-  let l:annotationstate = l:bufferstate.annotations
   let l:propertystate = l:bufferstate.props
+  let l:annotationstate = l:bufferstate.annotations
   let l:bufferlines = l:bufferstate.lines
 
   " Unpack our serialized data so that we can get at the annotations.
-  let propertyresults = a:contents.positions
+  let propertyresults = a:contents.properties
   let annotationresults = a:contents.annotations
   let propertymap = a:contents.propertymap
 
@@ -159,7 +159,7 @@ function! annotation#state#save(bufnum)
   " Now we can grab the annotations (which are already fine as-is), and then
   " return all the things to the caller in order to continue processing.
   let annotationresults = deepcopy(l:bufferstate.annotations)
-  return {'positions': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
+  return {'properties': propertyresults, 'annotations': annotationresults, 'propertymap': {}}
 endfunction
 
 " Remove and return the state for the buffer specified by buffer number.
