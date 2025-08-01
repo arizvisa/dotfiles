@@ -189,8 +189,10 @@
         logwith(element, `Rotated following element by ${adjustment} ${angle_description[unit]}s: ${original}${unit} -> ${rotated}${unit}`);
     };
 
-    // FIXME: highlight the bounding box of the selected
-    //        element for just a few seconds or something.
+    // highlight the bounding box of the selected element for just a few seconds or something...
+    // FIXME: it would nice to trap the mousemove event for a few seconds to apply
+    //        a border to whatever element is being hovered over. we also might be able
+    //        to use a timer so that over some duration, the border fades using rgba().
     const ElementPicker = (getter) => (ev) => {
         const element = getter();
         const style = element.style;
@@ -199,8 +201,8 @@
         let [has, original] = ['border' in style, style['border']];
         switch (typeof(GLOBAL.highlight)) {
             case 'string':
-                has = {'border': 'border' in style};
-                original = {'border': style['border']};
+                has = {'border': 'border' in style, 'opacity': 'opacity' in style};
+                original = {'border': style['border'], 'opacity': style['opacity']};
                 style['border'] = GLOBAL.highlight;
                 break;
 
@@ -210,12 +212,14 @@
                     'border-color': 'border-color' in style,
                     'border-width': 'border-width' in style,
                     'border-collapse': 'border-collapse' in style,
+                    'opacity': 'opacity' in style,
                 };
                 original = {
                     'border-style': style['border-style'],
                     'border-color': style['border-color'],
                     'border-width': style['border-width'],
                     'border-collapse': style['border-collapse'],
+                    'opacity': style['opacity'],
                 }
 
                 style['border-style'] = GLOBAL.highlight.style;
@@ -242,10 +246,39 @@
         setTimeout(restoreStyleForElement, 1000.0 * GLOBAL.timeout, element, has, original);
     };
 
+    const ElementHide = (getter) => (ev) => {
+        const element = getter();
+        let is_div = (element.tagName.toUpperCase() == 'div')? true : false;
+        logwith(element, `Zapping (${ is_div? "display:none" : "visibility:hidden"}) the following element:`);
+
+        // if we're a div or block element, then avoid displaying the block.
+        if (is_div) {
+            element.style['display'] = 'none';
+
+        // otherwise, we can just set its visibility to remove it.
+        } else {
+            element.style['visibility'] = 'hidden';
+        }
+    };
+
+    const ElementRemove = (getter) => (ev) => {
+        const element = getter();
+        const parent = element.parentNode;
+
+        logwith(parent, `Removing element of type ${element.tagName} from the following parent element:`);
+
+        let removed = parent.removeChild(element);
+
+        logwith(element, `Removed the following element from parent element of type ${parent.tagName}.`);
+
+    };
+
     const currentElement = getElementFromContextMenuLazy();
     const menuitems = {
-        pick: GM_registerMenuCommand("Pick", ElementPicker(currentElement)),
+        pick: GM_registerMenuCommand("Show", ElementPicker(currentElement)),
         reset: GM_registerMenuCommand("Reset", ElementReset(currentElement, 'deg'), {autoClose: true}),
+        zap: GM_registerMenuCommand("Zap (hide)", ElementHide(currentElement), {autoClose: true}),
+        remove: GM_registerMenuCommand("Remove", ElementRemove(currentElement), {autoClose: true}),
         rotate_90: GM_registerMenuCommand("Rotate 90", ElementRotator(currentElement, 90, 'deg'), {autoClose: true}),
         rotate_270: GM_registerMenuCommand("Rotate -90", ElementRotator(currentElement, -90, 'deg'), {autoClose: true}),
         rotate_180: GM_registerMenuCommand("Rotate 180", ElementRotator(currentElement, 180, 'deg'), {autoClose: true}),
