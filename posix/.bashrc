@@ -66,6 +66,12 @@ complete -r
 # command aliases
 unalias -a
 
+# undefine the "command_not_found_handle" function if it has been assigned. this
+# function is for asking the user whether they want to install a command that is
+# missing or not. This comes from the "PackageKit-command-not-found" package and
+# is literally for stupid people who don't know how to posix...
+unset command_not_found_handle
+
 # modify core utility parameters to improve their safety
 alias rm='rm -i'
 alias mv='mv -i'
@@ -384,7 +390,7 @@ alias addcscope=__addcscope
 alias rmcscope=__rmcscope
 
 # devtodo specific
-command devtodo >/dev/null 2>&1
+command -vp devtodo >/dev/null 2>&1
 if [ "$?" -eq 0 ]; then
     todo_options='--timeout --summary'
     cd()
