@@ -812,7 +812,8 @@ endif
 if has("eval")
     let g:sleuth_no_filetype_indent_on = 1
     let g:VM_add_cursor_at_pos_no_mappings = 1
-    let g:NERDTreeMapHelp = ''
+    let g:NERDTreeMapHelp = '<F1>'
+    let g:NERDTreeShowHidden = 1
 
     " https://gist.github.com/wellle/9289224?permalink_comment_id=1182925
     function! s:TargetsAppend(type, ...)
