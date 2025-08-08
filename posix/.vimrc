@@ -71,6 +71,18 @@ endif
 "" get rid of any c indentation
 set nocindent
 
+"" add ZERO WIDTH SPACE and ZERO WIDTH NO-BREAK SPACE
+if has('digraphs')
+    let digraphs = {'zb': 0x200B, 'zn': 0xFEFF, 'zs': 0x200B}
+    for doublechar in keys(digraphs)
+        execute printf("digraphs %s %d", toupper(doublechar), digraphs[doublechar])
+        execute printf("digraphs %s %d", tolower(doublechar), digraphs[doublechar])
+        execute printf("digraphs %s %d", toupper(doublechar[0]) . tolower(doublechar[1]), digraphs[doublechar])
+        execute printf("digraphs %s %d", tolower(doublechar[0]) . toupper(doublechar[1]), digraphs[doublechar])
+    endfor
+    unlet! digraphs doublechar
+endif
+
 "" mapping that executes a shell command in a new window
 map <C-w>! :new\|%!
 
