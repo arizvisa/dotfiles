@@ -541,7 +541,7 @@ syntax region prologRuleBodyMultiple keepend
 \   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
 syntax region prologRuleBodyNoHead keepend
 \   matchgroup=prologDefineRule skipwhite skipempty start='^\zs:-\ze'
-\   contains=@prologBodyToken,@prologComment skip="%.*$"
+\   contains=@prologBodyToken,@prologDirective,@prologDirectiveOption,@prologComment skip="%.*$"
 \   matchgroup=prologEndingRule excludenl end='\.\ze\s*\_[%]'
 syntax region prologRuleBodySingle oneline
 \   matchgroup=prologDefineRule skipwhite start='^\zs:-\ze.'
@@ -553,25 +553,31 @@ syntax cluster prologRuleBody contains=prologRuleBodySingle,prologRuleBodyMultip
 syntax region prologConstraintBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='-->>\?'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
+\   matchgroup=prologEndingRule skip='%.*$' end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='==>>\?'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
+\   matchgroup=prologEndingRule skip='%.*$' end='\.\ze\s*\_[%]'
 syntax region prologCHRBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='<=>'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
+\   matchgroup=prologEndingRule skip='%.*$' end='\.\ze\s*\_[%]'
 syntax region prologGuardedRuleBody keepend
 \   matchgroup=prologDefineConstraint skipwhite skipempty start='=>'
 \   contains=@prologBodyToken,@prologComment
-\   matchgroup=prologEndingRule end='\.\ze\s*\_[%]'
+\   matchgroup=prologEndingRule skip='%.*$' end='\.\ze\s*\_[%]'
 syntax cluster prologBody contains=prologRuleBody,prologConstraintBody,prologCHRBody,prologGuardedRuleBody
 
 " XXX: highlighting doesn't seem to work inside a cluster, so this is more a reference than anything else.
 syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter
-syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologCharCodes,prologTopLevel
+"syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologCharCodes,prologTopLevel
 syntax cluster prologHeadParenthesesToken contains=@prologToken,prologStringprologCharCodes,
+
+syntax match prologContext contained '\<\w\+\>'
+syntax match prologUseContext '@\s*' nextgroup=prologContext
+highlight link prologUseContext prologSpecial
+highlight link prologContext prologLibrary
+syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,@prologComment,prologUseContext,prologString,prologCharCodes,prologTopLevel
 
 syntax match prologHead '^\zs\a[[:alnum:]_:]*\ze\s*(' skipwhite keepend nextgroup=prologHeadParentheses
 syntax region prologHeadParentheses start='\zs(' contains=@prologHeadParenthesesToken end=')\ze' nextgroup=prologNextHead,@prologBody contained
