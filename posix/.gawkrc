@@ -2,9 +2,7 @@
 function join(array, start, end, sep, result, i)
 {
     increment = (start <= end)? +1 : -1
-    if (sep == "")
-        sep = " "
-    else if (sep == SUBSEP) # magic value
+    if (sep == SUBSEP) # magic value
         sep = ""
     else if (start != end)
         result = array[start]
@@ -83,4 +81,38 @@ function slice(string, sep, start, stop,            parts, sliced)
     split0(string, parts, sep)
     getslice(parts, start, stop, sliced)
     return join(sliced, 0, length(sliced), sep)
+}
+
+# fields.awk --- select a range of fields (skipping over field 0)
+function fields(result, start, stop, step,       idx, count, left, right)
+{
+    stop = ((!stop) || (stop == SUBSEP))? NF : stop
+    if ((step == SUBSEP) || !step) {
+        step = (start <= stop)? +1 : -1
+    }
+    left = min(max(0, min(start, NF)), stop)
+    right = max(max(0, min(stop, NF)), left)
+
+    count = 0
+    for (idx = left; left <= idx && idx < right; idx += step) {
+        #result[count++] = $(idx)   # in case we want to include $1
+        result[count++] = $(1 + idx)
+    }
+    return length(result)
+}
+
+# joinfields.awk --- join a range of the input fields by sep
+function joinfields(sep, start, stop, step,      array, string, idx)
+{
+    sep = (sep == SUBSEP)? OFS : sep
+    stop = (!stop || stop == SUBSEP)? NF : stop
+    fields(array, start, stop, step)
+
+    if (sep == SUBSEP) # magic value
+        sep = ""
+
+    string = length(array)? array[0] : ""
+    for (idx = 1; idx < length(array); idx++)
+        string = string sep array[idx]
+    return string
 }
