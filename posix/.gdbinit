@@ -486,25 +486,31 @@ class process_mappings(workspace):
         return filter
 
     expected_field_names = ['Start Addr', 'End Addr', 'Size', 'Offset', 'Perms', 'File']
+    reduced_field_names = ['Start Addr', 'End Addr', 'Size', 'Offset', 'File']
     @classmethod
     def mappings(cls):
         mappings = gdb.execute('info proc mappings', False, True)
         rows = mappings.strip().split('\n')
         iterable = (index for index, row in enumerate(rows) if row.lstrip().startswith('0x'))
         index = next(iterable, 0)
-        headers = rows[:index][-1].rsplit(None, 4)
+        headerline = rows[:index][-1]
+
+        # Hack to figure if the "Perms" column is missing from the mappings.
+        is_reduced = 'Perms' not in headerline
+        headers = headerline.rsplit(None, 3 if is_reduced else 4)
         iterable = itertools.chain(filter(None, headers[:1][0].rsplit('  ')), headers[1:])
         split = [header for header in iterable]
 
         # Hack to find columns that are the same size as the "Start Addr" field.
-        if len(split) != 6:
+        field_names = cls.reduced_field_names if is_reduced else cls.expected_field_names
+        if len(split) != len(field_names):
             expected = len("{:#0{:d}x}".format(0, 2 + 32 // 4))
             target = split[0]
             split = itertools.chain([target[:expected], target[expected:]], split[1:])
 
         fields = [header.strip() for header in split]
-        if any(name not in fields for name in cls.expected_field_names):
-            gdb.write("The expected field names ({!s}) were changed by gdb to {!s}".format(cls.expected_field_names, fields))
+        if any(name not in fields for name in field_names):
+            gdb.write("The expected field names ({!s}) were changed by gdb to {!s}".format(field_names, fields))
         return [{field : value for field, value in zip(fields, row.strip().split())} for row in rows[index:]]
 
     @classmethod
@@ -522,10 +528,10 @@ class process_mappings(workspace):
         #relative = ''.join([fields['Offset'], '+', fields['Size']])
         relative = '+'.join("{:#0{:d}x}".format(int(fields[field], 16), columns[field]) for field in ['Offset', 'Size'])
         location = "{:s} {:<{:d}s}".format('..'.join(range), "({:s})".format(relative), 2 + 1 + sum(columns[field] for field in ['Offset', 'Size']))
-        permissions = "{:{:d}s}".format(fields['Perms'], columns['Perms'])
+        permissions = "<{:{:d}s}>".format(fields['Perms'], 2 + columns['Perms']) if 'Perms' in fields else '<?Perms>'
         filename = "{:{:d}s}".format(fields.get(cls.expected_field_names[-1], ''), columns.get(cls.expected_field_names[-1], 0))
         #return "{:s} {:>{:d}s} {:{:d}s}".format(location, fields['Perms'], columns['Perms'], fields.get('objfile', ''), columns['objfile'])
-        return ' '.join([location, "<{:s}>".format(permissions), filename])
+        return ' '.join([location, permissions, filename])
 
     @commands.add
     class select(command):
