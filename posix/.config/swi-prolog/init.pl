@@ -33,3 +33,7 @@
 
 %- https://www.swi-prolog.org/pack/list?p=lsp_server
 %:- not(prolog_pack:current_pack(lsp_server)) -> pack_install(lsp_server); true.
+
+%- https://github.com/grsjst/progress_bar
+:- not(prolog_pack:current_pack(progress_bar)) -> pack_install(progress_bar); true.
+%:- use_module(library(progress_bar)).
