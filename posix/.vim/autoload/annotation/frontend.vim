@@ -171,7 +171,7 @@ function! annotation#frontend#save_buffer(bufstr, filename)
   else
     if filereadable(outfile) || filewritable(outfile)
       if !delete(outfile)
-        echomsg printf('Removing annotation file (%s) for buffer %d due to no annotations being found.', outfile, bufnum)
+        echomsg printf('Removing annotation file (%s) for buffer %d due to no remaining annotations.', outfile, bufnum)
       else
         echohl ErrorMsg | echomsg printf('annotation.InternalError: unable to remove the specified file: %s', outfile) | echohl None
       endif
