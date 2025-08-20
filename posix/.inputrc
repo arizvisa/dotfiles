@@ -3,8 +3,67 @@ set bell-style none
 set visible-stats on
 set skip-completed-text on
 set page-completions off
+set expand-tilde on
 
 # utf8
 set input-meta on
 set output-meta on
 set convert-meta off
+
+# Display file completions with color for the file type.
+set colored-stats on
+
+# Ignore case when completing.
+set completion-ignore-case on
+
+# Set a reasonable completion count.
+set completion-query-items 128
+
+# Try to stay at the same the cursor position when moving through the history.
+set history-preserve-point on
+
+# Show all completions as soon as I press tab, even if more than one.
+set show-all-if-ambiguous on
+
+# Completed names which are symbolic links to # directories have a slash appended.
+set mark-symlinked-directories on
+
+# Display the common prefix when completing.
+set menu-complete-display-prefix on
+
+# Map some specific keys when using vi normal-mode.
+$if mode=vi
+    set keymap vi-command
+    "(": beginning-of-line
+    ")": end-of-line
+    "j": history-search-forward
+    "k": history-search-backward
+$endif
+
+# Map some specific keys when using vi insert-mode.
+$if mode=vi
+    set keymap vi-insert
+    "jk": vi-movement-mode
+    "\e[Z": menu-complete-backward
+$endif
+
+# Use more intelligent Up/Down behavior: use the text that has already been
+# typed as the prefix for searching through commands, like in Vim.
+"\e[A": history-search-backward
+"\e[B": history-search-forward
+"\e[C": forward-char
+"\e[D": backward-char
+
+# Use <C-Left>, <C-Right>, <M-Left>, <M-Right>, and <Esc> to move between words.
+"\e[1;5D": backward-word
+"\e[1;3D": backward-word
+"\e[5D": backward-word
+"\e\e[D": backward-word
+
+"\e[1;5C": forward-word
+"\e[1;3C": forward-word
+"\e[5C": forward-word
+"\e\e[C": forward-word
+
+"\e[1;2D": backward-word
+"\e[1;2C": forward-word
