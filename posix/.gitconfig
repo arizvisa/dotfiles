@@ -2,6 +2,9 @@
     name = Ali Rizvi-Santiago
     email = arizvisa@gmail.com
 
+[init]
+    defaultBranch = main
+
 [core]
     eol = lf
     autocrlf = false
