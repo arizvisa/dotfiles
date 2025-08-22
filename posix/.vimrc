@@ -783,6 +783,7 @@ if has("eval")
 
     call plug#begin()
     Plug 'https://github.com/arizvisa/vim-incpy.git'
+    Plug 'https://github.com/arizvisa/vim-annotation.git'
     Plug 'https://github.com/mg979/vim-visual-multi'
     Plug 'https://github.com/tpope/vim-sleuth'
     Plug 'https://github.com/tpope/vim-surround'
