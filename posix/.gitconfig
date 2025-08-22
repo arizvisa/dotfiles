@@ -1,10 +1,10 @@
 [user]
-	name = Ali Rizvi-Santiago
-	email = arizvisa@gmail.com
+    name = Ali Rizvi-Santiago
+    email = arizvisa@gmail.com
 
 [core]
-	eol = lf
-	autocrlf = false
+    eol = lf
+    autocrlf = false
 
 [color]
     status = false
@@ -13,10 +13,10 @@
     pretty = fuller
 
 [pull]
-	ff = only
+    ff = only
 
 [push]
-	default = matching
+    default = matching
 
 [rebase]
     stat = true
@@ -37,17 +37,15 @@
     sum = summary
 
 [filter "lfs"]
-	required = true
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
 
 [credential "https://github.com"]
-	helper =
-	helper = !/usr/bin/gh auth git-credential
+    helper =
+    helper = !/usr/bin/gh auth git-credential
 
 [credential "https://gist.github.com"]
-	helper =
-	helper = !/usr/bin/gh auth git-credential
-[http]
-	version = HTTP/1.1
+    helper =
+    helper = !/usr/bin/gh auth git-credential
