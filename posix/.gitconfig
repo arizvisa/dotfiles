@@ -9,11 +9,33 @@
     eol = lf
     autocrlf = false
 
+[column]
+    ui = auto
+
 [color]
     status = false
+    ui = true
 
 [format]
     pretty = fuller
+
+[rebase]
+    stat = true
+
+[commit]
+    verbose = true
+
+[diff]
+    renames = true
+    algorithm = histogram
+    colorMoved = plain
+    mnemonicPrefix = true
+
+[fetch]
+    all = true
+
+[merge]
+    conflictstyle = diff3
 
 [pull]
     ff = only
@@ -21,8 +43,14 @@
 [push]
     default = matching
 
-[rebase]
-    stat = true
+[submodule]
+    recurse = true
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = version:refname
 
 [alias]
     oneline = log --pretty=oneline --abbrev-commit --all --graph --decorate=auto --color
