@@ -101,8 +101,34 @@ def memberFromOp(st, ea, opnum, name=None):
 mop = memberFromOp
 
 dbname = fcompose(fthrough(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(db.offset, fdiscard(db.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(db.name))
+def dbname(ea, *args, **kwds):
+    if not isinstance(ea, int):
+        return db.name(*ichain([ea], args, [db.offset()]), **kwds)
+    return db.name(ea, *ichain(args, [db.offset(ea)]), **kwds)
+
 fnname = fcompose(fthrough(fpack(fidentity), fcompose(fpack(fidentity), first, fcondition(finstance(int))(func.offset, fdiscard(func.offset)), fpack(fidentity))), funpack(itertools.chain), funpack(func.name, listed=True))
+def fnname(ea, *args, **kwds):
+    kwds.setdefault('listed', True)
+    if not isinstance(ea, int):
+        res = func.name(*ichain([ea], args, [func.offset()]), **kwds)
+        args = func.args.names([])
+    else:
+        res = func.name(ea, *ichain(args, [func.offset(ea)]), **kwds)
+        args = func.args.names(ea, [])
+    return res, args
+
 selectall = fcompose(db.selectcontents, fpartial(imap, funpack(func.select)), funpack(itertools.chain))
+def selectall(*required, **kwds):
+    F = lambda item: [item] if isinstance(item, str) else item
+    required = {k for k in required}
+    required |= {k for k in ichain(*map(F, (kwds.get(k, []) for k in ['And', 'require', 'requires', 'required'])))}
+    included = {k for k in ichain(*map(F, (kwds.get(k, []) for k in ['Or', 'include', 'includes', 'included'])))}
+    contents = {'required':required} if required else {'included':included}
+    for f, res in db.selectcontents(**contents):
+        for item in func.select(f, required=required, included=included):
+            yield item
+        continue
+    return
 
 has_immediate_ops = fcompose(ins.ops_constant, fpartial(map, ins.op), set, fthrough(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(int)), any)), all)
 has_register_ops = fcompose(ins.ops_register, fpartial(map, ins.op), set, fthrough(fcompose(len, operator.truth), fcompose(fpartial(map, finstance(register_t)), any)), all)
@@ -1556,7 +1582,9 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         target = call.x
         helper = target.helper
 
-        print("Skipping an unsupported helper: {:s}".format(hexrays.repr(item)))
+        # cexpr_t
+        cfunc = vu.cfunc
+        print("Skipping an unsupported helper: {:s}".format(hexrays.repr(cfunc, item)))
         return
 
     elif item.op == ida_hexrays.cot_call:
@@ -1717,6 +1745,36 @@ def findtypes(ti, *types):
         print("Candidate[{:d}] : {!r} has the following {:d} candidate{:s}: {!r}".format(1 + index, "{!s}".format(type), len(candidates), '' if len(candidates) == 1 else 's', ["{!s}".format(item) for item in candidates]))
     return internal.interface.typematch.use(collection, ti)
 
+def test_typematcher():
+    items = ['char','byte','uint8_t']
+    goals = [db.types.parse(item) for item in items]
+    collection = interface.typematch(goals)
+
+    print('candy', interface.typematch.candidates(collection, db.types.parse('BOOLEAN')))
+
+    s='''
+    struct
+    {
+      unsigned int Data1;
+      unsigned __int16 Data2;
+      unsigned __int16 Data3;
+      unsigned __int8 Data4[8];
+    }
+    '''
+
+    items = [
+            s, 'signed __int8', 'uint8_t', '__int16',
+            'unsigned __int8 meh[20]', '_BYTE',
+            'unsigned __int8 meh[0]', '_BYTE',
+            'unsigned __int8 meh[1]', '_BYTE',
+    ]
+
+    tis = [db.types.parse(s) for s in items]
+    print('parsed', ["{!s}".format(ti) for ti in tis])
+    for item, subs in interface.typematch.select(collection, tis):
+        p(item, lmap("{!s}".format, subs))
+    return
+
 def selectmembers(**boolean):
     boolean = {key : {item for item in value} if isinstance(value, internal.types.unordered) else {value} for key, value in boolean.items()}
     if not boolean:
@@ -1804,3 +1862,867 @@ def fixprototypes():
      [fn.arg(ea, 1 + i, item) for i, item in enumerate(fn.tag(ea,'prototype.parameters'))]
      p('to', "{!s}".format(fn.type(ea)))
      p()
+
+#def goto_offset_or_address():
+#    ea, bounds = ui.ask.address('~Jump address or offset'), database.info.bounds()
+#    if bounds.contains(ea):
+#        return database.go(ea)
+#    elif bounds.contains(database.address.byoffset(ea)):
+#        return database.goof(ea)
+#    try:
+#        res = R.go(ea)
+#    except NameError:
+#        raise NameError("Could not find translation class `R` in the globals.")
+#    return res
+##ui.keyboard.map('G', goto_offset_or_address)
+
+def goto_offset_or_address_form(*ctx):
+    form = '''
+    Jump to address\n\n
+    <~J~ump address:$::32::>'
+    '''.strip()
+
+    # FIXME: probably better to use a string argument so that we can attempt to
+    #        resolve symbols, evaluate expressions, and most importantly...strip
+    #        the '`' that windbg includes in its addresses.
+    here = database.here()
+    address = idaapi.Form.NumericArgument('$', here)
+    ok = idaapi.ask_form(form, address.arg)
+    if not ok:
+        print('''Command "JumpAsk" failed''')
+        return here
+
+    ea, bounds = address.value, database.info.bounds()
+    if bounds.contains(ea):
+        return database.go(ea)
+    elif bounds.contains(database.address.byoffset(ea)):
+        return database.goof(ea)
+
+    try:
+        res = R.go(ea)
+    except NameError:
+        '''Command "JumpAsk" failed'''
+        #raise NameError("Could not find translation class `R` in the globals.")
+        logging.error("Could not find translation class `R` in the globals.")
+    if not ctx:
+        return here
+    [context] = ctx
+    return context.cur_ea
+#ui.keyboard.map('G', goto_offset_or_address_form)
+ui.hook.action.add(
+    ui.hook.action.new('minsc:goto_address', 'application', dict(
+        widget_type={idaapi.BWN_DISASM, idaapi.BWN_PSEUDOCODE},
+    ), shortcut = ['G']),
+    goto_offset_or_address_form
+)
+
+    #s='title\n%A\n%$\n<~J~ump address:$::32::>\n'
+    #s = "Sample dialog box\n\n\nThis is sample dialog box for %A\nusing address %$\n<~E~nter value:N::18::>"
+    #num = idaapi.Form.NumericArgument('N', value=123)
+    #ok = idaapi.ask_form(s, idaapi.Form.StringArgument("PyAskform").arg, idaapi.Form.NumericArgument('$', 0x401000).arg, num.arg)
+
+def test_combobox_form():
+    form = '''
+    Test combobox\n\n
+    <~T~ag name:b:1:::>
+    '''.strip()
+
+    qstrvec_t = getattr(idaapi, 'ida_pro')._qstrvec_t if not hasattr(idaapi, '_qstrvec_t') else idaapi._qstrvec_t
+    strvec, names = qstrvec_t(), 'a b c d e f g'.split(' ')
+    [strvec.add(item) for item in names]
+    names = 'a b c d e f g'.split(' ')
+    combo = idaapi.Form.DropdownListControl([name for name in names], readonly=False, selval='a')
+    ok = idaapi.ask_form(form, *itertools.chain(combo.arg, []))
+    return ok, combo.value
+
+class TestEmbeddedChooserClass(idaapi.Choose):
+    # XXX: embedded choosers need to be refreshed via Form.RefreshField() in
+    #      order for their elements to be updated sufficiently. this can be used
+    #      to display the address of each available tag within a function.
+    #      perhaps we can display them on the navigation bar too?
+    def __init__(self, title, flags=0):
+        idaapi.Choose.__init__(self,
+                        title,
+                        [ ["Address", 10], ["Name", 30] ],
+                        flags=flags,
+                        embedded=True, width=30, height=6)
+        self.items = [
+            ["{:#x}".format(i), "func_{:04x}".format(x)]
+            for i, x in enumerate(range(4*0x10, 5*0x10))
+        ]
+        self.icon = 5
+
+    def OnGetLine(self, n):
+        print("getline %d" % n)
+        return self.items[n]
+
+    def OnGetSize(self):
+        n = len(self.items)
+        print("getsize -> %d" % n)
+        return n
+
+    def OnSelectionChange(self, sel):
+        print('selected', sel)
+        if 0 in sel:
+            self.items = [
+                ["{:#x}".format(i), "func_{:04x}".format(x)]
+                for i, x in enumerate(range(1*0x10, 2*0x10))
+            ]
+            print('go', self.Refresh())
+        return 1
+
+class MyForm(idaapi.Form):
+    def __init__(self):
+        #self.invert = False
+        #self.EChooser = TestEmbeddedChooserClass("E1", flags=Choose2.CH_MULTI)
+
+        names = 'a b c d e f g'.split(' ')
+        combo = idaapi.Form.DropdownListControl([name for name in names], readonly=False, selval='a', width=32, swidth=32)
+
+        controls = self.controls = {}
+        controls['ctrlCombobox'] = combo
+        controls['ctrlFormchange'] = idaapi.Form.FormChangeCb(self.OnFormChange)
+        controls['ctrlInput'] = idaapi.Form.StringInput(width=32, swidth=32)
+        controls['ctrlContents'] = idaapi.Form.MultiLineTextControl('', width=32, swidth=32)
+        controls['ctrlActivate'] = idaapi.Form.ButtonInput(self.OnClickity)
+
+        self._chooser = chooser = TestEmbeddedChooserClass("Chooser", flags=idaapi.Choose.CH_MULTI|idaapi.Choose.CH_CAN_REFRESH)
+        controls['ctrlChooser'] = idaapi.Form.EmbeddedChooserControl(chooser)
+
+        # would be cool to list the addresses of everything tagged using a
+        # chooser class.
+
+        description = r"""
+        {ctrlFormchange}
+        <Dropdown list:{ctrlCombobox}>
+        <Text box:{ctrlContents}>
+        <Fuck box:{ctrlInput}>
+        <Click:{ctrlActivate}>
+        <Choose:{ctrlChooser}>
+        """
+
+        idaapi.Form.__init__(self, description, controls)
+
+    def OnFormChange(self, fid):
+        print('formchange', fid)
+        return 1
+
+    def OnClickity(self, button_code):
+        print('clik', button_code)
+
+        text = self.GetControlValue(self.ctrlContents)
+        text.text = 'whyyy'
+        print('current?', text)
+
+        target = idaapi.textctrl_info_t(text='bitchup', flags=32, tabsize=0)
+        ok = self.SetControlValue(self.ctrlContents, target)
+        print('contents', ok)
+
+        ok = self.SetControlValue(self.ctrlCombobox, 'why')
+        print('combo', ok)
+
+        ok = self.SetControlValue(self.ctrlInput, 'fuckingstupid')
+        print('inp', ok)
+
+
+        newitems = [
+            ["{:#x}".format(i), "func_{:04x}".format(x)]
+            for i, x in enumerate(range(1*0x50, 2*0x60))
+        ]
+        self.ctrlChooser.chooser.items[:] = newitems
+        ok = self.RefreshField(self.ctrlChooser)
+        print('choose', ok)
+        print('choosing', self.ctrlChooser.value)
+
+        return 1
+
+def test_new_form():
+    f = MyForm()
+    f, args = f.Compile()
+    if True:
+        ok = f.Execute()
+    else:
+        print(args[0])
+        print(args[1:])
+        ok = 0
+
+    if ok == 1:
+        print("Editable: {!s}".format(f.controls))
+        print("Editable: {!s}".format({(k,v.value if hasattr(v, 'value') else v) for k, v in f.controls.items()}))
+    #f.Free()
+
+    return f
+
+class TagContentsEditFormTabbed(idaapi.Form):
+    r'''
+    STARTITEM {id:ctrlTagSelection2}
+    BUTTON YES* Apply
+    BUTTON NO NONE
+    BUTTON CANCEL Cancel
+    Edit tags for address in function
+
+    {ctrlFormChange}
+    <~T~ag:{ctrlTagSelection1}>
+    <~V~alue:{ctrlTagValue1}>
+    <~R~endered:{ctrlRenderedTags1}>
+    <=:R~e~peatable>
+
+    <~T~ag:{ctrlTagSelection2}>
+    <~V~alue:{ctrlTagValue2}>
+    <~R~endered:{ctrlRenderedTags2}>
+    <=:N~o~n-repeatable>
+    '''
+
+    def __init__(self, fn, ea):
+        controls = {}
+        #available = function.tags(fn)
+        available = 'synopsis note object prototype original.name'.split(' ')
+
+        formChangeEvent = idaapi.Form.FormChangeCb(self.OnFormChange)
+        controls['ctrlFormChange'] = formChangeEvent
+
+        controls['ctrlTagSelection1'] = idaapi.Form.DropdownListControl([name for name in available], readonly=False, selval='a')
+        controls['ctrlTagValue1'] = idaapi.Form.StringInput(swidth=72)
+        controls['ctrlRenderedTags1'] = idaapi.Form.MultiLineTextControl('', width=900)
+
+        controls['ctrlTagSelection2'] = idaapi.Form.DropdownListControl([name for name in available], readonly=False, selval='a')
+        controls['ctrlTagValue2'] = idaapi.Form.StringInput(swidth=72)
+        controls['ctrlRenderedTags2'] = idaapi.Form.MultiLineTextControl('', width=900)
+
+        idaapi.Form.__init__(self, self.__doc__.lstrip(), controls)
+
+    def OnFormChange(self, fid):
+        print('changed')
+        ctrl = self.FindControlById(fid)
+        print('control', ctrl)
+        return 1
+
+import contextlib
+class TagContentsEditForm(idaapi.Form):
+    r'''
+    STARTITEM {id:ctrlTagSelection}
+    BUTTON YES* Apply
+    BUTTON NO NONE
+    BUTTON CANCEL Cancel
+    %s
+    {ctrlFormChange}
+
+    <~T~ag:{ctrlTagSelection}>
+    <~V~alue:{ctrlTagValue}>
+    <~A~dd:{ctrlTagAdd}> <~D~el:{ctrlTagDelete}>
+
+    <R~e~ndered:{ctrlRenderedTags}>
+    <##Comment##~R~epeatable:{ctrlCheckRepeatable}>
+    <H~i~dden:{ctrlCheckHidden}>{ctrlCheckBoxes}>
+
+    <=:T~a~gs>
+
+    <Choose:{ctrlChooser}>
+    <Reload:{ctrlChooserReload}>
+    Address: {ctrlAddressLabel}
+    <Comment:{ctrlAddressComment}>
+    <=:~U~sage>
+    '''
+
+    class TagEditorObject(object):
+        def __init__(self, cmt, rpt, repeatable):
+            #cmt, rpt = (idaapi.get_cmt(ea, boolean) or u'' for boolean in [False, True])
+            self._comment = {False: cmt or u'', True: rpt or u''}
+            self._repeatable = True if repeatable else False
+            self._state = self.decode()
+            self._modified = {name for name in []}
+
+        def decode_line(self, line):
+            result = internal.interface.collect_t(unicode if sys.version_info.major < 3 else str, operator.add)
+            iterable = iter(line)
+            try:
+                internal.comment.tag.name.decode(iterable, result)
+                space = next(iterable)
+                return result.get(), str().join(iterable if space == u' ' else itertools.chain(space, iterable))
+            except internal.exceptions.InvalidFormatError:
+                return '', line
+
+        def decode(self):
+            res = {}
+            for boolean, value in self._comment.items():
+                iterable = map(self.decode_line, filter(None, value.split(u'\n')))
+                res[boolean] = {key : value for key, value in iterable}
+            return res
+
+        def render(self, repeatable):
+            # FIXME: add support for hidden tags
+            res = self._state[True if repeatable else False]
+
+            collection = internal.interface.collect_t(unicode if sys.version_info.major < 3 else str, operator.add)
+            for key, value in res.items():
+                internal.comment.tag.name.encode(iter(key), collection)
+                collection.send(u' ')
+                collection.send(value)
+                collection.send(u'\n')
+            return collection.get()
+
+        def sync(self, repeatable):
+            encoded = self.render(repeatable)
+            self._comment[repeatable] = encoded
+            return encoded
+
+        def comment(self, repeatable):
+            res = self._comment[True if repeatable else False]
+            return res
+
+        def get(self, name, repeatable):
+            state = self._state[True if repeatable else False]
+            return state.get(name, None)
+
+        def set(self, name, value, repeatable):
+            state = self._state[True if repeatable else False]
+            res, state[name] = state.get(name, None), value
+            self._modified.add(name)
+            return res
+
+        def delete(self, name, repeatable):
+            state = self._state[True if repeatable else False]
+            res = state.pop(name, None)
+            self._modified.add(name)
+            return res
+
+        def has(self, name, repeatable):
+            state = self._state[True if repeatable else False]
+            return name in state
+
+        def names(self, repeatable):
+            res = self._state[True if repeatable else False]
+            return [name for name in sorted(res)]
+
+        def modified(self):
+            return [name for name in self._modified]
+
+    def __CommentsOfAddress(self, ea):
+        cmt, rpt = (idaapi.get_cmt(ea, boolean) for boolean in [False, True])
+        return cmt, rpt
+
+    def __CommentsOfFunction(self, ea):
+        cmt, rpt = (idaapi.get_func_cmt(ea, boolean) for boolean in [False, True])
+        return cmt, rpt
+
+    def ReadComments(self, ea):
+        if self._is_function:
+            return self.__CommentsOfFunction(ea)
+        return self.__CommentsOfAddress(ea)
+
+    def __init__(self, ea):
+        controls = {}
+
+        self._contents, self._global = function.has(ea), not function.has(ea) or function.address(ea) == ea
+        self._in_function = function.has(ea)
+        self._is_function = function.has(ea) and function.address(ea) == ea
+        self._is_address = self._in_function and not self._is_function or not self._in_function
+
+        repeatable = self._is_function or not self._in_function
+        cmt, rpt = self.ReadComments(ea)
+        self._editor = editor = self.TagEditorObject(cmt, rpt, repeatable)
+
+        self._available = available = sorted(function.tags(ea) if self._in_function and not self._is_function else database.tags())
+        default_tag = available[0]
+
+        self._lastchanged = -1
+
+        formChangeEvent = idaapi.Form.FormChangeCb(self.OnFormChange)
+        controls['ctrlFormChange'] = formChangeEvent
+
+        # Current View
+        controls['ctrlTagSelection'] = idaapi.Form.DropdownListControl([name for name in available], readonly=False, selval=default_tag)
+        controls['ctrlTagValue'] = idaapi.Form.StringInput(editor.get(default_tag, repeatable), swidth=72)
+        controls['ctrlTagAdd'] = idaapi.Form.ButtonInput(self.OnTagAdd)
+        controls['ctrlTagDelete'] = idaapi.Form.ButtonInput(self.OnTagDelete)
+
+        # Rendering
+        controls['ctrlRenderedTags'] = idaapi.Form.MultiLineTextControl(editor.comment(repeatable), width=0x60)
+        controls['ctrlCheckBoxes'] = idaapi.Form.ChkGroupControl(("ctrlCheckRepeatable", "ctrlCheckHidden"))
+
+        chooser_t = self.TagContentsChooser if self._in_function and not self._is_function else self.TagGlobalsChooser
+        self._chooser = chooser = chooser_t(self, ea, embedded=True)
+        controls['ctrlChooser'] = idaapi.Form.EmbeddedChooserControl(chooser)
+        controls['ctrlChooserReload'] = idaapi.Form.ButtonInput(functools.partial(self.LoadChooser, ea))
+        controls['ctrlAddressLabel'] = idaapi.Form.StringLabel("{:+#x}".format(ea))
+        controls['ctrlAddressComment'] = idaapi.Form.MultiLineTextControl(rpt if repeatable else cmt, width=0x60)
+
+        title = "Edit tags for address {:#x}{:s}".format(ea, '' if self._in_function and not self._is_function else ' in function')
+        idaapi.Form.__init__(self, self.__doc__.lstrip() % title, controls)
+
+    def LoadChooser(self, ea, btn):
+        self._chooser.Load(ea)
+        self.RefreshField(self.ctrlChooser)
+
+    def GetRepeatable(self):
+        ctrl = self.FindControlById(self.ctrlCheckRepeatable.id)
+        return ctrl.checked
+
+    def UpdateTagSelection(self):
+        editor, repeatable = self._editor, self.GetRepeatable()
+        olditems = self._available
+        newitems = {item for item in itertools.chain(olditems, editor.names(repeatable))}
+        self.ctrlTagSelection.set_items(sorted(newitems))
+        ok = self.RefreshField(self.ctrlTagSelection)
+        ok = self.RefreshField(self.ctrlChooser)
+        return 1
+
+    def UpdateRenderedTags(self, contents):
+        flags = [getattr(idaapi.textctrl_info_t, attribute) for attribute in ['TXTF_MODIFIED', 'TXTF_FIXEDFONT']]
+        content = idaapi.textctrl_info_t(text=contents, flags=functools.reduce(operator.or_, flags))
+        return self.SetControlValue(self.ctrlRenderedTags, content)
+
+    def UpdateCurrentView(self, repeatable):
+        editor = self._editor
+        ok = self.UpdateRenderedTags(editor.render(repeatable))
+
+        tag = self.GetControlValue(self.ctrlTagSelection)
+        value = editor.get(tag, repeatable)
+
+        ok = self.SetControlValue(self.ctrlTagValue, value or u'')
+        return 1
+
+    def ClearCurrentView(self):
+        ok = self.SetControlValue(self.ctrlTagSelection, '')
+        ok = self.SetControlValue(self.ctrlTagValue, '')
+        return 1
+
+    def ApplyIndividualTag(self, repeatable):
+        editor = self._editor
+        tag = self.GetControlValue(self.ctrlTagSelection)
+        value = self.GetControlValue(self.ctrlTagValue)
+        res = editor.set(tag, value, repeatable)
+        ok = self.ClearCurrentView()
+        ok = self.UpdateRenderedTags(editor.render(repeatable))
+
+    def RemoveIndividualTag(self, repeatable):
+        editor = self._editor
+        tag = self.GetControlValue(self.ctrlTagSelection)
+        res = editor.delete(tag, repeatable)
+        ok = self.ClearCurrentView()
+        ok = self.UpdateRenderedTags(editor.render(repeatable))
+
+    def OnTagAdd(self, button_code):
+        repeatable = self.GetRepeatable()
+        ok = self.ApplyIndividualTag(repeatable)
+        ok = self.UpdateTagSelection()
+        ok = self.UpdateCurrentView(repeatable)
+        return 1
+
+    def OnTagDelete(self, button_code):
+        repeatable = self.GetRepeatable()
+        ok = self.RemoveIndividualTag(repeatable)
+        ok = self.UpdateTagSelection()
+        ok = self.UpdateCurrentView(repeatable)
+        return 1
+
+    def OnFormChange(self, cid):
+        repeatable = self.GetControlValue(self.ctrlCheckRepeatable)
+        ctrl, editor = self.FindControlById(cid), self._editor
+
+        # the following doesn't let you do shit to the form on startup because
+        # ida is fucking retarded.
+        if cid == -1:
+            pass
+
+            #repeatable = self._is_function or not self._in_function
+            #self.ctrlCheckRepeatable.checked = repeatable
+            #self.RefreshField(self.ctrlCheckRepeatable)
+
+        elif cid == self.ctrlTagSelection.id:
+            ok = self.UpdateCurrentView(repeatable)
+
+        elif cid == self.ctrlCheckBoxes.id:
+            checked, self.ctrlCheckRepeatable.checked = self.ctrlCheckRepeatable.checked, not self.ctrlCheckRepeatable.checked
+            self.RefreshField(self.ctrlCheckBoxes)
+            ok = self.UpdateCurrentView(not checked)
+
+        elif cid in {self.ctrlTagAdd.id, self.ctrlTagDelete.id}:
+            ok = self.SetFocusedField(self.ctrlTagSelection)
+
+        return 1
+
+    def GetComments(self):
+        editor = self._editor
+        rendered = self.FindControlById(self.ctrlRenderedTags.id)
+        repeatable = True if self.GetRepeatable() else False
+
+        res = {}
+        res[not repeatable] = editor.render(not repeatable)
+        res[repeatable] = rendered.text
+        return res
+
+    def UpdateAddressComment(self, ea):
+        cmt, rpt = self.ReadComments(ea)
+        cmt = cmt or rpt or u''
+
+        flags = [getattr(idaapi.textctrl_info_t, attribute) for attribute in ['TXTF_MODIFIED', 'TXTF_FIXEDFONT']]
+        content = idaapi.textctrl_info_t(text=cmt, flags=functools.reduce(operator.or_, flags))
+        return self.SetControlValue(self.ctrlAddressComment, content)
+
+    class TagChooser(idaapi.Choose):
+        def __init__(self, parent, title, fields, **attributes):
+            self._parent = parent
+            attributes.setdefault('flags', idaapi.Choose.CH_CAN_REFRESH)
+            idaapi.Choose.__init__(self, title, fields, **attributes)
+            self.locations = []
+
+        def Update(self, locations):
+            self.locations[:] = [
+                (ea, sorted(database.tag(ea)))
+                for ea in sorted(locations)
+            ]
+
+        def OnGetLine(self, index):
+            ea, tags = self.locations[index]
+            return (
+                "{:+#}".format(database.offset(ea)),
+                database.disasm(ea),
+                "{!s}".format(tags)
+            )
+
+        def OnGetSize(self):
+            return len(self.locations)
+
+        def OnSelectionChange(self, selected):
+            ea, _ = self.locations[selected]
+            self._parent.UpdateAddressComment(ea)
+            return 1
+
+    class TagContentsChooser(TagChooser):
+        def __init__(self, parent, fn, **attributes):
+            ea = function.address(fn)
+            title = "Contents of function {:#x} : {:s}".format(ea, function.name(fn))
+            fields = [
+                ['Offset', 10],
+                ['Instruction', 16],
+                ['Tags', 24],
+            ]
+
+            super(TagContentsEditForm.TagContentsChooser, self).__init__(parent, title, fields, **attributes)
+            self.Load(fn)
+
+        def Load(self, fn):
+            self.icon = 38  # ASM
+            self.locations = [(ea, sorted(tags)) for ea, tags in function.select(fn)]
+
+        def Update(self, locations):
+            self.locations[:] = [
+                (ea, sorted(database.tag(ea)))
+                for ea in sorted(locations)
+            ]
+
+    class TagGlobalsChooser(TagChooser):
+        def __init__(self, parent, fn, **attributes):
+            title = 'Tags in database'
+            fields = [
+                ['Offset', 10],
+                ['Instruction', 16],
+                ['Tags', 24],
+            ]
+
+            super(TagContentsEditForm.TagGlobalsChooser, self).__init__(parent, title, fields, **attributes)
+            self.icon = 0
+            self.locations = []
+
+        def Load(self, fn):
+            iterable = ((ea, idaapi.get_func(ea)) for ea, _ in internal.comment.globals.iterate())
+            iterable = ((ea, sorted(function.tag(ea) if f else database.tag(ea))) for ea, f in iterable)
+            size = seg.size(fn) // 0x40
+            filtered = ((ea, tags) for ea, tags in iterable if fn - size <= ea < fn + size)
+            self.locations = [item for item in filtered]
+
+        def Update(self, locations):
+            self.locations[:] = [
+                (ea, sorted(function.tag(ea) if function.has(ea) and function.address(ea) == ea else database.tag(ea)))
+                for ea in sorted(locations)
+            ]
+
+    def OnCompile(self, args):
+        repeatable = self._is_function or not self._in_function
+        self.ctrlCheckRepeatable.checked = repeatable
+
+    @contextlib.contextmanager
+    def Modal(self):
+        form, args = self.Compile()
+        form.OnCompile(args)
+
+        ok = form.Execute()
+        try:
+            yield form.GetComments() if ok else ()
+        finally:
+            form.Free()
+        return
+
+    # XXX: it would be handy to model all the keys or whatever being
+    #      loaded and differentiating the ones that were modified.
+
+def test_tag_form(*a, **k):
+    f = TagContentsEditForm(*a, **k)
+    with f.Modal() as state:
+        if state:
+            print('modified', state)
+        else:
+            print('cancelled')
+        return
+    return
+
+#class MyAction(idaapi.action_handler_t):
+#    def __init__(self, **attributes):
+#        idaapi.action_handler_t.__init__(self)
+#
+#    # ctx = action_activation_ctx_t (action_ctx_base_t)
+#    # ['cur_extracted_ea', 'cur_flags']
+#    # deprecated: ['form', 'form_title', 'form_type']
+#    #TWidget *widget;
+#    #twidget_type_t widget_type;     ///< type of current widget
+#    #qstring widget_title;           ///< title of current widget
+#    #sizevec_t chooser_selection;    ///< current chooser selection (0-based)
+#    #const char *action;             ///< action name
+#    #ea_t cur_ea;           ///< the current EA of the position in the view
+#    #uval_t cur_value;      ///< the possible address, or value the cursor is positioned on
+#    #func_t *cur_func;      ///< the current function
+#    #func_t *cur_fchunk;    ///< the current function chunk
+#    #struc_t *cur_struc;    ///< the current structure
+#    #member_t *cur_strmem;  ///< the current structure member
+#    #enum_t cur_enum;       ///< the current enum
+#    #segment_t *cur_seg;    ///< the current segment
+#    #action_ctx_base_cur_sel_t cur_sel; ///< the currently selected range. also see #ACF_HAS_SELECTION
+#    #const char *regname;   ///< register name (if widget_type == BWN_CPUREGS and context menu opened on register)
+#    #TWidget *focus;        ///< The focused widget in case it is not the 'form' itself (e.g., the 'quick filter' input in choosers.)
+#    #screen_graph_selection_t *graph_selection; ///< the current graph selection (if in a graph view)
+#    #const_t cur_enum_member;
+#    #dirtree_selection_t *dirtree_selection; ///< the current dirtree_t selection (if applicable)
+#    #action_ctx_base_source_t source; ///< the underlying chooser_base_t (if 'widget' is a chooser widget)
+#    #til_type_ref_t *type_ref; ///< a reference to the current type (if 'widget' is a types listing widget; nullptr otherwise)
+#
+#    def activate(self, ctx):
+#        print('activate', [ctx.widget_type, ctx.widget_title])
+#        #print('activate', 'form', [ctx.form_type, ctx.form_title])
+#        return 1
+#
+#    def update(self, ctx):
+#        print('update', [ctx.widget_type, ctx.widget_title])
+#        #print('update', 'form', [ctx.form_type, ctx.form_title])
+#
+#        targets = [
+#            idaapi.BWN_STRUCTS,
+#            idaapi.BWN_ENUMS,
+#            idaapi.BWN_LOCTYPS,
+#            idaapi.BWN_PSEUDOCODE,
+#            idaapi.BWN_TILIST,
+#        ]
+#
+#        if ctx.widget_type in targets:
+#            return ida_kernwin.AST_ENABLE_FOR_WIDGET
+#        #return ida_kernwin.AST_ENABLE_ALWAYS
+#        #return ida_kernwin.AST_ENABLE_FOR_IDB
+#        return ida_kernwin.AST_DISABLE_FOR_WIDGET
+
+#def test_action(*a, **k):
+#    action_name = 'sample:action_name'
+#    shortcut = 'Z'
+#    icon = 38
+#    flags = [idaapi.ADF_OWN_HANDLER, idaapi.ADF_OT_PLUGIN]
+#
+#    callback = MyAction()
+#
+#    act = idaapi.action_desc_t(
+#        action_name,
+#        'this is a label',
+#        None,
+#        shortcut,
+#        'this is a tooltip',
+#        icon,
+#        functools.reduce(operator.or_, flags),
+#    )
+#
+#    if not idaapi.register_action(act):
+#        raise DisassemblerError('unable to register action')
+#
+#    # idaapi.SETMENU_INS - insert
+#    # idaapi.SETMENU_APP - append
+#    # idaapi.SETMENU_FIRST - beginning
+#    # idaapi.SETMENU_ENSURE_SEP - (flag) separator
+#    if not idaapi.attach_action_to_menu('Windows/Sample', action_name, idaapi.SETMENU_APP):
+#        print('failed attaching menu')
+#    if not idaapi.attach_action_to_toolbar('AnalysisToolbar', action_name):
+#        print('failed attaching toolbar')
+#
+#    widget = ui.widget.form(ui.widget.by('IDA View-A'))
+#    popup_handle = popup_path = None
+#    setmenu_flags = 0
+#    #if not idaapi.attach_action_to_popup(widget, popup_handle, action_name, popup_path, setmenu_flags):
+#    #    print('failed attaching to popup')
+#
+#    return
+#    if not idaapi.unregister_action(action_name):
+#        print('failed to unregister action')
+#    return
+
+def test_action():
+    action_name = 'sample:action_name'
+    label = 'this is a label'
+    shortcut = 'Ctrl+Alt+Z'
+    tip = 'this is a tooltip'
+    icon = 38
+
+    match = {'widget_type': [idaapi.BWN_STRUCTS, idaapi.BWN_ENUMS, idaapi.BWN_LOCTYPS, idaapi.BWN_PSEUDOCODE, idaapi.BWN_TILIST, idaapi.BWN_DISASM]}
+    #action = ui.hook.action.new(action_name, 'application', match, shortcut=shortcut, icon=icon, label=label, icon=icon, tooltip=tip)
+    action = ui.hook.action.new(action_name, match, shortcut=shortcut, icon=icon, label=label, tooltip=tip)
+
+    callback = lambda ctx: print('activate', [ctx.widget_type, ctx.widget_title])
+    callback2 = lambda ctx: print("{:#x}".format(ctx.cur_ea))
+    print(hook.action.add(action, callback), hook.action.add(action, callback2))
+
+    # idaapi.SETMENU_INS - insert
+    # idaapi.SETMENU_APP - append
+    # idaapi.SETMENU_FIRST - beginning
+    # idaapi.SETMENU_ENSURE_SEP - (flag) separator
+    if not idaapi.attach_action_to_menu('Windows/Sample', action_name, idaapi.SETMENU_APP):
+        print('failed attaching menu')
+    if not idaapi.attach_action_to_toolbar('AnalysisToolbar', action_name):
+        print('failed attaching toolbar')
+
+    widget = ui.widget.form(ui.widget.by('IDA View-A'))
+    popup_handle = popup_path = None
+    setmenu_flags = 0
+    #if not idaapi.attach_action_to_popup(widget, popup_handle, action_name, popup_path, setmenu_flags):
+    #    print('failed attaching to popup')
+
+def tagfilter(iterable):
+    def iterator(*dictionary, **matches):
+        matches.update(*dictionary) if dictionary else ()
+        for ea, res in iterable:
+            if all(k in res and res[k] == v for k, v in matches.items()):
+                yield ea, res
+            continue
+        return
+    return iterator
+
+def touch(ea, *label, **prefix):
+    ea = db.a(ea)
+    assert(db.t.data(ea)), 'not data {:#x}'.format(ea)
+    assert(not(func.has(ea))), 'not data {:#x}'.format(ea)
+    has_type = '__typeinfo__' in db.tag(ea)
+    listed = not(func.has(ea))
+    if has_type:
+        default = 'gp' if db.t(ea).is_ptr() else 'gv'
+    else:
+        default = 'gp'
+    string = prefix.get('prefix', default)
+    return db.name(ea, *ichain([string], label, [db.offset(ea)]), listed=listed)
+
+import internal.netnode as netnode
+import internal.tagindex as Index
+#logging.root._cache[logging.DEBUG]=True
+
+import hexrays
+class struchook(object):
+    class idp(object):
+        @staticmethod
+        def ev_setup_til(*args):
+            print('GOT A TYPE LIBRARY SETUP COMON BITCH.', args)
+            return
+
+    class hexrays(object):
+        @classmethod
+        def _emit_vdui(cls, event, vdui):
+            cfunc, mba, lasterror = vdui.cfunc, vdui.mba, vdui.last_code
+            print("[{:s}] vdui: {:#x} {:#x}".format(event, cfunc.entry_ea, mba.entry_ea))
+            print("[{:s}] vdui.last_code: {:#x}".format(event, vdui.last_code & idaapi.BADADDR))
+            print("[{:s}] item: {:s}".format(event, hexrays.repr(cfunc, vdui.item)))
+
+        @classmethod
+        def lvar_name_changed(cls, vdui, lvar, name, is_user_name):
+            event = 'lvar_name_changed'
+            cls._emit_vdui(event, vdui)
+            cfunc = vdui.cfunc
+            print("[{:s}] rename to {!r} ({!s})".format(event, name, is_user_name))
+            print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+        @classmethod
+        def lvar_type_changed(cls, vdui, lvar, tinfo):
+            event = 'lvar_type_changed'
+            cls._emit_vdui(event, vdui)
+            cfunc = vdui.cfunc
+            print("[{:s}] type to {!s}".format(event, interface.tinfo.quoted(tinfo)))
+            print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+        @classmethod
+        def lvar_cmt_changed(cls, vdui, lvar, cmt):
+            event = 'lvar_cmt_changed'
+            cls._emit_vdui(event, vdui)
+            cfunc = vdui.cfunc
+            print("[{:s}] comment to {!r}".format(event, cmt))
+            print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+        @classmethod
+        def cmt_changed(cls, cfunc, treeloc, cmt):
+            event = 'cmt_changed'
+            print("[{:s}] function: {:#x}".format(event, cfunc.entry_ea))
+            print("[{:s}] location: {!s}".format(event, hexrays.repr(treeloc)))
+            print("[{:s}] comment set {!r}".format(event, cmt))
+
+    #class hx(object):
+    #    @classmethod
+    #    def lxe_lvar_name_changed(cls, vdui, lvar, name, is_user_name):
+    #        event = 'lxe_lvar_name_changed'
+    #        cls._emit_vdui(event, vdui)
+    #        cfunc = vdui.cfunc
+    #        print("[{:s}] rename to {!r} ({!s})".format(event, name, is_user_name))
+    #        print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+    #    @classmethod
+    #    def lxe_lvar_type_changed(cls, vdui, lvar, tinfo):
+    #        event = 'lxe_lvar_type_changed'
+    #        cls._emit_vdui(event, vdui)
+    #        print("[{:s}] type to {!s}".format(event, interface.tinfo.quoted(tinfo)))
+    #        print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+    #    @classmethod
+    #    def lxe_lvar_cmt_changed(cls, vdui, lvar, cmt):
+    #        event = 'lxe_lvar_cmt_changed'
+    #        cls._emit_vdui(event, vdui)
+    #        print("[{:s}] comment to {!r}".format(event, cmt))
+    #        print("[{:s}] {!s}".format(event, hexrays.repr(cfunc, lvar)))
+
+    #    @classmethod
+    #    def hxe_cmt_changed(cls, cfunc, treeloc, cmt):
+    #        event = 'hxe_cmt_changed'
+    #        print("[{:s}] function: {:#x}".format(event, cfunc.entry_ea))
+    #        print("[{:s}] location: {!s}".format(event, hexrays.repr(treeloc)))
+    #        print("[{:s}] comment set {!r}".format(event, cmt))
+
+#import hook
+#for n in dir(struchook):
+#    if n.startswith('_'): continue
+#    ns = getattr(struchook, n)
+#    H = getattr(hook, n)
+#    for hn in dir(ns):
+#        if hn.startswith('_'): continue
+#        f = getattr(ns, hn)
+#        t = (f.__doc__ or '').split('(', 1)[0]
+#        print('add', hn, H.add(hn, f))
+#    continue
+
+#del(f, n, t)
+#ui.hook.idp.add('ev_setup_til', lambda *a: print('SETUP_TIL', a, 'SETUP_TIL'*20))
+#ui.hook.idp.add('ev_set_idp_options', lambda *a: print('IDP_OPTIONS', a, 'IDP_OPTIONS'*20))
+#ui.hook.idp.add('ev_set_proc_options', lambda *a: print('PROC_OPTIONS', a, 'PROC_OPTIONS'*20))
+#ui.hook.idb.add('loader_finished', lambda *a: print('LOADER_FINISHED', a, 'LOADER_FINISHED'*20))
+#ui.hook.idb.add('compiler_changed', lambda *a: print('COMPILER', a, 'COMPILER'*20))
+
+# FIXME: make this an action to attach to a menu
+#def sizeUpATypeFromExpression(cexpr):
+def size_em_up(cexpr):
+    '''use an expression to find the size of a structure, and create it...word-sized.'''
+
+# FIXME: figure out this batman reference
+#def slice_and_dicee(structure, cexpr):
+def slice_and_dice_them(structure, cexpr):
+    '''use an expression to find fields for a structure, and divvy-up its members into its individual bytes/words/etc.'''
+
+#internal.hooks.logging.setLevel(logging.DEBUG)
+#import internal.structure
+#importlib.reload(internal.structure)
