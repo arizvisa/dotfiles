@@ -323,6 +323,17 @@ if has("eval")
         noremap <silent> <F5> <Cmd>if getqflist({'winid':0}).winid == 0 \| copen \| else \| cclose \| endif<CR>
         autocmd QuickFixCmdPost * copen
     endif
+
+    " Use brackets and start-end for fold navigation while honoring the <count>.
+    if has('folding')
+        nnoremap <silent> z] <Cmd>execute printf('normal %d%s', v:count1, 'zj')<CR>
+        nnoremap <silent> z[ <Cmd>execute printf('normal %d%s', v:count1, 'zk')<CR>
+        nnoremap <silent> ]z <Cmd>execute printf('normal %d%s', v:count1, 'zj')<CR>
+        nnoremap <silent> [z <Cmd>execute printf('normal %d%s', v:count1, 'zk')<CR>
+
+        nnoremap <silent> z0 <Cmd>execute printf('normal %d%s', v:count1, '[z')<CR>
+        nnoremap <silent> z$ <Cmd>execute printf('normal %d%s', v:count1, ']z')<CR>
+    endif
 endif
 
 """ utility functions
