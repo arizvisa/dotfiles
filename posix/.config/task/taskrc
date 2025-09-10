@@ -18,16 +18,16 @@ report.next.columns=id,start.age,entry.age,depends,priority,project,tags,schedul
 report.next.sort=urgency-,depends+,due+,entry-
 
 #report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description
-#report.completed.filter            status:completed
-#report.completed.labels            ID,UUID,Created,Completed,Age,Deps,P,Project,Tags,R,Due,Description
-#report.completed.sort              end+
+#report.completed.filter=status:completed
+#report.completed.labels=ID,UUID,Created,Completed,Age,Deps,P,Project,Tags,R,Due,Description
+#report.completed.sort=end+
 
 #report.completed.columns=id,uuid.short,entry,end,entry.age,depends,priority,project,tags,recur.indicator,due,description.count
-#report.all.columns                 id,status.short,uuid.short,start.active,entry.age,end.age,depends.indicator,priority,project.parent,tags.count,recur.indicator,wait.remaining,scheduled.remaining,due,until.remaining,description
-#report.all.context                 1
-#report.all.description             All tasks
-#report.all.labels                  ID,St,UUID,A,Age,Done,D,P,Project,Tags,R,Wait,Sch,Due,Until,Description
-#report.all.sort                    entry-
+#report.all.columns=id,status.short,uuid.short,start.active,entry.age,end.age,depends.indicator,priority,project.parent,tags.count,recur.indicator,wait.remaining,scheduled.remaining,due,until.remaining,description
+#report.all.context=1
+#report.all.description=All tasks
+#report.all.labels=ID,St,UUID,A,Age,Done,D,P,Project,Tags,R,Wait,Sch,Due,Until,Description
+#report.all.sort=entry-
 report.all.sort=entry+
 
 # detailed report (includes annotations)
@@ -39,6 +39,15 @@ report.dates.filter=(status:pending or status:waiting) (+DUE or +OVERDUE or +BLO
 report.dates.labels=ID,Age,Due,Date,Scheduled,Depends,Priority,Project,Tags,Description
 report.dates.columns=id,entry.age,due.remaining,due,scheduled,depends,priority,project,tags,description.truncated_count
 report.dates.sort=due+,urgency-,project+
+
+# active report
+#report.active.columns=id,start,start.age,entry.age,depends.indicator,priority,project,tags,recur,wait,scheduled.remaining,due,until,description
+#report.active.context=1
+#report.active.description=Active tasks
+#report.active.filter=status:pending and +ACTIVE
+#report.active.labels=ID,Started,Active,Age,D,P,Project,Tags,Recur,W,Sch,Due,Until,Description
+#report.active.sort=project+,start+
+report.active.filter=(status:pending or status:waiting) and +ACTIVE
 
 #include no-color.theme
 include dark-gray-blue-256.theme
