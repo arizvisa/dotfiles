@@ -250,6 +250,38 @@ var toSource = (object) => {
   }
 };
 
+var jqueryVersion = (jQuery) => {
+  return jQuery.fn.jquery;
+};
+
+// jQuery._data(document, "events")
+var jqueryEventReporter = (jQuery, selector, root) => {
+  var s = [];
+  jQuery(selector || '*', root).addBack().each(function() {
+
+    // the following line is the only change from wherever i ripped this.
+    var e = jQuery._data(this, 'events');
+    if(!e) return;
+    s.push(this.tagName);
+    if(this.id) s.push('#', this.id);
+    if(this.className) s.push('.', this.className.replace(/ +/g, '.'));
+    for(var p in e) {
+      var r = e[p],
+        h = r.length - r.delegateCount;
+      if(h) {
+        s.push('\n', h, ' ', p, ' handler', h > 1 ? 's' : '');
+      }
+      if(r.delegateCount) {
+        for(var q = 0; q < r.length; q++) {
+          if(r[q].selector) s.push('\n', p, ' -> ', r[q].selector);
+        }
+      }
+    }
+    s.push('\n\n');
+  });
+  return s.join('');
+};
+
 var desired_attributes = () => {
   let items = [];
 
@@ -258,6 +290,8 @@ var desired_attributes = () => {
   items.push({name: "export", closure: DownloadJSONBlob});
   items.push({name: "download", closure: DownloadJSONBlob});
   items.push({name: "toSource", closure: toSource});
+  items.push({name: "jquery", closure: jqueryEventReporter});
+  items.push({name: "jqueryVersion", closure: jqueryVersion});
 
   if (GLOBAL.$DEBUG) {
     items.push({name: "test", closure: TestAttributeAssignment});
