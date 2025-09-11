@@ -282,6 +282,45 @@ var jqueryEventReporter = (jQuery, selector, root) => {
   return s.join('');
 };
 
+var InstantBacktrace = () => {
+  let error = new Error();
+  let tracestring = error.stack;
+  let trace = tracestring.trimEnd().split("\n");
+
+  // iterate through each backtrace entry while trying to ensure that it has
+  // the correct number of fields.
+  let results = [];
+  for (const [index, item] of trace.entries()) {
+    let count = (item.match(/:/g) || []).length;
+    if (count < 2) {
+      console.error(`Skipping entry #${1 + index} due unexpected number of ":" characters (${count}, but expected minimum of ${2}) in current item: ${item}`);
+      continue;
+    }
+
+    // rip out the trailing integers from each backtrace entry, and
+    // convert each substring into a valid integer that we can return.
+    let column_ = item.slice(1 + item.lastIndexOf(':'));
+    let remaining = item.slice(0, -(1 + column_.length));
+    let line_ = remaining.slice(1 + remaining.lastIndexOf(':'));
+    let [line, column] = [parseInt(line_), parseInt(column_)];
+
+    // now we can use strings we split off from the entry to slice out the
+    // remaining path. if it contains an "@", we slice it one more time in
+    // order to get the function name if it is actually available.
+    let remainingpath = item.slice(0, -(2 + column_.length + line_.length));
+    let url = remainingpath.includes('@')? remainingpath.slice(1 + remainingpath.lastIndexOf('@')) : remainingpath;
+    let name = (url == remainingpath)? '<anonymous>' : remainingpath.slice(0, -(1 + url.length));
+
+    // finally we can create our entry, and append it to our results.
+    //results.push([line, column, url, name]);
+    results.push({line: line, column: column, url: url, name: name});
+  }
+
+  // Skip the first result entry, since it's from the scope for the currently
+  // executing function from where we instantiated the "Error" up above.
+  return results.slice(1);
+};
+
 var desired_attributes = () => {
   let items = [];
 
@@ -292,6 +331,7 @@ var desired_attributes = () => {
   items.push({name: "toSource", closure: toSource});
   items.push({name: "jquery", closure: jqueryEventReporter});
   items.push({name: "jqueryVersion", closure: jqueryVersion});
+  items.push({name: "backtrace", closure: InstantBacktrace});
 
   if (GLOBAL.$DEBUG) {
     items.push({name: "test", closure: TestAttributeAssignment});
