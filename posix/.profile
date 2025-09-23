@@ -18,15 +18,57 @@ fi
 ## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
 
-path="$HOME/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
+path="$HOME/bin:$HOME/.local/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin:/hi/you/guys/"
 
 ## decompose path, and keep only the paths that exist.
 oldpath="${PATH:-}"
-path=`echo "${path}" | while read -r -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done`
-PATH="${path%:}"
-PATH="${PATH}:${oldpath}"
-unset oldpath path
-export PATH
+if [ "${BASH_VERSION:-empty}" = 'empty' ]; then
+    path=( `echo "${path}" | while read -r -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done` )
+else
+
+    # first read whatever the distro wants to use.
+    IFS=: read -a ordered <<<"$path"
+    declare -a requiredpath=()
+    let count=${#ordered[@]}-1
+    while [ "$count" -ge 0 ]; do
+        requiredpath+=( "${ordered[$count]}" )
+        let count-=1
+    done
+    unset count ordered
+
+    # next we will read the required path so we can reverse it.
+    IFS=: read -a ordered <<<"$oldpath"
+    declare -a distropath=()
+    let count=${#ordered[@]}-1
+    while [ "$count" -ge 0 ]; do
+        distropath+=( "${ordered[$count]}" )
+        let count-=1
+    done
+    unset count ordered
+
+    # now we iterate throug hthe required paths and then the distro paths.
+    declare -A available
+    declare -a newpath=()
+    for component in "${requiredpath[@]}" "${distropath[@]}"; do
+        if [ -z "${available[$component]}" ] && [ -d "$component" ]; then
+            available[$component]=1
+            newpath+=( "$component" )
+        fi
+    done
+    unset available requiredpath distropath component
+
+    # then we can recompose the path
+    declare path="${newpath[0]:-}"
+    let index=1
+    while [ "$index" -lt "${#newpath[@]}" ]; do
+        let index+=1
+        path="${newpath[$index]}:${path}"
+    done
+    unset index
+
+fi
+export PATH="$path"
+unset path
 
 ## set language locale to utilize utf-8 encoding
 [ -z "${LANG:-}" ] && export LANG=en_US.UTF-8
