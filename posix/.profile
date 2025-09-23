@@ -104,6 +104,7 @@ if [ -e "/etc/os-release" ]; then
         [ "$key" == "ID" ] && distro="$value"
         [ "$key" == "VERSION_ID" ] && distro_version="$value"
     done < /etc/os-release
+    unset key value
     [ "$distro" == "" ] && echo "$0 : Unable to determine the platform distro from /etc/os-release." 1>&2
     [ "$distro_version" == "" ] && echo "$0 : Unable to determine the platform distro version from /etc/os-release." 1>&2
     export distro distro_version
@@ -133,6 +134,7 @@ case "$platform" in
         while IFS== read -r key value; do
             [ "$key" == "ProgramFiles(x86)" ] && ProgramFiles_x86_="$value"
         done < <( env )
+        unset key value
         export ProgramFiles_x86_
         [ "$ProgramFiles_x86_" == "" ] && echo "$0 : Unable to remap environment variable \"ProgramFiles(x86)\" to \"ProgramFiles_x86_\"." 1>&2
 
