@@ -12,21 +12,22 @@ if [ ! -d "$PROFILE" ]; then
 fi
 
 ## Figure out the user and home directory if it hasn't been set yet
-[ -z "${USER:-}" ] && export USER=`whoami`
+[ -z "${USER:-}" ] && export USER=`id -un`
 [ -z "${HOME:-}" ] && export HOME=`( cd "$PROFILE" && pwd -P )`
 
 ## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
 
-path="$HOME/bin:$HOME/.local/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin:/hi/you/guys/"
+path="$HOME/bin:$HOME/.local/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
 
 ## decompose path, and keep only the paths that exist.
 oldpath="${PATH:-}"
 if [ "${BASH_VERSION:-empty}" = 'empty' ]; then
-    path=( `echo "${path}" | while read -r -d: p; do [ -d "${p}" ] && echo -n "${p}:"; done` )
-else
+    path=`echo "${oldpath}\n${path}" | tr ':' $'\n' | while read component; do [ -d "${component}" ] && echo -n "${component}:"; done`
+    path="${path%%:}"
 
-    # first read whatever the distro wants to use.
+# read whatever path the distro wants to use.
+else
     IFS=: read -a ordered <<<"$path"
     declare -a requiredpath=()
     let count=${#ordered[@]}-1
@@ -84,7 +85,26 @@ TEMP="$TMPDIR"
 export TMPDIR TMP TEMP
 
 ## platform auto-detection
-IFS=- read arch model platform <<< "${MACHTYPE}"
+if [ "${BASH_VERSION:-empty}" != 'empty' ]; then
+    #IFS=- read arch model platform <<< "${MACHTYPE}"
+    arch=`echo ${MACHTYPE} | cut -d- -f1`
+    model=`echo ${MACHTYPE} | cut -d- -f2`
+    platform=`echo ${MACHTYPE} | cut -d- -f3-`
+
+# not bourne-again (linux)
+elif [ "`uname -s | tr A-Z a-z`" == 'linux' ]; then
+    arch=`uname -m`
+    platform=`uname -o | awk -v OFS=- -v FS=/ '{ print $2, $1) }' | sed 's/^-//'`
+
+# not bourne-again (berkeley)
+else
+    arch=`uname -p`
+    platform=`uname -s`
+
+fi
+arch=`echo $arch | tr A-Z a-z`
+model=`uname -i | tr A-Z a-z`
+platform=`echo $platform | tr A-Z a-z`
 export arch model platform
 
 ## os detection
@@ -96,17 +116,10 @@ case "${OS:-unknown}" in
 esac
 export os
 
-## detect the distribution using lsb_release
+# detect the distribution using os-release
 if [ -e "/etc/os-release" ]; then
-    distro=
-    distro_version=
-    while IFS='=' read key value; do
-        [ "$key" == "ID" ] && distro="$value"
-        [ "$key" == "VERSION_ID" ] && distro_version="$value"
-    done < /etc/os-release
-    unset key value
-    [ "$distro" == "" ] && echo "$0 : Unable to determine the platform distro from /etc/os-release." 1>&2
-    [ "$distro_version" == "" ] && echo "$0 : Unable to determine the platform distro version from /etc/os-release." 1>&2
+    distro=`( grep '^ID=' /etc/os-release 2>/dev/null || uname -i ) | cut -d= -f2-`
+    distro_version=`( grep '^VERSION_ID=' /etc/os-release 2>/dev/null || uname -r | cut -d- -f1 ) | tr -d '"' | cut -d= -f2-`
     export distro distro_version
 fi
 
@@ -126,8 +139,9 @@ export TERM
 
 ## platform-specific variables
 case "$platform" in
+
+    # windows environment variables
     msys|cygwin)
-        # windows environment variables
         export ProgramFiles="${ProgramW6432:-$PROGRAMFILES}"
 
         ProgramFiles_x86_=
@@ -160,6 +174,7 @@ case "$platform" in
         fi
         unset rmajor rminor rpatch
         ;;
+
     linux|linux-gnu)
         if [ -d "$HOME/.perl" ]; then
             IFS="=;'" read name q perlversion q _ < <( perl -V:version )
@@ -177,16 +192,17 @@ case "$platform" in
         export BASH_SILENCE_DEPRECATION_WARNING=1   # FIRST BLOOD!
         ;;
 
+    # Nothing necessary to do here because this platform is PERFECT.
     freebsd*)
-        # Nothing necessary to do here because this platform is PERFECT.
         ;;
+
     *)
         echo "$0 : Unsupported platform \"$platform\"." 1>&2
         ;;
 esac
 
 ## global variables
-export EDITOR=`type -P vim || type -P vi`
+export EDITOR=`which vim 2>/dev/null || which vi 2>/dev/null || which sam 2>/dev/null || which ed 2>/dev/null`
 ulimit -c unlimited
 
 # because python devers are fucking retarded: https://github.com/python/cpython/issues/118840
@@ -196,25 +212,29 @@ export PYTHON_BASIC_REPL=1
 
 ## global limits
 case "$os" in
-posix)
     # ubuntu is fucking busted with process limits for some reason
-    if [ "$distro" != "ubuntu" ]; then
-        ulimit -Su 8192 2>/dev/null
-    fi
+    posix)
+        if [ "$distro" != "ubuntu" ]; then
+            ulimit -Su 8192 2>/dev/null
+        fi
 
-    # some desktops (KDE) use a ton of vmem for its command-line tools
-    if [ "${XDG_CURRENT_DESKTOP:-}" != "KDE" ]; then
-        ulimit -Sv 104857600 2>/dev/null
-    fi
-    ;;
+        # some desktops (KDE) use a ton of vmem for its command-line tools
+        if [ "${XDG_CURRENT_DESKTOP:-}" != "KDE" ]; then
+            ulimit -Sv 104857600 2>/dev/null
+        fi
+        ;;
 
-windows)
-    ulimit -Su 512 2>/dev/null
-    ;;
+    windows)
+        ulimit -Su 512 2>/dev/null
+        ;;
 esac
 
 ## go home, john
 cd "$HOME"
 
-## continue loading stuff from .bashrc if $rcfile does not match
-[ -e "$HOME/.bashrc" ] && source "$HOME/.bashrc"
+## continue loading stuff from .shrc or .bashrc if $rcfile does not match
+if [ "${BASH_VERSION:-empty}" = 'empty' ]; then
+    [ -e "$HOME/.shrc" ] && source "$HOME/.shrc"
+else
+    [ -e "$HOME/.bashrc" ] && source "$HOME/.bashrc"
+fi
