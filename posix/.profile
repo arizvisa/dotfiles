@@ -46,11 +46,11 @@ else
     done
     unset count ordered
 
-    # now we iterate throug hthe required paths and then the distro paths.
+    # now we iterate through the required paths and then the distro paths.
     declare -A available
     declare -a newpath=()
     for component in "${requiredpath[@]}" "${distropath[@]}"; do
-        if [ -z "${available[$component]}" ] && [ -d "$component" ]; then
+        if [ ! -z "$component" ] && [ -z "${available[$component]}" ] && [ -d "$component" ]; then
             available[$component]=1
             newpath+=( "$component" )
         fi
