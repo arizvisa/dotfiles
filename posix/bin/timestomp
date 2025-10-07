@@ -1,0 +1,23 @@
+#!/bin/sh
+if [ "$#" -le 3 ] || ! tty -s; then
+    printf 'Usage: %s [access] [modify] [change] [file...]\n' "$0"
+    exit 1
+fi
+
+access="$1"
+modify="$2"
+change="$3"
+shift 3
+
+if ! sudo cat </dev/null; then
+    printf '%s: unable to authenticate to sudo\n' "$0"
+    exit 13
+fi
+
+now=`date -Iseconds`
+sudo date -s "$change" >/dev/null
+touch -a --date="$access" -- "$@"
+touch -m --date="$modify" -- "$@"
+sudo date -s "$now" >/dev/null
+
+stat "$@"
