@@ -102,7 +102,7 @@ else
 
 fi
 arch=`echo $arch | tr A-Z a-z`
-model=`uname -i | tr A-Z a-z`
+model=`( uname -i 2>/dev/null || echo unknown ) | tr A-Z a-z`
 platform=`echo $platform | tr A-Z a-z`
 export arch model platform
 
