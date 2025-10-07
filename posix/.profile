@@ -65,7 +65,7 @@ else
         let index+=1
         path="${newpath[$index]}:${path}"
     done
-    unset index
+    unset index newpath
 
 fi
 export PATH="$path"
