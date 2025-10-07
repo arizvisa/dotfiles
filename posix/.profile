@@ -60,13 +60,12 @@ else
 
     # then we can recompose the path
     declare path="${newpath[0]:-}"
-    let index=1
+    let index=0
     while [ "$index" -lt "${#newpath[@]}" ]; do
-        let index+=1
         path="${newpath[$index]}:${path}"
+        let index+=1
     done
     unset index newpath
-
 fi
 export PATH="$path"
 unset path
