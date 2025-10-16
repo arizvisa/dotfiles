@@ -1,5 +1,5 @@
 {
-  "settingsVersion": "2.1.2",
+  "settingsVersion": "2.3",
   "exclusionRules": [
     {
       "passKeys": "",
@@ -32,12 +32,20 @@
     {
       "passKeys": "",
       "pattern": "https?://archive.org/*"
+    },
+    {
+      "passKeys": "",
+      "pattern": "https?://telehack.com/*"
+    },
+    {
+      "passKeys": "",
+      "pattern": "https?://www.paypal.com/*"
     }
   ],
   "filterLinkHints": false,
   "waitForEnterForFilteredHints": true,
   "hideHud": false,
-  "keyMappings": "unmapAll\n\n## local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap zh scrollToLeft\nmap zl scrollToRight\nmap zH scrollToLeft\nmap zL scrollToRight\n\n# focusInput uses <tab> and <s-tab> to navigate input box selection\nmap gi focusInput\nmap gf nextFrame\nmap gF mainFrame\n\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\nmap <c-k> passNextKey\n\n## modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap V enterVisualLineMode\n\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap <c-F> LinkHints.activateModeToOpenIncognito\nmap a LinkHints.activateModeToDownloadLink\nmap y LinkHints.activateModeToCopyLinkUrl\n\n## find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\n\n## tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap <c-r> reload\nmap <c-m> toggleMuteTab\n\n## external navigation\nmap gu goUp \nmap g/ goToRoot \nmap ,cu copyCurrentUrl\nmap g+ openCopiedUrlInNewTab\n#map gb visitPreviousTab\nmap <a-left> goBack\nmap <a-right> goForward\n\n#map <c-space> Vomnibar.activate keyword=k\n#map <c-space> Vomnibar.activateInNewTab\nmap <c-space> Vomnibar.activate\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab\nmap <c-g> Vomnibar.activateTabSelection",
+  "keyMappings": "unmapAll\n\n## local navigation\nmap h scrollLeft\nmap j scrollDown\nmap k scrollUp\nmap l scrollRight\nmap gg scrollToTop\nmap G scrollToBottom\nmap <c-f> scrollPageDown\nmap <c-b> scrollPageUp\nmap zh scrollToLeft\nmap zl scrollToRight\nmap zH scrollToLeft\nmap zL scrollToRight\n\n# focusInput uses <tab> and <s-tab> to navigate input box selection\nmap gi focusInput\nmap gf nextFrame\nmap gF mainFrame\n\nmap m Marks.activateCreateMode\nmap ' Marks.activateGotoMode\nmap <c-v> passNextKey\n\n## modes\nmap i enterInsertMode\nmap v enterVisualMode\nmap V enterVisualLineMode\n\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap <c-F> LinkHints.activateModeToOpenIncognito\nmap a LinkHints.activateModeToDownloadLink\nmap y LinkHints.activateModeToCopyLinkUrl\nmap zf LinkHints.activateMode action=focus\n\n## find mode\nmap / enterFindMode\nmap n performFind\nmap N performBackwardsFind\nmap * findSelected\nmap # findSelectedBackwards\n\n## tab management\nmap <c-t> createTab\nmap gT previousTab\nmap gt nextTab\nmap g0 firstTab\nmap g$ lastTab\nmap <c-T> restoreTab\nmap <c-w> removeTab\n\nmap r reload\nmap <c-r> reload hard\nmap <c-m> toggleMuteTab\n\n## external navigation\nmap gu goUp \nmap g/ goToRoot \nmap ,cu copyCurrentUrl\nmap g+ openCopiedUrlInNewTab\n#map gb visitPreviousTab\nmap <a-left> goBack\nmap <a-right> goForward\n\n#map <c-space> Vomnibar.activate keyword=k\n#map <c-space> Vomnibar.activateInNewTab\nmap <c-space> Vomnibar.activate\nmap <c-e> Vomnibar.activateEditUrl\nmap <c-E> Vomnibar.activateEditUrlInNewTab\nmap <c-g> Vomnibar.activateTabSelection",
   "linkHintCharacters": "sadfjklewcmpgh",
   "linkHintNumbers": "!@#$%^&*()_+-=<>?,./;'[]\\{}|",
   "newTabUrl": "about:newtab",
