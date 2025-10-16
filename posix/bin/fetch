@@ -165,32 +165,54 @@ download()
     url=$1
     target=$2
 
+    # first get the expected size and the current file size.
     expected=`httpsize "$url"`
     touch "$target" || return $?
+    size=`filesize "$target"`
 
-    #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
-    curl_resume -o "$target" -- "$url" 1>&2 &
-    pid=$!
+    # check if we were untable to determine the expected
+    # size, and monitor the size of the file until done.
     if [ -z "$expected" ]; then
         filestatus "$target" &
         killthis=$!
 
-    # if there was a size, then we can monitor
-    else
+    # if the file size is smaller than the expected size,
+    # then just monitor its status to update our progress.
+    elif [ "$size" -lt "$expected" ]; then
         transferstatus "$target" "$expected" &
         killthis=$!
+
+    elif [ "$size" -lt "$expected" ]; then
+        transferstatus "$target" "$expected" &
+        killthis=$!
+
+    # if the file size is too large, then we need to
+    # complain about the mismatched sizes.
+    elif [ "$size" -gt "$expected" ]; then
+        printf "%s: Output file at \"%s\" has already been fetched (%d), but is larger than (%d > %d) the expected size (%d).\n" "$0" "$target" "$size" "$size" "$expected" "$expected" 1>&2
+        return 27 # EFBIG
+
+    # if the file size is the same, then we don't need
+    # to do anything else.
+    else
+        printf "%s: Output file at \"%s\" has already been fetched (%d) and is of the expected size (%d == %d).\n" "$0" "$target" "$size" "$size" "$expected" 1>&2
+        return 0
     fi
+
+    #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
+    curl_resume -o "$target" -- "$url" 1>&2 &
+    pid=$!
 
     wait -p pid $pid
     ec=$?
 
-    size=`filesize "$filename"`
+    size=`filesize "$target"`
     while [ ! -z "$expected" ] && [ "$size" -lt "$expected" ] && [ "$ec" -eq 18 -o "$ec" -eq 26 -o "$ec" -eq 28 -o "$ec" -eq 52 -o "$ec" -eq 55 -o "$ec" -eq 56 ]; do
         printf "%s: Ignoring error code %d, retrying transfer at offset %d of file \"%s\".\n" "$0" "$ec" "$size" "$target" 1>&2
         curl_resume -o "$target" -- "$url" 1>&2 &
         wait -p pid $!
         ec=$?
-        size=`filesize "$filename"`
+        size=`filesize "$target"`
     done
 
     [ -z "$killthis" ] || kill "$killthis" 2>/dev/null
