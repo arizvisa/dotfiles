@@ -73,7 +73,7 @@ openssl_digest_types()
 openssl_digest_file()
 {
     path="$1" && shift
-    "$OPENSSL" dgst "$@" -binary -- "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
+    "$OPENSSL" dgst "$@" -binary 2>/dev/null -- "$path" | od -A none -tx1 | paste -sd' ' - | tr -d ' '
 }
 
 openssl_digest_everything()
@@ -228,7 +228,7 @@ abort()
     trap - INT
     printf "%s: Abort!\n" "$0" 1>&2
 
-    printf "%s: Aborted download of \"%s\" to \"%s\"\n" "$0" "$url" "$target" 1>&2
+    printf "%s: Aborted fetch of \"%s\" to \"%s\"\n" "$0" "$url" "$target" 1>&2
     openssl_digest_sorted "$target"
     exit 4
 }
@@ -253,18 +253,18 @@ fi
 # if the filename exists and we can write to it, then let the user know that we're resuming
 if [ -f "$filename" ] && [ -w "$filename" ]; then
     resume=`filesize "$filename"`
-    printf "%s: Resuming transfer at offset %d of file \"%s\" with url \"%s\".\n" "$0" "$resume" "$filename" "$url" 2>&2
+    printf "%s: Resuming fetch at offset %d of file \"%s\" with url \"%s\".\n" "$0" "$resume" "$filename" "$url" 1>&2
 
 # if the filename exists, then its either not a file or writable
 elif [ -e "$filename" ]; then
     IFS= read -d $'\0' message < <( [ -w "$filename" ] && printf 'a file' || printf 'writable' )
-    printf "%s: Destination at \"%s\" currently exists and is not %s.\n" "$0" "$filename" "$message" 1>&2
-    printf "%s: Aborting download from url \"%s\".\n" "$0" "$url" 1>&2
+    printf "%s: Output file at \"%s\" already exists and is not %s.\n" "$0" "$filename" "$message" 1>&2
+    printf "%s: Aborting fetch from url \"%s\".\n" "$0" "$url" 1>&2
     exit 17 # EEXIST
 
 # otherwise, we just let the user know we're downloading the file
 else
-    printf "%s: Downloading file from url \"%s\" to \"%s\".\n" "$0" "$url" "$filename" 1>&2
+    printf "%s: Fetching url \"%s\" to file \"%s\".\n" "$0" "$url" "$filename" 1>&2
 fi
 
 # check if we need to create the target directory
@@ -283,13 +283,13 @@ trap "abort \"\$url\" \"\$filename\"" INT
 download "$url" "$filename"
 ec=$?
 if [ $ec -gt 0 ]; then
-    printf "%s: Aborting download from url \"%s\" due to error %d.\n" "$0" "$url" "$ec" 1>&2
-    [ -e "$rp" ] && [ ! -s "$rp" ] && printf "%s: Found zero-sized file from partial download at \"%s\".\n" "$0" "$filename" 1>&2 && rm -v "$rp"
+    printf "%s: Aborting fetch from url \"%s\" due to error %d.\n" "$0" "$url" "$ec" 1>&2
+    [ -e "$rp" ] && [ ! -s "$rp" ] && printf "%s: Found zero-sized file from partial fetch at \"%s\".\n" "$0" "$filename" 1>&2 && rm -v "$rp"
     [ "$rd" != "$wd" ] && printf "%s: Removing created target directory \"%s\".\n" "$0" "$rd" 1>&2 && rmdir -p "$td" 2>/dev/null
     [ "$rd" != "$wd" ] && [ -d "$rd" ] && printf "%s: Unable to remove target directory \"%s\".\n" "$0" "$rd" 1>&2
     exit $ec
 else
-    printf "%s: Completed download from url \"%s\".\n" "$0" "$url" 1>&2
+    printf "%s: Fetched successfully from url \"%s\".\n" "$0" "$url" 1>&2
 fi
 
 # we downloaded the file and only need to calculate all the available
