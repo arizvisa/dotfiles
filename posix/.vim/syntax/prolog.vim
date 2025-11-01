@@ -510,9 +510,12 @@ highlight link prologOption_prolog_choice_attribute prologKeyword
 syn match   prologQuestion  +?-.*\.+    contains=prologNumber
 
 """ Regions stolen from prolog.vim
-syn region   prologString       contained start=+"+   skip=+\\\\\|\\"+  end=+"+ contains=@Spell
-syn region   prologAtom         contained start=+'+   skip=+\\\\\|\\'+  end=+'+
-syn region   prologCharCodes    contained start=+`+   skip=+\\\\\|\\`+  end=+`+ contains=@Spell
+"syn region   prologString       contained start=+"+   skip=+\\\\\|\\"+  end=+"+ contains=@Spell
+"syn region   prologAtom         contained start=+'+   skip=+\\\\\|\\'+  end=+'+
+"syn region   prologCharCodes    contained start=+`+   skip=+\\\\\|\\`+  end=+`+ contains=@Spell
+syntax region prologString start=+"+ skip=+\(\\\\\)\|\(\\"\)\|\(\c$\)"+ end=+"+ contains=@Spell
+syntax region prologAtom start=+'+ skip=+\(\\\\\)\|\(\\'\)\|\(\c$\)'+ end=+'+
+syntax region prologCharCodes start=+`+ skip=+\(\\\\\)\|\(\\`\)\|\(\c$\)`+ end=+`+ contains=@Spell
 
 syntax match prologAnonymousVariable contained '[^\$]\zs\$\u\w*\ze\_[^\$]'
 syntax match prologAnonymousVariable contained '\<_\w*\>'
@@ -571,7 +574,7 @@ syntax cluster prologBody contains=prologRuleBody,prologConstraintBody,prologCHR
 " XXX: highlighting doesn't seem to work inside a cluster, so this is more a reference than anything else.
 syntax cluster prologToken contains=prologAtom,prologNumber,prologOperator,prologVariable,prologAnonymousVariable,prologSpecialCharacter
 "syntax cluster prologBodyToken contains=@prologBuiltin,@prologLibrary,@prologToken,prologString,prologCharCodes,prologTopLevel
-syntax cluster prologHeadParenthesesToken contains=@prologToken,prologStringprologCharCodes,
+syntax cluster prologHeadParenthesesToken contains=@prologToken,prologString,prologCharCodes,
 
 syntax match prologContext contained '\<\w\+\>'
 syntax match prologUseContext '@\s*' nextgroup=prologContext
@@ -606,11 +609,6 @@ highlight link prologCHRHead prologHead
 syntax match prologCHRSpecialCharacter contained '\\'
 syntax match prologCHRSpecialCharacter contained '@'
 highlight link prologCHRSpecialCharacter prologSpecial
-
-" Strings and Atoms
-syntax region prologString start=+"+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)"+ end=+"+ contains=@Spell
-syntax region prologAtom start=+'+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)'+ end=+'+
-syntax region prologCharCodes start=+`+ skip=+\(\\\\\)\|\(\\\)\|\(\c$\)"+ end=+`+ contains=@Spell
 
 " Comments
 syn match   prologLineComment   +%.*+                   contains=@Spell
