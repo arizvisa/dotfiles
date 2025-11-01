@@ -180,19 +180,24 @@ normal=`sed 's/\\\/\//g' <<< "$normal"`
 ## output results
 case "$FORMAT" in
     unix)
-        case "${platform}" in
+        os=`uname -o | tr A-Z a-z | tr / $'\n' | tail -n1`
+        case "${os}" in
             # Msys style paths mix the windows drive-letter with ":" and posix
-            msys)
+            msys*)
                 default2msys "$normal"
                 ;;
 
             # Linux is sane, we don't have to do shit
-            linux*) echo "$normal"
+            linux) echo "$normal"
                 ;;
 
             # I don't remember what cygwin's $platform was
-            *)
+            cygwin)
                 default2cygwin "$normal"
+                ;;
+
+            *)
+                echo "$normal"
                 ;;
         esac
         ;;
