@@ -102,7 +102,7 @@ openssl_digest_sorted()
 httpsize()
 {
     url=$1
-    curl_head -- "$url" | grep -ie "^Content-Length: *" | head -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//' | xargs printf '%d\n'
+    curl_head -- "$url" | grep -ie "^Content-Length: *" | tail -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//' | xargs printf '%d\n'
 }
 
 filesize()
@@ -142,6 +142,8 @@ transferstatus()
         sleep 1
         echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
+    size=`filesize "$filename"`
+    percentage=`calculatepercent "$size" "$expected"`
     printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected" 1>&2
 }
 
@@ -149,13 +151,14 @@ filestatus()
 {
     filename=$1
 
-    size=0
     while true; do
         size=`filesize "$filename"`
         printf "%s %d\n" "$filename" "$size" 1>&2
         sleep 1
         echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
+
+    size=`filesize "$filename"`
     printf "%s %d\n" "$filename" "$size" 1>&2
 }
 
@@ -182,10 +185,6 @@ download()
         transferstatus "$target" "$expected" &
         killthis=$!
 
-    elif [ "$size" -lt "$expected" ]; then
-        transferstatus "$target" "$expected" &
-        killthis=$!
-
     # if the file size is too large, then we need to
     # complain about the mismatched sizes.
     elif [ "$size" -gt "$expected" ]; then
@@ -194,9 +193,14 @@ download()
 
     # if the file size is the same, then we don't need
     # to do anything else.
-    else
+    elif [ "$size" -eq "$expected" ]; then
         printf "%s: Output file at \"%s\" has already been fetched (%d) and is of the expected size (%d == %d).\n" "$0" "$target" "$size" "$size" "$expected" 1>&2
         return 0
+
+    # this case should never be executed, but we handle it just in case.
+    else
+        printf "%s: Unsupported error while comparing the size for file at \"%s\" (%d) to the expected size (%d).\n" "$0" "$target" "$size" "$expected" 1>&2
+        return 95 # ENOTSUP
     fi
 
     #"curl.exe" -# -C- -k --retry 999 --retry-delay 0 --retry-max-time 0 --compressed -o "$target" -O "$url" 1>&2 &
