@@ -141,35 +141,41 @@ elif [ -z "$outpath" ]; then
     if [ "$?" -gt 0 ]; then
         logf 'Unable to determine the best version from the VERSION_INFO record : %s' "$inpath"
         seconds=`stat -c %W -- "$inpath"`
-        ts=`date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S`
-        logf 'Falling back to creation timestamp (%s) for %s.' "$ts" "$inpath"
-        version_format="$ts"
-    fi
+        read timestamp < <( date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S)
+        logf 'Falling back to creation timestamp (%s) for %s.' "$timestamp" "$inpath"
 
-    # then we need a filename which requires us to try multiple possibilities.
-    logf 'Attempting to determine filename for "%s".' "$inpath"
-    formats_filename=('OriginalFilename' 'InternalName' '__name__')
+        nameupper=`printf '%s\n' "$infile" | tr a-z A-Z`
+        outpath="$nameupper/$timestamp/$infile"
+        logf 'Output path determined from version was "%s".' "$outpath"
 
-    filename_format=
-    for fmt in "${formats_filename[@]}"; do
-        logf 'Attempting with format : %s' "$fmt"
-        filename_format="{$fmt}"
-        "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "{$fmt}" -- "$inpath" 2>/dev/null 1>/dev/null
-        [ $? -eq 0 ] && break
+    # otherwise, we get some version information and so we need to try multiple
+    # possibilities for the format in order to determine the correct filename.
+    else
+        logf 'Attempting to determine filename for "%s".' "$inpath"
+        formats_filename=('OriginalFilename' 'InternalName' '__name__')
+
         filename_format=
-    done
+        for fmt in "${formats_filename[@]}"; do
+            logf 'Attempting with format : %s' "$fmt"
+            filename_format="{$fmt}"
+            "$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "{$fmt}" -- "$inpath" 2>/dev/null 1>/dev/null
+            [ $? -eq 0 ] && break
+            filename_format=
+        done
 
-    # if we couldn't get the filename, then use the original one.
-    if [ -z "$filename_format" ]; then
-        logf 'Unable to determine the path from the VERSION_INFO record : %s' "$inpath"
-        filename_format="$infile"
-        logf 'Falling back to input filename "%s" for %s.' "$infile" "$inpath"
+        # if we couldn't get the filename, then use the original one.
+        if [ -z "$filename_format" ]; then
+            logf 'Unable to determine the path from the VERSION_INFO record : %s' "$inpath"
+            filename_format="$infile"
+            logf 'Falling back to input filename "%s" for %s.' "$infile" "$inpath"
+            version_format=`date --utc --date=@$seconds +%04Y%02m%02d.%02H%02M%02S`
+        fi
+
+        # now we can put our format back together and get the output path.
+        format="{__name__~upper}/$version_format/$filename_format"
+        outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" -- "$inpath" 2>/dev/null`
+        logf 'Output path determined from version was "%s".' "$outpath"
     fi
-
-    # now we can put our format back together and get the output path.
-    format="{__name__~upper}/$version_format/$filename_format"
-    outpath=`"$PYTHON" "$SYRINGE/bin/peversionpath.py" -f "$format" -- "$inpath" 2>/dev/null`
-    logf 'Output path determined from version was "%s".' "$outpath"
 
 else
     logf 'Output path determined from parameters was "%s".' "$outpath"
