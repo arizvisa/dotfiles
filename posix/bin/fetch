@@ -121,6 +121,11 @@ filesize()
 }
 
 ## utilities for performing the actual transfer and updating the user
+resetoutput()
+{
+    echo -ne "\r\x1b[1A\x1b[K"
+}
+
 calculatepercent()
 {
     numerator=$1
@@ -134,32 +139,41 @@ transferstatus()
     filename=$1
     expected=$2
 
-    size=0
-    while [ "$size" -lt "$expected" ]; do
-        size=`filesize "$filename"`
-        percentage=`calculatepercent "$size" "$expected"`
-        printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected" 1>&2
+    transferoutput "$filename" "$expected"
+    while true; do
+        resetoutput 1>&2
+        transferoutput "$filename" "$expected" 1>&2
         sleep 1
-        echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
-    size=`filesize "$filename"`
-    percentage=`calculatepercent "$size" "$expected"`
-    printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected" 1>&2
+}
+
+transferoutput()
+{
+    local filename=$1
+    local expected=$2
+
+    local size=`filesize "$filename"`
+    local percentage=`calculatepercent "$size" "$expected"`
+
+    printf "%s %0.3f%% %d/%d\n" "$filename" "$percentage" "$size" "$expected"
 }
 
 filestatus()
 {
     filename=$1
 
+    fileoutput "$filename"
     while true; do
-        size=`filesize "$filename"`
-        printf "%s %d\n" "$filename" "$size" 1>&2
+        resetoutput 1>&2
+        fileoutput "$filename" 1>&2
         sleep 1
-        echo -ne "\r\x1b[1A\x1b[K" 1>&2
     done
+}
 
-    size=`filesize "$filename"`
-    printf "%s %d\n" "$filename" "$size" 1>&2
+fileoutput()
+{
+    local size=`filesize "$1"`
+    printf "%s %d\n" "$1" "$size"
 }
 
 ## entrypoints that will be used to perform the user's requested action
@@ -178,12 +192,14 @@ download()
     if [ -z "$expected" ]; then
         filestatus "$target" &
         killthis=$!
+        outstatus=fileoutput
 
     # if the file size is smaller than the expected size,
     # then just monitor its status to update our progress.
     elif [ "$size" -lt "$expected" ]; then
         transferstatus "$target" "$expected" &
         killthis=$!
+        outstatus=transferoutput
 
     # if the file size is too large, then we need to
     # complain about the mismatched sizes.
@@ -220,6 +236,9 @@ download()
     done
 
     [ -z "$killthis" ] || kill "$killthis" 2>/dev/null
+
+    resetoutput 1>&2
+    "$outstatus" "$target" "$expected" 1>&2
 
     [ "$ec" -gt 0 ] && printf '%s: Error code %d was returned by downloader.\n' "$0" "$ec" 1>&2
     return $ec
