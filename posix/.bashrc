@@ -124,10 +124,11 @@ alias readelf="readelf -W"
 # figure out the pager and default parameters to use
 which_pager="`type -P less || type -P more`"
 case "${which_pager}" in
-    *less) which_pager_args=(-S -i -Q -s) ;;
+    *less) which_pager_args=(-S -i -Q -s -R) ;;
     *more) which_pager_args=(-d -s) ;;
 esac
-alias l="${which_pager} ${which_pager_args[*]}"
+declare -g PAGER="${which_pager} ${which_pager_args[*]}"
+alias l="${PAGER}"
 unset which_pager which_pager_args
 
 # nl(1) is stupid by default, due to not using a proper field separator.
