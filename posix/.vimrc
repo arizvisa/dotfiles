@@ -71,6 +71,9 @@ endif
 "" get rid of any c indentation
 set nocindent
 
+"" modelines in a document are for fucking retards.
+set nomodeline
+
 "" add ZERO WIDTH SPACE and ZERO WIDTH NO-BREAK SPACE
 if has('digraphs')
     let digraphs = {'zb': 0x200B, 'zn': 0xFEFF, 'zs': 0x200B}
@@ -838,6 +841,7 @@ if has("eval")
     let g:VM_add_cursor_at_pos_no_mappings = 1
     let g:NERDTreeMapHelp = '<F1>'
     let g:NERDTreeShowHidden = 1
+    let g:NERDTreeMinimalUI = 1
 
     " https://gist.github.com/wellle/9289224?permalink_comment_id=1182925
     function! s:TargetsAppend(type, ...)
