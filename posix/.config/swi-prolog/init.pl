@@ -4,7 +4,7 @@
 :- not(prolog_pack:current_pack(function_expansion)) -> pack_install(function_expansion); true.
 :- not(prolog_pack:current_pack(list_util)) -> pack_install(list_util); true.
 :- not(prolog_pack:current_pack(func)) -> pack_install(func); true.
-:- use_module(library(func)).
+:- use_module(library(func), []).
 
 %- https://www.swi-prolog.org/pack/list?p=spawn
 :- not(prolog_pack:current_pack(spawn)) -> pack_install(spawn); true.
