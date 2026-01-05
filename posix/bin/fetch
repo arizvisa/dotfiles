@@ -102,7 +102,9 @@ openssl_digest_sorted()
 httpsize()
 {
     url=$1
+    set -o pipefail
     curl_head -- "$url" | grep -ie "^Content-Length: *" | tail -n 1 | tr " \n\t\r" ' ' | sed 's/^[Cc]ontent-[Ll]ength: *//;s/ *$//' | xargs printf '%d\n'
+    return $?
 }
 
 filesize()
@@ -184,6 +186,12 @@ download()
 
     # first get the expected size and the current file size.
     expected=`httpsize "$url"`
+    ec=$?
+    if [ "$ec" -eq 22 ]; then
+        printf "%s: Error code %d, file not found at the specified url: %s\n" "$0" "$ec" "$url" 1>&2
+        return $ec
+    fi
+
     touch "$target" || return $?
     size=`filesize "$target"`
 
