@@ -79,6 +79,20 @@ fi
 # check that we were given a hostname to bind to.
 test -z "$bind_host" && usage
 
+# capture the current branch name or detach commit so that we can switch back to
+# it whenever we are done serving the repository. afterwards, we can switch to
+# the detached branch and then just serve it. we then set a trap so that when
+# the server is interrupted, we switch back to the original branch or whatever.
+branch=`git branch --show-current`
+detach=`git rev-parse HEAD`
+git switch --quiet --detach "$detach"
+
+if [ ! -z "$branch" ]; then
+    trap 'git switch --quiet "$branch"' INT TERM EXIT
+else
+    trap 'git switch --quiet --detach "$detach"' INT TERM EXIT
+fi
+
 # check if the user gave us a valid port number, and then serve it if so.
 if [ ! -z "$bind_port" ]; then
     isnumber "$bind_port" || usage
