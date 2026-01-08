@@ -26,28 +26,33 @@ if [ "${BASH_VERSION:-empty}" = 'empty' ]; then
     path=`echo "${oldpath}\n${path}" | tr ':' $'\n' | while read component; do [ -d "${component}" ] && echo -n "${component}:"; done`
     path="${path%%:}"
 
-# read whatever path the distro wants to use.
+# combine our specified path along with the distro path.
 else
+    # first we will read our desired path in order, while marking all of the
+    # paths that are being used so that we can avoid duplicates.
     IFS=: read -a ordered <<<"$path"
+    declare -A used
     declare -a requiredpath=()
-    let count=${#ordered[@]}-1
-    while [ "$count" -ge 0 ]; do
-        requiredpath+=( "${ordered[$count]}" )
-        let count-=1
+    for index in "${!ordered[@]}"; do
+        item="${ordered[$index]}"
+        requiredpath+=( "$item" )
+        used["$item"]=1
     done
-    unset count ordered
+    unset item index ordered
 
-    # next we will read the required path so we can reverse it.
+    # next we will read the the distro path while ignoring the ones that we
+    # marked when we specified the require path.
     IFS=: read -a ordered <<<"$oldpath"
     declare -a distropath=()
-    let count=${#ordered[@]}-1
-    while [ "$count" -ge 0 ]; do
-        distropath+=( "${ordered[$count]}" )
-        let count-=1
+    for index in "${!ordered[@]}"; do
+        item="${ordered[$index]}"
+        if [ -z "${used[$item]}" ]; then
+            distropath+=( "$item" )
+        fi
     done
-    unset count ordered
+    unset item index ordered
 
-    # now we iterate through the required paths and then the distro paths.
+    # now we iterate through both the required paths and then the distro paths.
     declare -A available
     declare -a newpath=()
     for component in "${requiredpath[@]}" "${distropath[@]}"; do
@@ -56,14 +61,14 @@ else
             newpath+=( "$component" )
         fi
     done
-    unset available requiredpath distropath component
+    unset component available distropath requiredpath used
 
-    # then we can recompose the path
+    # then we can recompose the path in the correct order
     declare path="${newpath[0]:-}"
-    let index=0
+    let index=1
     while [ "$index" -lt "${#newpath[@]}" ]; do
-        path="${newpath[$index]}:${path}"
-        let index+=1
+        path="${path}:${newpath[$index]}"
+        let index++
     done
     unset index newpath
 fi
