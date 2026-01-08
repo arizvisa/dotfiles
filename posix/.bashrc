@@ -268,10 +268,10 @@ termdump()
 
 __typecscope()
 {
-    path="$1"
+    local path="$1"
 
-    descriptions=("cscope" "global")
-    databases=("cscope.out" "GTAGS:GPATH:GRTAGS")
+    local descriptions=("cscope" "global")
+    local databases=("cscope.out" "GTAGS:GPATH:GRTAGS")
     for index in `seq ${#descriptions[*]}`; do
         i=$(( $index - 1 ))
         description="${descriptions[$i]}"
@@ -413,7 +413,8 @@ fi
 ## useful functions
 addpythonpath()
 {
-    path=`resolvepath "$1"`
+    local path
+    read path < <( resolvepath "$1" )
     if [ "$?" -gt 0 ]; then
         echo "addpythonpath: directory "$1" does not exist" 1>&2
         return 1
@@ -428,7 +429,8 @@ addpythonpath()
 
 addpath()
 {
-    path=`resolvepath "$1"`
+    local path
+    read path < <( resolvepath "$1" )
     if [ "$?" -gt 0 ]; then
         echo "addpath: directory "$1" does not exist" 1>&2
         return 1
