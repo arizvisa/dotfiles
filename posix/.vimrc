@@ -11,11 +11,13 @@ set display=lastline,uhex
 set directory=$TMP,$TMPDIR
 
 "" enforce 4 space tabbing
-set ts=4
+set tabstop=4
 set shiftwidth=4
+set softtabstop=-1
 set expandtab
 set autowrite
 set autoindent
+set nosmarttab
 
 "" no wordwrap
 set nowrap
