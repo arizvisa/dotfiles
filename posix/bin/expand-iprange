@@ -7,8 +7,15 @@ def octetsofinteger(integer, agg, shift):
     selected = integer & mask
     return agg + [selected // pow(2, shift)]
 
+characters_range = {character for character in '-.'}
+characters_cidr = {character for character in '/.'}
+characters_address = {character for character in '.'}
+characters_digits = {character for character in '0123456789'}
+
+test = lambda *a: lambda string: all(any(ch in characters for characters in a) for ch in string)
+
 for l in map(operator.methodcaller('strip'), sys.stdin):
-    if '-' in l:
+    if '-' in l and test(characters_range, characters_digits)(l):
         left, right = l.split('-')
 
         left_octets = left.split('.')
@@ -22,7 +29,7 @@ for l in map(operator.methodcaller('strip'), sys.stdin):
 
         iterable = reversed(lists)
 
-    elif '/' in l:
+    elif '/' in l and test(characters_cidr, characters_digits)(l):
         network, subnet = l.split('/')
 
         submask = pow(2, int(subnet)) - 1
@@ -38,12 +45,13 @@ for l in map(operator.methodcaller('strip'), sys.stdin):
         Foctets = lambda network: lambda host: functools.reduce(functools.partial(octetsofinteger, network | host), range(0, 32, 8), [])
         iterable = map(Foctets(integer), iterable)
 
-    elif '.' in l:
+    elif '.' in l and test(characters_address, characters_digits)(l):
         address = l
         iterable = itertools.chain(address.split('.', 3), ['0'] * 4)
         octets = [(int(octet) if octet else 0) for octet in itertools.islice(iterable, 4)]
         iterable = (octets[::-1] for octets in [octets])
 
+    #elif l.isdigit() and test(characters_digits)(l):
     elif l.isdigit():
         address = int(l)
         octets = functools.reduce(functools.partial(octetsofinteger, address), range(0, 32, 8), [])
@@ -55,3 +63,5 @@ for l in map(operator.methodcaller('strip'), sys.stdin):
 
     for octets in iterable:
         print('.'.join(map("{:d}".format, reversed(octets))))
+
+    continue
