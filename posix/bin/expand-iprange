@@ -1,18 +1,57 @@
 #!/usr/bin/env python
-import sys, itertools
+import sys, itertools, functools, operator
 from scapy.base_classes import Net
 
-for l in sys.stdin:
-    left, right = l.split('-')
+def octetsofinteger(integer, agg, shift):
+    mask = 0xFF * pow(2, shift)
+    selected = integer & mask
+    return agg + [selected // pow(2, shift)]
 
-    left_octets = left.split('.')
-    right_octets = right.split('.')
+for l in map(operator.methodcaller('strip'), sys.stdin):
+    if '-' in l:
+        left, right = l.split('-')
 
-    #res = '.'.join(['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)])
-    res = ['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)]
-    groups = (tuple(map(int, pair.split('-', 1))) for pair in res)
-    ranges = [range(left, right if left < right else 1 + right) if left <= right else range(left, right - 1, -1) for left, right in groups]
-    lists = [list(range) for range in ranges]
+        left_octets = left.split('.')
+        right_octets = right.split('.')
 
-    for octets in itertools.product(*reversed(lists)):
+        #res = '.'.join(['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)])
+        res = ['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)]
+        groups = (tuple(map(int, pair.split('-', 1))) for pair in res)
+        ranges = [range(left, right if left < right else 1 + right) if left <= right else range(left, right - 1, -1) for left, right in groups]
+        lists = [list(range) for range in ranges]
+
+        iterable = reversed(lists)
+
+    elif '/' in l:
+        network, subnet = l.split('/')
+
+        submask = pow(2, int(subnet)) - 1
+        netmask = pow(2, 32 - int(subnet)) - 1
+        submask, netmask = (mask * pow(2, shift) for mask, shift in zip([submask, netmask], [32 - int(subnet), 0]))
+
+        iterable = itertools.chain(network.split('.', 3), ['0'] * 4)
+        octets = [(int(octet) if octet else 0) for octet in itertools.islice(iterable, 4)]
+        integer = ~netmask & functools.reduce(lambda agg, item: agg * pow(2, 8) + item, octets, 0)
+
+        start = integer & netmask
+        iterable = range(start, start + netmask + 1)
+        Foctets = lambda network: lambda host: functools.reduce(functools.partial(octetsofinteger, network | host), range(0, 32, 8), [])
+        iterable = map(Foctets(integer), iterable)
+
+    elif '.' in l:
+        address = l
+        iterable = itertools.chain(address.split('.', 3), ['0'] * 4)
+        octets = [(int(octet) if octet else 0) for octet in itertools.islice(iterable, 4)]
+        iterable = (octets[::-1] for octets in [octets])
+
+    elif l.isdigit():
+        address = int(l)
+        octets = functools.reduce(functools.partial(octetsofinteger, address), range(0, 32, 8), [])
+        iterable = (octets for octets in [octets])
+
+    else:
+        print("Ignored: {!s}".format(l), file=sys.stderr)
+        continue
+
+    for octets in iterable:
         print('.'.join(map("{:d}".format, reversed(octets))))
