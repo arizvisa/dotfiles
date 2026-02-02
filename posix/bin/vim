@@ -3,6 +3,9 @@ posix=`type -P gvim || type -P vim || type -P nvim`
 posix_nog=`type -P vim || type -P nvim`
 pf_x86=`env | grep -E "^ProgramFiles\(x86\)=" | cut -d= -f2- | xargs cygpath -u`
 pf=`env | grep -E "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
+launch_services="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework"
+lsregister="${launch_services}/Versions/A/Support/lsregister"
+
 IFS= read windows < <( ls -1 "$pf_x86"/Vim/vim*/{g,}vim.exe "$pf_x86"/Vim/{g,}vim.exe "$pf"/Vim/vim*/{g,}vim.exe "$pf"/Vim/{g,}vim.exe 2>/dev/null )
 
 ## determine which program to run
@@ -10,6 +13,15 @@ case "$platform" in
     msys|cygwin)
         prog=`[ -x "$windows" ] && echo "$windows"`
         ;;
+
+    darwin*)
+        read start stop < <("${lsregister}" -dump | gawk -v name=MacVim 'BEGIN { start=0 } /^-------/ { stop=NR; if (found) { print(start, stop) ; found=0}; start=stop } /^name:/ {if ($2 == name) { found=1 }}')
+        if [ ! -z "$start" ] && [ ! -z "$stop" ]; then
+            read path < <( "${lsregister}" -dump | gawk -v "start=$start" -v "stop=$stop" 'NR >= start && NR < stop { if ($1 == "path:") { print $2 } }' )
+            prog="${path}/Contents/bin/mvim"
+        fi
+        ;;
+
     *)
         [ -z "${DISPLAY:-}" ] && posix="$posix_nog"
         posix=`basename "$posix"`
