@@ -18,7 +18,7 @@ fi
 ## Normalize some of the environment variables
 export HOME=`( cd "$HOME" && pwd -P )`   # clean up the path
 
-path="$HOME/bin:$HOME/.local/bin:/sbin:/usr/sbin:/usr/pkg/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/pkg/bin:/usr/local/bin"
+path="$HOME/bin:$HOME/.local/bin:/usr/pkg/sbin:/opt/homebrew/sbin:/usr/local/sbin:/usr/sbin:/sbin:/usr/pkg/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 ## decompose path, and keep only the paths that exist.
 oldpath="${PATH:-}"
