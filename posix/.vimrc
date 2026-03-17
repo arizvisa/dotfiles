@@ -30,6 +30,11 @@ set noincsearch
 set hlsearch
 set visualbell
 
+"" always yank/delete stuff to the gui clipboard
+if has("clipboard")
+    set clipboard=unnamed,unnamedplus
+endif
+
 "" overall appearance
 set laststatus=2
 set number
