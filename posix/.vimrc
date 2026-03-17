@@ -320,6 +320,7 @@ if has("eval")
         " the copy location and with code mappings separately from the others.
         xnoremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines()<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
         xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        xnoremap <silent> <Leader>cp :<C-U>let @"=<SID>normalpath(expand('%:~')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
     unlet g:mapleader
 
