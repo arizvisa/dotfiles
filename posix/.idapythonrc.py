@@ -169,9 +169,9 @@ def advise(name):
 
 def advisegdb(tag, outfile):
  items = {}
- for res in db.selectcontents(t):
+ for res in db.selectcontents(tag):
   for ea, res in func.select(*res):
-   idx, cnt, note = res[t]
+   idx, cnt, note = res[tag]
    items[idx] = ea, cnt, note
   continue
  with open(rp, 'wt') as outfile:
@@ -234,14 +234,6 @@ def path(G, start, stop):
     b1, b2 = func.block(start), func.block(stop)
     items = nx.shortest_path(G, func.block.address(b1), func.block.address(b2))
     return [func.block(item) for item in items]
-
-def makeptr(info):
-    pi = idaapi.ptr_type_data_t()
-    pi.obj_type = info
-    ti = idaapi.tinfo_t()
-    if not ti.create_ptr(pi):
-        raise ValueError
-    return ti
 
 def get_breakpoint(ea, index=None):
     inputs32 = map("{:#x}".format, itertools.accumulate(itertools.repeat(4), operator.add, initial=4))
@@ -361,200 +353,6 @@ class dt_byte64(ptype.block):
     type = idaapi.dt_byte64
     length = 64
 
-class ninsn:
-    class op_type(int):
-        def get(self): return int(self)
-        def __repr__(self): return '%s(%d}'%(self.__class__.__name__,int(self))
-    class op_ref(op_type): pass
-    class op_reg(op_type): pass
-    class op_imm(op_type): pass
-
-    @staticmethod
-    def op_group(op):
-        res,sz = ins.opt.value(op),ins.opt.size(op)
-        if type(res) is tuple:
-            offset,(base,index,scale) = res
-            if base is None and scale == 1:
-                base,index,scale = index,base,scale
-            return ninsn.op_ref(sz),(offset,base,index,scale)
-        elif type(res) is str:
-            return ninsn.op_reg(sz),(res,)
-        return ninsn.op_imm(sz),(res,)
-
-    @staticmethod
-    def at(ea):
-        n = ins.mnem(ea)
-        res = ins.operand(ea)
-        try:
-            res = map(ninsn.op_group, res)
-        except Exception as e:
-            print(hex(ea),'failed',n,res)
-            raise
-        return n,res
-
-class block(object):
-    def __init__(self, left, right):
-        self.cache = list(db.iterate(left,right))
-        self.left,self.right = left,right
-
-    def __hash__(self):
-        return hash( (self.left,self.right) )
-    def __eq__(self, other):
-        return (self.left,self.right) == (other.left,other.right)
-
-    def walk(self):
-        for ea in self.cache:
-            res = i,_ = ninsn.at(ea)
-            if i is None: continue
-            yield ea,res
-        return
-
-    def calls(self):
-        for res in self.walk():
-            ea,(i,ops) = res
-            if i.startswith('call'):
-                yield res
-            continue
-        return
-
-    def stack(self):
-        for res in self.walk():
-            ea,(i,ops) = res
-            if fn.get_spdelta(ea) != fn.get_spdelta(db.next(ea)):
-                yield res
-            elif any(('esp' in v) or ('ebp' in v) for t, v in ops if isinstance(t, (ninsn.op_reg, ninsn.op_ref))):
-                yield res
-            continue
-        return
-
-    def refs(self):
-        for res in self.walk():
-            ea,(i,ops) = res
-            if any(type(t) is ninsn.op_ref for t, _ in ops):
-                yield res
-            continue
-        return
-
-    def register(self, reg):
-        for res in self.walk():
-            ea,(i,ops) = res
-            if any((reg in v) for t, v in ops if isinstance(t, (ninsn.op_reg, ninsn.op_ref))):
-                yield res
-            continue
-        return
-
-    def instruction(self, *mnem):
-        for res in self.walk():
-            ea,(i,ops) = res
-            if i in mnem:
-                yield res
-            continue
-        return
-
-class tree(object):
-    def __init__(self, *functions, **kwds):
-        self.blocks = set()
-        [self.collect(ea, recurse=kwds.get('recurse',True)) for ea in functions]
-
-    def iterate_blocks(self, ea):
-        for l, r in fn.chunks(ea):
-            yield block(l,r)
-        return
-
-    def collect_calls(self, block):
-        for ea, (i, ops) in block.calls():
-            (t, v), = ops
-            if not isinstance(t,ninsn.op_imm):
-                #print hex(ea),'dynamic',(i,ops)
-                continue
-            yield v[0]
-        return
-
-    def collect(self, ea, recurse=True):
-        done,result = set(),set((ea,))
-        while len(result) > len(done):
-            ea = result.pop()
-            for b in self.iterate_blocks(ea):
-                if recurse:
-                    for ea in self.collect_calls(b):
-                        try: fn.top(ea)
-                        except: pass
-                        else: result.add(ea)
-                self.blocks.add(b)
-            done.add(ea)
-        return
-
-    def __getattr__(self, attr):
-        def everything(*args,**kwds):
-            for b in self.blocks:
-                for n in getattr(b, attr)(*args, **kwds):
-                    yield n
-                continue
-            return
-        everything.__name__ = attr
-        return everything
-
-#stores = [(ea,(i,(t1,st))) for ea,(i,[(t1,st),_]) in a.refs() if isinstance(t1,application.ali.ninsn.op_ref)]
-#loads = [(ea,(i,(t2,ld))) for ea,(i,[(t1,st),(t2,ld)]) in a.refs() if isinstance(t2,application.ali.ninsn.op_ref)]
-
-def __collect_ops(ea, recurse=True):
-    for ea, (_, ops) in tree(ea, recurse=recurse).walk():
-        for t, v in ops:
-            yield t,v
-        continue
-    return
-
-def __collect_refs(ea, recurse=True):
-    for t, v in __collect_ops(ea, recurse=recurse):
-        if isinstance(t,ninsn.op_ref):
-            yield t,v
-        continue
-    return
-
-def collect_fields(ea, *regs, **kwds):
-    for t, (o, b, i, s) in __collect_refs(ea, recurse=kwds.get('recurse', True)):
-        # FIXME: s is not the operand size
-        if i is not None:
-             logging.warn('{:x} : unexpected ref : {!r}'.format(ea, (t, (o, b, i, s))))
-        if b not in regs: continue
-        yield b,o,t.get()
-    return
-
-def collect_struct(ea, reg, name, recurse=False):
-    st = struc.get(name)
-    for _, o, s in collect_fields(ea, reg, recurse=recurse):
-        st.members.add('v_%x'%o, o, (int, s))
-    return st
-
-#def get(ea):
-#    t = db.getType(ea)
-
-def autostruct(name, regs, left_right, base=0):
-    left, right = left_right
-    st = struc.get(name)
-    for ea, (_, ops) in block(left, right).walk():
-        for t, v in ops:
-            if isinstance(t, ninsn.op_ref):
-                o,b,_,_ = v
-                if b in regs:
-                    st.members.add('v_%x'%(base+o), base+o, (int, 4))
-            continue
-        continue
-    return st
-
-#def struct2dump(st):
-#
-#
-#'.printf "[%x] {:s}\n",@$t1'.format(st.name + (' // '+st.comment if st.comment else ''))
-#'.printf "[%x+{:x}] {:s}\n",@$t1'.format(m.offset, m.fullname + (' // '+m.comment if m.comment else ''))
-#'
-#
-#
-#    for m in st.members:
-#
-#.printf "[%x] %s",{:x},{:s}
-#"[%x+%x] %s L%d'
-
 def finddeps(ea, opt, prev=db.address.prev):
     """Walk backwards from ea finding all instructions that assign to a register that affects the current write operand"""
     def registers(operand):
@@ -565,46 +363,11 @@ def finddeps(ea, opt, prev=db.address.prev):
         return n == 'rw' and 'r' or n
 
     while True:
-        res = dict(itertools.groupby( enumerate(ins.ops_state(ea)), Fgroupkey))
+        res = dict(itertools.groupby( enumerate(ins.ops_access(ea)), Fgroupkey))
     pass
 
 def findprevwrite(ea):
-    w = [i for i, n in enumerate(ins.ops_state(ea)) if 'r' in n]
-
-def invertoperand(ea):
-    """When given an address ``ea``, return a callable that takes an address
-    which checks if the specified instruction modifies any of the registers
-    that are used for the instruction passed to `invertoperand(ea)`.
-    """
-
-    def opmatch(ea, regs, opers):
-        """Returns True if the instruction at ``ea`` is writing with one of
-        the operations specified in ``opers`` and uses any of the registers
-        specified in ``regs``.
-        """
-        related = lambda reg: any(r.relatedQ(reg) for r in regs)
-        ops = map(functools.partial(ins.ir.op, ea), ins.ops_write(ea))
-        res = filter(utils.fcompose(operator.itemgetter(0), functools.partial(operator.contains, opers)), ops)
-        return any((b is not None and related(b)) or (i is not None and related(i)) for _, (o, b, i, s) in res)
-
-    inv = {
-        'value':(ins.ir.operation.assign, ins.ir.operation.load),
-        'assign':(ins.ir.operation.value, ins.ir.operation.load),
-        'load':(ins.ir.operation.assign, ins.ir.operation.load),
-        'store':(ins.ir.operation.assign, ins.ir.operation.load),
-    }
-
-    # if 'value' is set and there's another ins.ir.operation.value,
-    # then that instruction is modifying the specified register.
-
-    ops, registers = set(), set()
-    for op, val in map(functools.partial(ins.ir.op, ea), ins.ops_read(ea)):
-        o,b,i,s = val
-        invops = inv[op.name]
-        ops.update(invops)
-        if b is not None: registers.add(b)
-        if i is not None: registers.add(i)
-    return lambda ea: opmatch(ea, tuple(registers), tuple(ops))
+    w = [i for i, n in enumerate(ins.ops_access(ea)) if 'w' in n]
 
 import internal
 def get_nonfuncs(ea):
@@ -757,224 +520,6 @@ def find_addr(vu):
     elif citem.citype in {idaapi.VDI_FUNC}:
         return citem.f.entry_ea
     raise NotImplementedError(citem.citype)
-
-class lvars(object):
-    @classmethod
-    def __iterate__(cls, D):
-        lvars = D.get_lvars()
-        for index in range(lvars.size()):
-            yield lvars[index]
-        return
-
-    __matcher__ = internal.utils.matcher()
-    __matcher__.boolean('name', lambda name, item: name.lower() == item.lower(), fgetattr('name'))
-    __matcher__.combinator('like', utils.fcompose(fnmatch.translate, utils.fpartial(re.compile, flags=re.IGNORECASE), operator.attrgetter('match')), fgetattr('name'))
-    __matcher__.predicate('predicate'), __matcher__.predicate('pred')
-
-    @internal.utils.multicase()
-    @classmethod
-    def iterate(cls, **type):
-        return cls.iterate(None, **type)
-    @internal.utils.multicase(name=str)
-    @classmethod
-    def iterate(cls, name, **type):
-        return cls.iterate(name, None, **type)
-    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def iterate(cls, name, D, **type):
-        type.setdefault('like', name)
-        return cls.iterate(D, **type)
-    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def iterate(cls, D, **type):
-        state = D if D else idaapi.decompile(func.address())
-        iterable = cls.__iterate__(state)
-        for key, value in (type or {'predicate': utils.fconstant(True)}).items():
-            iterable = cls.__matcher__.match(key, value, iterable)
-        for item in iterable: yield item
-
-    @internal.utils.multicase()
-    @classmethod
-    def list(cls, **type):
-        return cls.list(None, **type)
-    @internal.utils.multicase(name=str)
-    @classmethod
-    def list(cls, name, **type):
-        return cls.list(name, None, **type)
-    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def list(cls, name, D, **type):
-        type.setdefault('like', name)
-        return cls.list(D, **type)
-    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def list(cls, D, **type):
-        state = D if D else idaapi.decompile(func.address())
-        res = [item for item in cls.iterate(state, **type)]
-
-        print_t = lambda item: idaapi.print_tinfo('', 0, 0, 0, item.type(), item.name, '')
-
-        maxdisasm = max(map(fcompose(fgetattr('defea'), db.disasm, len), res))
-        maxname = max(map(fcompose(print_t, len), res))
-
-        for item in res:
-            t_s = print_t(item)
-            print("{:<{:d}s} // {:<{:d}s} : {!s}".format(db.disasm(item.defea), maxdisasm, t_s, maxname, cls.vdloc(state, item)))
-        return
-
-    @internal.utils.multicase()
-    @classmethod
-    def by(cls, **type):
-        return cls.by(None, **type)
-    @internal.utils.multicase(name=str)
-    @classmethod
-    def by(cls, name, **type):
-        return cls.by(name, None, **type)
-    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def by(cls, name, D, **type):
-        type.setdefault('like', name)
-        return cls.by(D, **type)
-    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def by(cls, D, **type):
-        state = D if D else idaapi.decompile(func.address())
-        return next(item for item in cls.iterate(state, **type))
-
-    @internal.utils.multicase()
-    @classmethod
-    def get(cls, **type):
-        return cls.get(None, **type)
-    @internal.utils.multicase(name=str)
-    @classmethod
-    def get(cls, name, **type):
-        return cls.get(name, None, **type)
-    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def get(cls, name, D, **type):
-        type.setdefault('like', name)
-        return cls.get(D, **type)
-    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def get(cls, D, **type):
-        state = D if D else idaapi.decompile(func.address())
-        res = cls.by(state, **type)
-        return cls.vdloc(state, res)
-
-    @internal.utils.multicase()
-    @classmethod
-    def name(cls, **type):
-        return cls.name(None, **type)
-    @internal.utils.multicase(name=str)
-    @classmethod
-    def name(cls, name, **type):
-        return cls.name(name, None, **type)
-    @internal.utils.multicase(name=str, D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def name(cls, name, D, **type):
-        type.setdefault('like', name)
-        return cls.name(D, **type)
-    @internal.utils.multicase(D=(None.__class__, idaapi.cfuncptr_t))
-    @classmethod
-    def name(cls, D, **type):
-        state = D if D else idaapi.decompile(func.address())
-        res = cls.by(state, **type)
-        return res.name
-
-    @classmethod
-    def vdloc(cls, state, lv):
-        loc = lv.location
-        atype, vtype = loc.atype(), lv.type()
-        if atype in {idaapi.ALOC_REG1}:
-            regname = idaapi.print_vdloc(loc, vtype.get_size())
-            return ins.arch.byname(regname)
-        elif atype in {idaapi.ALOC_STACK}:
-            fr = func.frame(lv.defea)
-            delta = state.get_stkoff_delta()
-            realoffset = loc.stkoff() - delta
-            return fr.members.by_realoffset(realoffset) if 0 <= realoffset < fr.size else location_t(realoffset, vtype.get_size())
-        raise NotImplementedError(atype)
-
-    @classmethod
-    def collect_block_xrefs(cls, out, mlist, blk, ins, find_uses):
-        p = ins
-        while p and not mlist.empty():
-            use = blk.build_use_list(p, ida_hexrays.MUST_ACCESS); # things used by the insn
-            _def = blk.build_def_list(p, ida_hexrays.MUST_ACCESS); # things defined by the insn
-            plst = use if find_uses else _def
-            if mlist.has_common(plst):
-                if not p.ea in out:
-                    out.append(p.ea) # this microinstruction seems to use our operand
-            mlist.sub(_def)
-            p = p.next if find_uses else p.prev
-        return
-
-    @classmethod
-    def collect_xrefs(cls, out, ctx, mop, mlist, du, find_uses):
-        # first collect the references in the current block
-        start = ctx.topins.next if find_uses else ctx.topins.prev;
-        cls.collect_block_xrefs(out, mlist, ctx.blk, start, find_uses)
-
-        # then find references in other blocks
-        serial = ctx.blk.serial; # block number of the operand
-        bc = du[serial]          # chains of that block
-        voff = ida_hexrays.voff_t(mop)
-        ch = bc.get_chain(voff)   # chain of the operand
-        if not ch:
-            return # odd
-        for bn in ch:
-            b = ctx.mba.get_mblock(bn)
-            ins = b.head if find_uses else b.tail
-            tmp = ida_hexrays.mlist_t()
-            tmp.add(mlist)
-            cls.collect_block_xrefs(out, tmp, b, ins, find_uses)
-        return
-
-    @classmethod
-    def microcode(cls, D):
-        state = D if D else idaapi.decompile(func.address())
-        hf = ida_hexrays.hexrays_failure_t()
-        mbr = ida_hexrays.mba_ranges_t(state)
-        mba = ida_hexrays.gen_microcode(mbr, hf, None, ida_hexrays.DECOMP_WARNINGS | ida_hexrays.DECOMP_NO_CACHE, ida_hexrays.MMAT_PREOPTIMIZED)
-        if not mba:
-            raise Exception("{:#x}: {:s}".format(hf.errea, hf.str))
-        return mba
-
-    @classmethod
-    def _refs(cls, state, lv):
-        mba = cls.microcode(state)
-        merr = mba.build_graph()
-        if merr != ida_hexrays.MERR_OK:
-            raise Exception("{:#x}: {:s}".format(errea, ida_hexrays.get_merror_desc(merr, mba)))
-
-        gco = ida_hexrays.gco_info_t()
-        if not ida_hexrays.get_current_operand(gco):
-            raise Exception("No register or stkvar in operand")
-
-        mlist = ida_hexrays.mlist_t()
-        if not gco.append_to_list(mlist, mba):
-            raise Exception('no microcode list')
-
-        ctx = ida_hexrays.op_parent_info_t()
-        mop = mba.find_mop(ctx, ea, gco.is_def(), mlist)
-        if not mop:
-            raise Exception('no operand')
-
-        graph = mba.get_graph()
-        ud = graph.get_ud(ida_hexrays.GC_REGS_AND_STKVARS)
-        du = graph.get_du(ida_hexrays.GC_REGS_AND_STKVARS)
-
-        xrefs = ida_pro.eavec_t()
-        if gco.is_use():
-            cls.collect_xrefs(xrefs, ctx, mop, mlist, ud, False)
-        if gco.is_def():
-            cls.collect_xrefs(xrefs, ctx, mop, mlist, du, True)
-        return xrefs
-
-    @classmethod
-    def refs(cls, D):
-        state = D if D else idaapi.decompile(func.address())
-        return cls._refs(state, None)
 
 class hxqueue(object):
     def __init__(self, hx, event=idaapi.hxe_create_hint):
@@ -1600,6 +1145,10 @@ def on_hint_memref(vu, comment=__import__('internal').comment):
         ti = hexrays.variable.type(var_ref)
         print("Detected a cot_ptr with type: {!s}".format(ti))
 
+    if not struc.has(ti):
+        print("Structure for type \"{!s}\" was not found.".format(ti))
+        return
+
     st = struc.by(ti)
     if not res or not st.has(res[-1][1]):
         raise AssertionError('badly implemented op ({:s})'.format(item.opname), item.op, "{!s}".format(ti), st, [x[-1] for x in res[::-1]])
@@ -1741,7 +1290,7 @@ def findtypes(ti, *types):
     collection = internal.interface.typematch(types)
     for index, (k,v) in enumerate(collection.items()):
         print('Collection[{:d}]:'.format(1+index), k, [x for x in map("{!s}".format, v)])
-    for index, (type, candidates) in enumerate(internal.interface.typematch.iterate(collection, ti)):
+    for index, (type, candidates) in enumerate(internal.interface.typematch.select(collection, ti)):
         print("Candidate[{:d}] : {!r} has the following {:d} candidate{:s}: {!r}".format(1 + index, "{!s}".format(type), len(candidates), '' if len(candidates) == 1 else 's', ["{!s}".format(item) for item in candidates]))
     return internal.interface.typematch.use(collection, ti)
 
@@ -2426,7 +1975,7 @@ class TagContentsEditForm(idaapi.Form):
             self.locations = []
 
         def Load(self, fn):
-            iterable = ((ea, idaapi.get_func(ea)) for ea, _ in internal.comment.globals.iterate())
+            iterable = ((ea, idaapi.get_func(ea)) for ea, _ in internal.tags.reference.globals.iterate())
             iterable = ((ea, sorted(function.tag(ea) if f else database.tag(ea))) for ea, f in iterable)
             size = seg.size(fn) // 0x40
             filtered = ((ea, tags) for ea, tags in iterable if fn - size <= ea < fn + size)
@@ -2722,7 +2271,3 @@ def size_em_up(cexpr):
 #def slice_and_dicee(structure, cexpr):
 def slice_and_dice_them(structure, cexpr):
     '''use an expression to find fields for a structure, and divvy-up its members into its individual bytes/words/etc.'''
-
-#internal.hooks.logging.setLevel(logging.DEBUG)
-#import internal.structure
-#importlib.reload(internal.structure)
