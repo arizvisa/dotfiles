@@ -970,6 +970,9 @@ def on_hint_global(vu, comment=__import__('internal').comment):
         return
 
     ea = cexpr.obj_ea
+    if not db.has(ea):
+        return
+
     ti, tags = db.type(ea), db.tag(ea)
     filtered = {name : value for name, value in tags.items() if name not in excluded}
     encoded = comment.encode(filtered).split('\n') if filtered else []
@@ -2271,3 +2274,6 @@ def size_em_up(cexpr):
 #def slice_and_dicee(structure, cexpr):
 def slice_and_dice_them(structure, cexpr):
     '''use an expression to find fields for a structure, and divvy-up its members into its individual bytes/words/etc.'''
+
+from internal import declaration
+decl = declaration
