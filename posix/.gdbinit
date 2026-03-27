@@ -331,7 +331,7 @@ class Memory(object):
     def _dump(cls, target, address, count, width, kind, content):
         data = cls.read(target, address, struct.calcsize(kind) * count)
         countup = struct.calcsize(kind) * count
-        offset = ('{:0{:d}x}'.format(a, math.trunc(math.floor(math.log(address + count) / math.log(0x10) + 1))) for a in range(address, address + math.trunc(countup), width))
+        offset = ('{:#0{:d}x}'.format(a, math.trunc(math.floor(math.log(address + count) / math.log(0x10) + 1))) for a in range(address, address + math.trunc(countup), width))
         cols = ((width, offset), content(data, kind), cls._chardump(data, width))
         maxcols = (0,) * len(cols)
         while True:
@@ -1305,6 +1305,12 @@ set debuginfod enabled off
 #set disassemble-next-line on
 set pagination off
 
+set dump-excluded-mappings on
+set multiple-symbols all
+set debug threads off
+set debug entry-values 1
+set debug skip on
+
 set ada print-signatures on
 set guile print-stack full
 set python dont-write-bytecode on
@@ -1322,6 +1328,17 @@ set print finish on
 set print object on
 set print type hex on
 set print vtbl on
+set print inferior-events on
+set print thread-events on
+set print address on
+set print symbol on
+set print symbol-filename on
+set print array on
+set print frame-info location-and-address
+set print repeats 16
+set print max-depth 16
+set print memory-tag-violations on
+set print pretty on
 
 set max-completions 32
 
