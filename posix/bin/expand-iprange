@@ -24,7 +24,7 @@ for l in map(operator.methodcaller('strip'), sys.stdin):
         #res = '.'.join(['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)])
         res = ['%s-%s'%(a,b) for a,b in zip(left_octets, right_octets)]
         groups = (tuple(map(int, pair.split('-', 1))) for pair in res)
-        ranges = [range(left, right if left < right else 1 + right) if left <= right else range(left, right - 1, -1) for left, right in groups]
+        ranges = [range(left, right + 1) if left <= right else range(left, right - 1, -1) for left, right in groups]
         lists = [list(range) for range in ranges]
 
         iterable = itertools.product(*reversed(lists))
