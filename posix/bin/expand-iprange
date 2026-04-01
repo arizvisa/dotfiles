@@ -27,7 +27,7 @@ for l in map(operator.methodcaller('strip'), sys.stdin):
         ranges = [range(left, right if left < right else 1 + right) if left <= right else range(left, right - 1, -1) for left, right in groups]
         lists = [list(range) for range in ranges]
 
-        iterable = reversed(lists)
+        iterable = itertools.product(*reversed(lists))
 
     elif '/' in l and test(characters_cidr, characters_digits)(l):
         network, subnet = l.split('/')
