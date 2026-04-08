@@ -4,13 +4,14 @@ dashless=$(basename "$0" | sed -e 's/-/ /')
 USAGE=
 OPTIONS_STUCKLONG=1
 OPTIONS_KEEPDASHDASH=1
-OPTIONS_SPEC="${dashless} [<options>] -- <url> [<refspec> [<dir>]]
+OPTIONS_SPEC="${dashless} [<options>] -- <url> [<refname|revision> [<dir>]]
 
 Display all of the available references for the given url.
   <url>       the location of the remote to query or clone
 
 If the following parameters are given, the reference will be shallow cloned.
-  <refspec>   the reference to clone from
+  <refname>   the reference to clone from
+  <revision>  the revision (commit) to clone from
   <dir>       the directory to clone into
 --
 h,help              show the help
@@ -27,6 +28,24 @@ DEFAULT_LIST_PARAMETERS="--tags --heads --refs --sort=version:refname"
 DEFAULT_CLONE_PARAMETERS="--filter=blob:none --single-branch"
 
 . git-sh-setup
+
+function is-sha1-hash() {
+    local sha1="$1"
+    shift
+
+    local original filtered
+    let expected_length=40
+
+    read -r original <<< "${sha1}"
+    read -r filtered < <( tr -c -d '0123456789abcdef' <<< "${sha1}" )
+
+    let length=`printf '%s' "${sha1}" | wc -c`
+    if (( "${length}" == "${expected_length}" )) && [ "${original}" = "${filtered}" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
 
 parameters=()
 list_parameters=( ${DEFAULT_LIST_PARAMETERS} )
@@ -78,9 +97,11 @@ done
 set -- "$@"
 if [ "$#" -eq 0 ]; then
     usage
+
 elif [ "$#" -eq 1 ]; then
     url="$1"
     git ls-remote "${parameters[@]}" "${list_parameters[@]}" "${url}"
+
 elif [ "$#" -le 3 ]; then
     url="$1"
     ref="$2"
@@ -91,10 +112,19 @@ elif [ "$#" -le 3 ]; then
     else
         directory=`basename "${url}" .git`
     fi
-    git clone "${parameters[@]}" "${clone_parameters[@]}" --branch="${ref}" -- "${url}" "${directory}" && {
+
+    declare -a reference_parameters=()
+    if is-sha1-hash "${ref}"; then
+        reference_parameters+=( --revision="${ref}" )
+    else
+        reference_parameters+=( --branch="${ref}" )
+    fi
+
+    declare -p reference_parameters
+    git clone "${parameters[@]}" "${clone_parameters[@]}" "${reference_parameters[@]}" -- "${url}" "${directory}" && {
         name=`basename "${ref}"`
         current=`git -C "${directory}" branch --show-current`
-        [ -z "${current}" ] && git -C "${directory}" checkout "${parameters[@]}" -b "${name}"
+        [ -z "${current}" ] && git -C "${directory}" checkout "${parameters[@]}" -B "${name}"
     }
 
 else
