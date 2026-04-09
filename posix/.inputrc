@@ -45,12 +45,14 @@ set blink-matching-paren on
 # Re-read the inputrc dotfile
 "\C-o": re-read-init-file
 
-# Display the mode at the beginning of the prompt when using vi-mode.
-$if mode=vi
-    set show-mode-in-prompt on
-    set vi-cmd-mode-string "^"
-    set vi-ins-mode-string ">"
-    set emacs-mode-string "@"
+# Display the mode at the beginning of the prompt when using vi-mode in bash(1).
+$if bash
+    $if mode=vi
+        set show-mode-in-prompt on
+        set vi-cmd-mode-string "^"
+        set vi-ins-mode-string ">"
+        set emacs-mode-string "@"
+    $endif
 $endif
 
 # Map some specific keys when using vi normal-mode.
@@ -69,7 +71,8 @@ $if mode=vi
     set keymap vi-insert
     "\e[Z": menu-complete-backward
 
-    # Add support for keyboard macros when in insert-mode.
+    # Add support for using keyboard macros when in insert-mode. The specified
+    # bindings correspond to both the <C-PageUp> and <C-PageDown> combinations.
     "\e[5;5~": start-kbd-macro
     "\e[6;5~": end-kbd-macro
     "\C-p": print-last-kbd-macro
