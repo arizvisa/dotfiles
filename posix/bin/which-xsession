@@ -6,21 +6,28 @@ if [ -z "$loginctl" ]; then
 fi
 
 ## figure out the display from $DISPLAY if not specified as an arg
-[ "$1" == "" ] && xdisplay_and_screen="$DISPLAY" || xdisplay_and_screen="$1"
+[ "$1" = "" ] && xdisplay_and_screen="$DISPLAY" || xdisplay_and_screen="$1"
 IFS=. read xdisplay xscreen <<<"$xdisplay_and_screen"
+
+## use loginctl to check that the session is active
+check_session() {
+    local session="$1"
+    local state=`"$loginctl" '--property=State' show-session "$session"`
+    [ "State=active" = "$state" ] && return 0 || return 1
+}
 
 ## use loginctl to match the display in $session
 check_display() {
     local session="$1"
     local display=`"$loginctl" '--property=Display' show-session "$session"`
-    [ "Display=$2" == "$display" ] && return 0 || return 1
+    [ "Display=$2" = "$display" ] && return 0 || return 1
 }
 
 ## find session according to the display passed as $1
 by_display() {
     local display="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
-        if check_display "$session" "$display"; then
+        if check_session "$session" && check_display "$session" "$display"; then
             printf "%d\n" "$session"
         fi
     done | grep -e '^[0-9]\+$'
@@ -30,7 +37,7 @@ by_display() {
 by_tty() {
     local device="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
-        if [ "$tty" == "$device" ]; then
+        if [ "$tty" = "$device" ]; then
             printf "%d\n" "$session"
         fi
     done | grep -e '^[0-9]\+$'
@@ -40,17 +47,21 @@ by_tty() {
 by_seat() {
     local id="$1"
     "$loginctl" list-sessions -l --no-legend | while read session uid user seat tty; do
-        if [ "$seat" == "$id" ]; then
+        if [ "$seat" = "$id" ]; then
             printf "%d\n" "$session"
         fi
     done | grep -e '^[0-9]\+$'
 }
 
 ## find the session according to $xdisplay
-session=`by_display "$xdisplay_and_screen" || by_display "$xdisplay"`
+session=( `by_display "$xdisplay_and_screen" || by_display "$xdisplay"` )
 
-if [ -z "$session" ]; then
-    printf "Unable to locate session for display: \"%s\"\n" "$xdisplay_and_screen" 1>&2
+if [ "${#session[@]}" -gt 1 ]; then
+    printf "Unable to distinguish the active session for display \"%s\" as multiple are currently active: %s\n" "$xdisplay_and_screen" "${session[*]}"
+    exit 1
+
+elif [ -z "$session" ]; then
+    printf "Unable to locate active session for display \"%s\"\n" "$xdisplay_and_screen" 1>&2
     exit 1
 fi
 
