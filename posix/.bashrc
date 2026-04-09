@@ -116,6 +116,7 @@ esac
 alias info="`type -P info` --vi-keys"
 alias strings="`type -P stringsext || type -P strings`"
 alias strace="`type -P strace` -vitttTs 131072"
+alias ltrace="`type -P ltrace` -CSitttT -n 2 -s 131072"
 alias netstat="`type -P netstat` -W"
 alias z="`type -P zstd`"
 alias clip="`type -P xclip` -sel clip"
