@@ -13,7 +13,11 @@ case "$TERM" in
         PS1+='\[''\033]2;''\u@\H''\007''\]'                     # set the window title to the user and the full hostname
         PS1+='\[''\033]1;''\u''\007''\]'                        # set the window icon to the user
         PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
-        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        if [ "$UID" -gt 0 ]; then
+            PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        else
+            PS1+='\[''\033[1;35m''\]''\u@\h''\[''\033[0m''\]'' '    # root@host in bold purple
+        fi
         PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
         PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
@@ -22,7 +26,11 @@ case "$TERM" in
     screen*)
         PS1+='\[''\033]2;''\H''\007''\]'                        # set the window title to the full hostname
         PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in bold white
-        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        if [ "$UID" -gt 0 ]; then
+            PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        else
+            PS1+='\[''\033[1;35m''\]''\u@\h''\[''\033[0m''\]'' '    # root@host in bold purple
+        fi
         PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
         PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
@@ -30,7 +38,11 @@ case "$TERM" in
     # native terminals
     ansi|linux)
         PS1+='\[''\033[1;37m''\]''[\!]''\[''\033[0m''\]'' '     # command number in white
-        PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in green
+        if [ "$UID" -gt 0 ]; then
+            PS1+='\[''\033[1;32m''\]''\u@\h''\[''\033[0m''\]'' '    # user@host in bold green
+        else
+            PS1+='\[''\033[1;35m''\]''\u@\h''\[''\033[0m''\]'' '    # root@host in bold purple
+        fi
         PS1+='\[''\033[0m''\]''\w\$ '                           # directory and prompt in default
         PS1+='\[''\033K''\]'                                    # clear out everything till the end of line
         ;;
