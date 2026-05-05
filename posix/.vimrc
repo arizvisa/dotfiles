@@ -83,7 +83,13 @@ set nomodeline
 
 "" add ZERO WIDTH SPACE and ZERO WIDTH NO-BREAK SPACE
 if has('digraphs')
-    let digraphs = {'zb': 0x200B, 'zn': 0xFEFF, 'zs': 0x200B}
+    let digraphs = {
+    \   'zb': 0x200B,
+    \   'zn': 0xFEFF,
+    \   'zs': 0x200B,
+    \   '0n': 0x200C,
+    \   '0j': 0x200D,
+    \}
     for doublechar in keys(digraphs)
         execute printf("digraphs %s %d", toupper(doublechar), digraphs[doublechar])
         execute printf("digraphs %s %d", tolower(doublechar), digraphs[doublechar])
