@@ -29,7 +29,7 @@ if [ -z "$filter" ]; then
 fi
 
 if [ -z "$CSPROG" ]; then
-    CSPROG=`type -P gtags || type -P cscope`
+    CSPROG=`type -P cscope || type -P gtags`
 fi
 
 csprog=`basename "$CSPROG"`
