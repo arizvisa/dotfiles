@@ -46,12 +46,18 @@ set blink-matching-paren on
 "\C-o": re-read-init-file
 
 # Display the mode at the beginning of the prompt when using vi-mode in bash(1).
+# XXX: This isn't as useful as I thought it would be, so we guard the option,
+#      "show-mode-in-prompt", behind a dummy-value "default" and set it to "off"
+#      due to "mode" never actually being "default". To enable this, you would
+#      change "default" to "vi".
 $if bash
-    $if mode=vi
+    $if mode=default
         set show-mode-in-prompt on
         set vi-cmd-mode-string "^"
         set vi-ins-mode-string ">"
         set emacs-mode-string "@"
+    $else
+        set show-mode-in-prompt off
     $endif
 $endif
 
