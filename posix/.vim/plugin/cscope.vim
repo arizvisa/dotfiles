@@ -15,8 +15,7 @@
 " CSCOPE_DB is the list of paths to each database file you want to use.
 " if the variable isn't specified, the current directory is checked
 
-" FIXME:
-"        we need to overload the quickfix commands to that we can add locations
+" FIXME: we need to overload the quickfix commands to that we can add locations
 "        to the tagstack. specifically:
 "
 "        * `copen`
@@ -32,6 +31,7 @@ if has("cscope")
     let s:cstype = v:null
     let s:cstype_description = { "gtags-cscope" : "GNU Global", "cscope" : "Cscope" }
     let s:cstype_database = { "gtags-cscope" : "GTAGS", "cscope" : "cscope.out" }
+    let s:cstype_filenames = { "GTAGS": "gtags-cscope", "cscope.out": "cscope" }
 
     let &cscopeverbose=1
 
@@ -178,6 +178,10 @@ if has("cscope")
 
     set cscopetagorder=0
 
+    " pass the environment variable to a script-local variable
+    let s:cscope_db=$CSCOPE_DB
+    let s:cscope_filename=fnamemodify(s:cscope_db, ":t")
+
     " try and find a valid executable for cscope
     if !exists("&cscopeprg") || !filereadable(&cscopeprg)
         call s:warning("The tool specified as &cscopeprg (%s) is either undefined or not found.", &cscopeprg)
@@ -191,6 +195,26 @@ if has("cscope")
             else
                 let s:csprog_types = keys(s:cstype_database)
             endif
+        endif
+
+        call s:information("Searching for a replacement for &cscopeprg: %s", s:csprog_types)
+        for s:csfilename in s:csprog_types
+            let s:cscopeprg = v:null
+            try
+                let s:cscopeprg=s:which(s:csfilename)
+            catch
+                let s:cscopeprg=v:null
+            endtry
+            if s:cscopeprg != v:null | break | endif
+        endfor
+
+    elseif has_key(s:cstype_filenames, s:cscope_filename)
+        let s:csprog_type = s:cstype_filenames[s:cscope_filename]
+
+        if has_key(s:cstype_database, s:csprog_type)
+            let s:csprog_types = [ s:csprog_type ] + keys(s:cstype_database)
+        else
+            let s:csprog_types = keys(s:cstype_database)
         endif
 
         call s:information("Searching for a replacement for &cscopeprg: %s", s:csprog_types)
@@ -239,9 +263,6 @@ if has("cscope")
     if has("win32") && (!exists("$TMPDIR") || empty($TMPDIR))
         let $TMPDIR=$TEMP
     endif
-
-    " pass the environment variable to a local variable
-    let s:cscope_db=$CSCOPE_DB
 
     " if db wasn't specified check current dir for cscope.out
     if empty(s:cscope_db) && filereadable(s:csdatabase)
