@@ -31,4 +31,4 @@ while getopts qnha: OPT; do
 done
 shift `expr "$OPTIND" - 1`
 
-printf "%s/%s/%s%s\n" "$u" "$arch" "$1" "$q" | xargs curl | $strip
+printf "%s/%s/%s%s\n" "$u" "$arch" "$1" "$q" | xargs curl --silent | $strip
