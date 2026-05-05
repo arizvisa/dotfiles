@@ -892,33 +892,34 @@ end
 #        +------  VM  Virtual Mode Flag (386+ only)
 
 define show_flags
-    set variable $_cf   = ($ps& 0x000001)?  "+CF" : "-CF"
-    set variable $_r1   = ($ps& 0x000002)?  " R1" : ""
-    set variable $_pf   = ($ps& 0x000004)?  "+PF" : "-PF"
-    set variable $_r2   = ($ps& 0x000008)?  " R2" : ""
-    set variable $_af   = ($ps& 0x000010)?  "+AF" : "-AF"
-    set variable $_r3   = ($ps& 0x000020)?  " R3" : ""
-    set variable $_zf   = ($ps& 0x000040)?  "+ZF" : "-ZF"
-    set variable $_sf   = ($ps& 0x000080)?  "+SF" : "-SF"
-    set variable $_tf   = ($ps& 0x000100)?  " TF" : ""
-    set variable $_if   = ($ps& 0x000200)?  "+IF" : "-IF"
-    set variable $_df   = ($ps& 0x000400)?  "+DF" : "-DF"
-    set variable $_of   = ($ps& 0x000800)?  "+OF" : "-OF"
-    set variable $_iopl = ($ps& 0x003000)? $sprintf(" IOPL%d",($ps&0x3000)>>0x1000) : ""
-    set variable $_nt   = ($ps& 0x004000)?  " NT" : ""
-    set variable $_r4   = ($ps& 0x008000)?  " R4" : ""
+    set variable $_ps   = (long long)((sizeof($ps) > 4)? $ps & 0xffffffffffffffff : $ps & 0xffffffff)
+    set variable $_cf   = ($_ps & 0x000001)?  "+CF" : "-CF"
+    set variable $_r1   = ($_ps & 0x000002)?  " R1" : ""
+    set variable $_pf   = ($_ps & 0x000004)?  "+PF" : "-PF"
+    set variable $_r2   = ($_ps & 0x000008)?  " R2" : ""
+    set variable $_af   = ($_ps & 0x000010)?  "+AF" : "-AF"
+    set variable $_r3   = ($_ps & 0x000020)?  " R3" : ""
+    set variable $_zf   = ($_ps & 0x000040)?  "+ZF" : "-ZF"
+    set variable $_sf   = ($_ps & 0x000080)?  "+SF" : "-SF"
+    set variable $_tf   = ($_ps & 0x000100)?  " TF" : ""
+    set variable $_if   = ($_ps & 0x000200)?  "+IF" : "-IF"
+    set variable $_df   = ($_ps & 0x000400)?  "+DF" : "-DF"
+    set variable $_of   = ($_ps & 0x000800)?  "+OF" : "-OF"
+    set variable $_iopl = ($_ps & 0x003000)? $sprintf(" IOPL%d",($_ps&0x3000)>>0x1000) : ""
+    set variable $_nt   = ($_ps & 0x004000)?  " NT" : ""
+    set variable $_r4   = ($_ps & 0x008000)?  " R4" : ""
 
     ## eflags
-    set variable $_rf   = ($ps& 0x010000)?  " RF" : ""
-    set variable $_vm   = ($ps& 0x020000)?  " VM" : ""
-    set variable $_ac   = ($ps& 0x040000)?  " AC" : ""
-    set variable $_vif  = ($ps& 0x080000)?  " VIF": ""
-    set variable $_vip  = ($ps& 0x100000)?  " VIP": ""
-    set variable $_id   = ($ps& 0x200000)?  " ID" : ""
-    set variable $_ereserved = (($ps >> 16+6) & 0x3ff)? $sprintf(" R<eflags>=0x%03x", ($ps >> 16+6) & 0x3ff) : ""
+    set variable $_rf   = ($_ps & 0x010000)?  " RF" : ""
+    set variable $_vm   = ($_ps & 0x020000)?  " VM" : ""
+    set variable $_ac   = ($_ps & 0x040000)?  " AC" : ""
+    set variable $_vif  = ($_ps & 0x080000)?  " VIF": ""
+    set variable $_vip  = ($_ps & 0x100000)?  " VIP": ""
+    set variable $_id   = ($_ps & 0x200000)?  " ID" : ""
+    set variable $_ereserved = (($_ps >> 16+6) & 0x3ff)? $sprintf(" R<eflags>=0x%03x", ($_ps >> 16+6) & 0x3ff) : ""
 
-    ## rflags
-    set variable $_rreserved = (($ps >> 32) & 0xffffffff)? $sprintf(" R<rflags>=0x%08x", ($ps >> 32) & 0xffffffff) : ""
+    ## rflags (upper 64-bits are not supported by gdb)
+    set variable $_rreserved = (($_ps >> 32) & 0xffffffff)? $sprintf(" R<rflags>=0x%08x", ($_ps >> 32) & 0xffffffff) : ""
     emit $sprintf("[flags: %s %s %s %s %s %s %s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_pf, $_af, $_if, $_tf, $_nt, $_rf, $_vm, $_ac, $_vif, $_vip, $_id, $_iopl, $_r1, $_r2, $_r3, $_r4, $_ereserved, $_rreserved)
 end
 
