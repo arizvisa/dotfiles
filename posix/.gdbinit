@@ -1309,7 +1309,7 @@ set pagination off
 set dump-excluded-mappings on
 set multiple-symbols all
 set debug threads off
-set debug entry-values 1
+set debug entry-values 0
 set debug skip on
 
 set ada print-signatures on
