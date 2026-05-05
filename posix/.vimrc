@@ -285,6 +285,10 @@ if has("eval")
             let l:items = getline(".", a:count - 1 + line("."))
             return a:count? join([""] + l:items + [""], "\n") : "\n"
         endfunction
+        function! <SID>normalgithublines(count)
+            let l:line = line(".")
+            return v:count > 1? printf("L%d-L%d", l:line, a:count - 1 + l:line) : l:line
+        endfunction
 
         "" (functions) copy current location and any lines if a range is given
         function! <SID>visuallines()
@@ -307,6 +311,10 @@ if has("eval")
             endif
             return join([""] + l:items + [""], "\n")
         endfunction
+        function! <SID>visualgithublines()
+            let [l:start, l:stop] = [line("'<"), line("'>")]
+            return l:start == l:stop? l:start : printf("L%d-L%d", l:start, l:stop)
+        endfunction
 
         " Copy current path, filename (relative), location (line number), or
         " the location with code to the x-selection and clipboard registers.
@@ -321,6 +329,10 @@ if has("eval")
         xnoremap <silent> <Leader>cl :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines()<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
         xnoremap <silent> <Leader>cc :<C-U>let @"=<SID>normalpath(expand('%:.')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
         xnoremap <silent> <Leader>cp :<C-U>let @"=<SID>normalpath(expand('%:~')) . ':' . <SID>visuallines() . <SID>visualtext(visualmode())<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+
+        " Do it again, but for generating paths conforming to GitHub permalinks.
+        noremap <silent> <Leader>cg <Cmd>let @"=<SID>normalpath(expand('%:.')) . '#' . <SID>normalgithublines(v:count)<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
+        xnoremap <silent> <Leader>cg :<C-U>let @"=<SID>normalpath(expand('%:.')) . '#' . <SID>visualgithublines()<CR><Cmd>let @+=@"<CR><Cmd>let @*=@"<CR>
 
     unlet g:mapleader
 
