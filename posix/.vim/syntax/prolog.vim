@@ -322,6 +322,8 @@ syntax match prologNumber contained '[-+]\=\<\d\+r\d\+\>'
 syntax match prologNumber contained '[-+]\=\<\d\+[eE][-+]\=\d\+\>'
 syntax match prologNumber contained '[-+]\=\<\d\+\.\d\+[eE][-+]\=\d\+\>'
 syntax match prologNumber contained "[-+]\=\<0'[\\]\?."
+syntax match prologNumber contained "[-+]\=\<0'[\\]u[0-9A-Fa-f]\{4\}"
+syntax match prologNumber contained "[-+]\=\<0'[\\]U[0-9A-Fa-f]\{8\}"
 syntax match prologNumber contained '[-+]\=\<0b[0-1]\+\>'
 syntax match prologNumber contained '[-+]\=\<0o\o\+\>'
 syntax match prologNumber contained '[-+]\=\<0x\x\+\>'
