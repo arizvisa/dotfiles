@@ -1343,6 +1343,9 @@ set print pretty on
 
 set max-completions 32
 
+## script-related
+add-auto-load-safe-path .
+
 ## tui
 set tui border-kind ascii
 set tui border-mode half
@@ -1355,8 +1358,16 @@ tui window height src 16
 tui focus cmd
 tui disable
 
-## utility scripts
+### utility scripts
 #guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
+#guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/share/doc/python2.7/gdbinit")
 #guile ((lambda (script) (if (file-exists? script) (execute (format #f "source ~s" script) #t #t))) "/usr/share/doc/python3-devel/gdbinit")
-python (lambda filename: __import__('os.path').path.exists(filename) and gdb.execute("source {:s}".format(filename)))("/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
-python (lambda filename: __import__('os.path').path.exists(filename) and gdb.execute("source {:s}".format(filename)))("/usr/share/doc/python3-devel/gdbinit")
+
+## python stuff
+#python (lambda os, filename: os.path.exists(filename) and gdb.execute("source {:s}".format(filename)))(__import__('os.path'), "/usr/share/doc/python2.7/gdbinit")
+#python (lambda os, filename: os.path.exists(filename) and gdb.execute("source {:s}".format(filename)))(__import__('os.path'), "/usr/local/lib/python2.7/dist-packages/exploitable-1.32-py2.7.egg/exploitable/exploitable.py")
+python (lambda os, filename: os.path.exists(filename) and gdb.execute("source {:s}".format(filename)))(__import__('os.path'), "/usr/share/doc/python3-devel/gdbinit")
+
+## in case "add-auto-load-safe-path" doesn't execute ".gdbinit".
+#python (lambda os, filename: os.path.dirname(os.path.abspath(filename)) != os.path.abspath(os.path.expanduser("~")) and os.path.exists(filename) and gdb.execute("source {:s}".format(filename)))(__import__('os.path'), "./.gdbinit")
+python (lambda os, filename: os.path.exists(filename) and gdb.execute("source {:s}".format(filename)))(__import__('os.path'), __import__('os.path').path.expanduser("~/.gdbinit.local"))
