@@ -6,7 +6,7 @@ pf=`env | grep -E "^ProgramFiles=" | cut -d= -f2- | xargs cygpath -u`
 launch_services="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework"
 lsregister="${launch_services}/Versions/A/Support/lsregister"
 
-IFS= read windows < <( ls -1 "$pf_x86"/Vim/vim*/{g,}vim.exe "$pf_x86"/Vim/{g,}vim.exe "$pf"/Vim/vim*/{g,}vim.exe "$pf"/Vim/{g,}vim.exe 2>/dev/null )
+IFS= read windows < <( ls -1 "$pf_x86"/Vim/vim*/{g,}vim.exe "$pf_x86"/Vim/{g,}vim.exe "$pf"/Vim/vim*/{g,}vim.exe "$pf"/Vim/{g,}vim.exe /usr/bin/{g,}vim.exe 2>/dev/null )
 
 ## determine which program to run
 case "$platform" in
