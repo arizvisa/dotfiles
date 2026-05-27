@@ -266,6 +266,10 @@ syntax keyword prologLibrary_clpfd_domain contained fd_var fd_inf fd_sup fd_size
 syntax cluster prologLibrary add=prologLibrary_clpfd_domain
 syntax keyword prologLibrary_clpfd_fdset contained fd_set is_fdset empty_fdset fdset_parts empty_interval fdset_interval fdset_singleton fdset_min fdset_max fdset_size list_to_fdset fdset_to_list range_to_fdset fdset_to_range fdset_add_element fdset_del_element fdset_disjoint fdset_intersect fdset_intersection fdset_member fdset_eq fdset_subset fdset_subtract fdset_union fdset_union fdset_complement
 syntax cluster prologLibrary add=prologLibrary_clpfd_fdset
+syntax keyword prologLibrary_heap contained add_to_heap delete_from_heap empty_heap singleton_heap get_from_heap heap_size heap_to_list is_heap list_to_heap min_of_heap min_of_heap merge_heaps
+syntax cluster prologLibrary add=prologLibrary_heap
+syntax keyword prologLibrary_engine contained engine_create engine_destroy engine_next engine_next_reified engine_post engine_post engine_yield engine_fetch engine_self is_engine current_engine
+syntax cluster prologLibrary add=prologLibrary_engine
 
 highlight link prologLibrary_qualified  prologLibrary
 highlight link prologLibrary_lists prologLibrary
@@ -294,6 +298,8 @@ highlight link prologLibrary_main prologLibrary
 highlight link prologLibrary_clpfd prologLibrary
 highlight link prologLibrary_clpfd_domain prologLibrary
 highlight link prologLibrary_clpfd_fdset prologLibrary
+highlight link prologLibrary_heap prologLibrary
+highlight link prologLibrary_engine prologLibrary
 
 " prolog.vim has no idea what an atom is apparently.
 "syn region prologAtom start='\w' end='\>'
