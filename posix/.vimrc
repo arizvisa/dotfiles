@@ -7,6 +7,11 @@ set fileformats=unix,dos
 set formatoptions=jtnbc
 set display=lastline,uhex
 
+" appending to a register (upper) adds a newline, and changing a line uses
+" overwrite rather than removing the text being replaced.
+set cpoptions=aABceFsz
+set cpoptions+=>$
+
 "" specify the default temp directory for swap files (overwritten when +eval)
 set directory=$TMP,$TMPDIR
 
@@ -26,6 +31,7 @@ set textwidth=80
 set nostartofline
 set nofixendofline
 
+"" search-related
 set noincsearch
 set hlsearch
 set visualbell
