@@ -1017,6 +1017,37 @@ define h
     end
 end
 
+define hsrc
+    # start by displaying some number of frames from the backtrace.
+    if $argc > 1
+        eval "backtrace %d", ($arg1 < 1)? 1 : $arg1
+    else
+        backtrace 6
+    end
+
+    # if we were given a parameter, then we will use it as the number of lines
+    # of code to display from the current address.
+    if $argc > 0
+
+        # start by grabbing the current list size to preserve it so that we can
+        # temporarily assign a new one and restore it right afterwards.
+        python gdb.execute("set ${:s} = {:#x}".format('_gdb_listsize', gdb.parameter('listsize')))
+
+        # now we can temporarily assign a new one, list the specified number of
+        # lines from the code, and then restore the original list size.
+        eval "set listsize %d", ($arg0 < 1)? 1 : $arg0
+        list *$pc
+        eval "set listsize %d", $_gdb_listsize
+
+        # last thing to do is to unset the temporary variable that we used.
+        set $_gdb_listsize = (void)-1
+    else
+        list *$pc
+    end
+
+    info line
+end
+
 ### shortcuts
 define maps
     info proc mappings
