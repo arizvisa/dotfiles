@@ -131,7 +131,7 @@ alias strace="`type -P strace` -vitttTs 131072"
 alias ltrace="`type -P ltrace` -CSitttT -n 2 -s 131072"
 alias netstat="`type -P netstat` -W"
 alias z="`type -P zstd`"
-alias clip="`type -P xclip` -sel clip"
+alias clip="`type -P xclip` -sel clip -filter"
 alias readelf="readelf -W"
 
 # figure out the pager and default parameters to use
