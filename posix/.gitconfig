@@ -31,6 +31,9 @@
     colorMoved = plain
     mnemonicPrefix = true
 
+[safe]
+    directory = *
+
 [fetch]
     all = true
 
