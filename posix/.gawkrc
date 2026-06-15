@@ -116,3 +116,38 @@ function joinfields(sep, start, stop, step,      array, string, idx)
         string = string sep array[idx]
     return string
 }
+
+# urldecode.awk --- decode the specified url
+function decodeurl(url,                     code, replacement) {
+    for (code = 0x20; code < 0x40; ++code) {
+        replacement = sprintf("%c", code);
+        if ((replacement == "&") || (replacement == "\\")) {
+            replacement = "\\" replacement;
+        }
+        url = gensub(sprintf("%%%02X", code), replacement, "g", url);
+        url = gensub(sprintf("%%%02x", code), replacement, "g", url);
+    }
+    return url;
+}
+
+# just a table for converting characters to their codes
+BEGIN {
+    for (code = 0; code < 0x100; code++) {
+        ord[sprintf("%c", code)] = code;
+    }
+    code = "";
+}
+
+# urlencode.awk --- encode the string as a url
+function encodeurl(string,                  position, char, res)
+{
+    res = ""
+    for (position = 1; position <= length(string); position++) {
+        char = substr(string, position, 1);
+        if (char ~ /[-a-zA-Z0-9@:%._\+~#=]/)
+            res = res char;
+        else
+            res = res "%" sprintf("%02X", ord[char]);
+    }
+    return res
+}
