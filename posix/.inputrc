@@ -13,7 +13,7 @@ set convert-meta off
 set expand-tilde off
 
 # Mark any history items that have been modified from their previous value.
-set mark-modified-lines on
+#set mark-modified-lines on
 
 # Display file completions with color for the file type.
 set colored-stats on
