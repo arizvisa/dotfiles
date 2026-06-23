@@ -1,0 +1,23 @@
+#!/usr/bin/gawk -f
+BEGIN {
+    skip = (skip == "")? 0 : skip;
+}
+
+FNR <= skip { next; }
+
+{
+    if (NF > count)
+        count = NF;
+
+    for (i = 1; i <= NF; i++) {
+        if (length($i) > fields[i]) {
+            fields[i] = length($i);
+        }
+    }
+}
+
+END {
+    for (i = 1; i <= count; i++) {
+        printf "%s%s", (fields[i] + 0), (i < count ? OFS : ORS);
+    }
+}
