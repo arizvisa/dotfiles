@@ -1,0 +1,28 @@
+#!/usr/bin/gawk -f
+BEGIN {
+    gap = sprintf("%*s", (sep < 1)? 1 : sep, "");
+    count = 0;
+}
+
+# read columns from the first file or line.
+NR == FNR {
+    for (i = 1; i <= NF; i++) {
+        columns[++count] = $i + 0;
+    }
+    next;
+}
+
+FNR <= skip { next }
+
+{
+    line = "";
+    for (i = 1; i <= NF; i++) {
+        width = (i <= count)? columns[i] : length($i);
+
+        line = line sprintf("%-*s", width, $i);
+        if (i < NF) {
+            line = line gap;
+        }
+    }
+    print line;
+}
