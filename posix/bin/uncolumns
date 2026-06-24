@@ -1,0 +1,32 @@
+#!/usr/bin/gawk -f
+BEGIN {
+    if (sep == "") {
+        sep = 1;
+    }
+    count = 0
+}
+
+# read columns from the first file or line.
+NR == FNR {
+    for (i = 1; i <= NF; i++) {
+        columns[++count] = $i + 0;
+    }
+    next;
+}
+
+FNR <= skip { next; }
+
+{
+    out = ""
+    pos = 1;
+    for (i = 1; i <= count; i++) {
+        field = substr($0, pos, columns[i]);
+        sub(/ +$/, "", field); # strip trailing whitespace
+        out = out field;
+        if (i < count) {
+            out = out OFS;
+        }
+        pos += columns[i] + sep;
+    }
+    print out;
+}
