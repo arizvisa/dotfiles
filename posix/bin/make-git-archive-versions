@@ -1,0 +1,9 @@
+#!/usr/bin/gawk -f
+
+# only select input lines containing numbers
+/[0-9]/ {
+    dottednumeric = gensub(/[^0-9.]/, "", "g", $0);
+    singledotted = gensub(/\.+/, ".", "g", dottednumeric);
+    version = gensub(/\.+$/, "", "g", singledotted);
+    print $0, version;
+}

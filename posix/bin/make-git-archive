@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ARG0=`basename "$0"`
+
+if [ $# -lt 1 ] || [ "$#" -gt 2 ] || tty -s; then
+    printf 'Usage: %s repository-directory < input.tsv\n' "$ARG0" >&2
+    exit 22 # EINVAL
+fi
+
+REPOSITORY="$1"
+shift
+
+# make the repository path absolute.
+repository=`realpath "$REPOSITORY"`
+trash=( gio trash )
+
+# create the repo and initialize it.
+mkdir -p "$REPOSITORY"
+git -C "$REPOSITORY" init -q
+git -C "$REPOSITORY" symbolic-ref HEAD refs/heads/main
+
+# reset the working directory by putting everything in the trash.
+clear_worktree()
+{
+    if [ "${repository:-}" = '' ]; then
+        printf '%s: Missing repository directory\n' "$ARG0" >&2
+        exit 22 # EINVAL
+    fi
+    find "$repository" -mindepth 1 -maxdepth 1 ! -name .git -exec "${trash[@]}" {} +
+}
+
+# extract the specified archive into a temporary directory.
+extract_archive()
+{
+    local archive="$1"
+
+    local work=`mktemp -d`
+    trap "${trash[*]} '$work'" RETURN
+
+    case "$archive" in
+        *.zip)
+            unzip -q "$archive" -d "$work" ;;
+        *.tar.gz|*.tgz)
+            tar -xzf "$archive" -C "$work" ;;
+        *.tar.bz2|*.tbz2)
+            tar -xjf "$archive" -C "$work" ;;
+        *.tar.xz|*.txz)
+            tar -xJf "$archive" -C "$work" ;;
+        *.tar)
+            tar -xf  "$archive" -C "$work" ;;
+        *.tar.*)
+            tar -xaf "$archive" -C "$work" ;;
+        *)
+            printf '%s: Unknown archive type: %s\n' "$ARG0" "$archive" >&2
+            return 95   # ENOTSUP
+        ;;
+    esac
+
+    local -a entries=( "$work"/* )
+    if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
+        mv "${entries[0]}"/* "$repository"/
+    else
+        mv "$work"/* "$repository"/
+    fi
+}
+
+# loop through input file making a commit for each line.
+while read -r archive version; do
+    [ -z "${archive// }" ] && continue
+
+    if [ ! -f "$archive" ]; then
+        printf '%s: Archive not found: %s\n' "$ARG0" "$archive" >&2
+        exit 2  # ENOENT
+
+    elif [ ! -r "$archive" ]; then
+        printf '%s: Archive not readable: %s\n' "$ARG0" "$archive" >&2
+        exit 5  # EIO
+    fi
+
+    # figure out the inputs...
+    name=`basename "$archive"`
+    printf -v message '%s (%s)' "$name" "$version"
+
+    # reset and extract the files from the archive.
+    clear_worktree
+    extract_archive "$archive"
+
+    # add all files to a new commit and write it.
+    git -C "$repository" add -A
+    git -C "$repository" commit -q --allow-empty -m "$message"
+
+    # tag the commit that we just made.
+    git -C "$repository" tag "$version"
+    git -C "$repository" tag "$name"
+
+    # status.
+    printf 'commit %s (%s)\n' "$name" "$version"
+
+done < <( sort -k2,2V )
+
+# display our results.
+count=`git -C "$repository" tag | wc -l`
+printf '%s: %d versions imported into %s.\n' "$ARG0" "$count" "$repository" >&2
