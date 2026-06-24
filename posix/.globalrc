@@ -1,8 +1,5 @@
 default:\
-	:tc=plugins:
-
-plugins:\
-	:tc=new-ctags:
+	:tc=pygments:
 
 ctags:\
 	:tc=exuberant-ctags:
