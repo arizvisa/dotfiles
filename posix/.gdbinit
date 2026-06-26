@@ -1288,6 +1288,188 @@ class running(uses_an_address):
 breakpoints.register(), running.register()
 end
 
+# thanks, claude.
+python
+import gdb
+
+# Mnemonics that indicate a call. Architecture-spanning set; extend as needed.
+CALL_MNEMONICS = (
+    # x86 / x86-64
+    "call", "callq", "lcall",
+    # ARM / AArch64
+    "bl", "blx", "blr",
+    # MIPS
+    "jal", "jalr", "bal",
+    # PowerPC
+    "bctrl", "blrl",
+    # RISC-V (jal/jalr with link register; pseudo "call" also emitted by some disassemblers)
+)
+
+# Branch/jump mnemonics. We treat anything that can redirect control flow
+# (conditional or unconditional) as a branch. Calls are a subset of branches,
+# but stepbranch stops on plain branches too.
+BRANCH_PREFIXES = (
+    # x86 / x86-64: jmp, je, jne, jg, jl, jbe, jae, loop, etc.
+    "jmp", "j",          # 'j' prefix covers jcc family; filtered below
+    "loop",
+    # ARM / AArch64
+    "b", "bl", "blx", "br", "blr", "cbz", "cbnz", "tbz", "tbnz",
+    # MIPS / PPC / RISC-V
+    "beq", "bne", "bgt", "blt", "bge", "ble", "bal",
+    "bctr", "bctrl", "bx",
+)
+
+# Return / function-exit mnemonics.
+RETURN_MNEMONICS = (
+    # x86 / x86-64
+    "ret", "retq", "retf", "lret", "iret", "iretq", "iretd", "sysret", "sysexit",
+    # ARM (AArch32 uses 'bx lr' or pop pc; AArch64 has a dedicated 'ret')
+    "ret", "eret",
+    # MIPS — return is 'jr $ra'; we special-case below since 'jr' alone isn't
+    #        always a return. Listed for completeness via the predicate.
+    # PowerPC
+    "blr", "rfi",
+    # RISC-V — return is 'ret' (pseudo for 'jalr x0, x1, 0')
+    # SPARC
+    "retl", "return",
+)
+
+
+def current_mnemonic():
+    """Return the lowercased mnemonic of the instruction at $pc, or None."""
+    frame = gdb.selected_frame()
+    pc = frame.pc()
+    arch = frame.architecture()
+    insn = arch.disassemble(pc)[0]
+    text = insn["asm"].strip()
+    if not text:
+        return None
+    # The mnemonic is the first whitespace-delimited token.
+    return text.split()[0].lower()
+
+def current_insn_text():
+    """Return the full disassembled text of the instruction at $pc, or ''."""
+    frame = gdb.selected_frame()
+    pc = frame.pc()
+    insn = frame.architecture().disassemble(pc)[0]
+    return insn["asm"].strip()
+
+
+def is_call(mnemonic):
+    if mnemonic is None:
+        return False
+    return mnemonic in CALL_MNEMONICS
+
+
+def is_branch(mnemonic):
+    """True for any control-flow redirect (branches, jumps, and calls)."""
+    if mnemonic is None:
+        return False
+    if is_call(mnemonic):
+        return True
+    # Direct membership check first.
+    if mnemonic in BRANCH_PREFIXES:
+        return True
+    # x86 conditional jumps: je, jne, jg, jle, jae, jnz, ... all start with 'j'
+    # but exclude 'jmp' (already covered) — every 'j*' on x86 is a branch.
+    if mnemonic.startswith("j"):
+        return True
+    # ARM conditional branches like b.eq, b.ne, b.gt ...
+    if mnemonic.startswith("b.") or mnemonic == "b":
+        return True
+    return False
+
+
+def is_return(mnemonic):
+    """True for instructions that return from the current function.
+
+    Note: 'ret' on most ISAs is unambiguous. MIPS/AArch32 returns are
+    register-indirect jumps ('jr $ra', 'bx lr', 'mov pc, lr', 'pop {..,pc}'),
+    which we detect from the full instruction text rather than the mnemonic
+    alone — see the text-based fallback below.
+    """
+    if mnemonic is None:
+        return False
+    return mnemonic in RETURN_MNEMONICS
+
+
+def is_return_insn(mnemonic, full_text):
+    """Combine mnemonic check with text heuristics for register-indirect
+    returns that share a mnemonic with ordinary jumps."""
+    if is_return(mnemonic):
+        return True
+    t = full_text.lower()
+    # MIPS: jr $ra
+    if mnemonic == "jr" and ("$ra" in t or "ra" == t.split()[-1].lstrip("$")):
+        return True
+    # AArch32: bx lr / mov pc, lr
+    if mnemonic == "bx" and "lr" in t:
+        return True
+    if mnemonic in ("mov", "movs") and t.replace(" ", "").endswith("pc,lr"):
+        return True
+    # ARM/Thumb: pop {..., pc}  (popping into PC is a return)
+    if mnemonic in ("pop", "ldm", "ldmia", "ldmfd") and "pc" in t:
+        return True
+    return False
+
+
+class StepUntil(gdb.Command):
+    """Base: single-step instructions until a predicate is true.
+
+    Stops *on* the matching instruction (i.e. $pc points at the
+    call/branch/ret, which has not yet executed), so you can inspect
+    operands, return values, and the stack before stepping into it.
+    """
+
+    def __init__(self, name, predicate, label):
+        super().__init__(name, gdb.COMMAND_RUNNING)
+        # predicate is called as predicate(mnemonic, full_text)
+        self._predicate = predicate
+        self._label = label
+
+    def _matches(self):
+        mnem = current_mnemonic()
+        text = current_insn_text()
+        return self._predicate(mnem, text)
+
+    def invoke(self, arg, from_tty):
+        # Optional safety cap so a runaway loop doesn't hang the session.
+        # Pass an integer argument to override (e.g. `stepcall 1000000`).
+        max_steps = 5_000_000
+        if arg.strip():
+            try:
+                max_steps = int(arg.strip(), 0)
+            except ValueError:
+                raise gdb.GdbError("argument must be an integer step cap")
+
+        # If we're already sitting on a matching instruction, step off it first
+        # so the command makes forward progress on repeated invocations.
+        if self._matches():
+            gdb.execute("stepi", to_string=True)
+
+        steps = 0
+        while steps < max_steps:
+            if self._matches():
+                frame = gdb.selected_frame()
+                pc = frame.pc()
+                insn = current_insn_text()
+                gdb.write(f"Stopped at {self._label}: 0x{pc:x}\t{insn}\n")
+                gdb.execute("x/i $pc")
+                return
+            gdb.execute("stepi", to_string=True)
+            steps += 1
+
+        raise gdb.GdbError(
+            f"step cap ({max_steps}) reached without finding a {self._label}"
+        )
+
+
+# Wrap the simpler predicates so they all share the (mnemonic, text) signature.
+StepUntil("tillcall",   lambda m, t: is_call(m),            "call")
+StepUntil("tillbranch", lambda m, t: is_branch(m),          "branch")
+StepUntil("tillreturn",    lambda m, t: is_return_insn(m, t),  "return")
+end
+
 ### defaults
 
 ## aliases
@@ -1295,6 +1477,14 @@ alias -- g = go
 alias -- h32 = here32
 alias -- h64 = here64
 alias -- ps = info inferiors
+
+# clause stuff
+alias -- tcall = tillcall
+alias -- tbranch = tillbranch
+alias -- treturn = tillreturn
+alias -- ph = tillbranch
+alias -- pc = tillcall
+alias -- tr = tillreturn
 
 ## registers ($ps)
 set variable $cf = 1 << 0
