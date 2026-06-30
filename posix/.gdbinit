@@ -1492,6 +1492,604 @@ class StepUntil(workspace):
     EXPORTS = {item for item in itertools.chain(commands, functions)}
 
 StepUntil.register()
+
+import operator, itertools, functools, math
+class IntelDisassembler(workspace):
+    """
+    Backward disassembler for GDB (32-bit and 64-bit Intel).
+
+    Usage:
+        lengths = IntelDisassembler.backwardlength(address, count=5)
+        chains = IntelDisassembler.candidates(address, depth=3)
+
+        for score, chain in IntelDisassembler.candidates(address, depth=3):
+            ...
+        IntelDisassembler.mode = 32
+    """
+
+    # Set to 32 or 64 to override auto-detection
+    mode = None
+
+    # Maximum instruction size
+    maximum = 15
+
+    # --- One-byte opcode map: (has_modrm, imm_kind) ----------------------
+
+    ONEBYTE = {}
+
+    # ALU families: ADD, OR, ADC, SBB, AND, SUB, XOR, CMP
+    for _base in (0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38):
+        for _i, _kind in ((0, 'none'), (1, 'none'), (2, 'none'), (3, 'none'),
+                          (4, 'ib'), (5, 'iz')):
+            ONEBYTE[_base + _i] = (_i < 4, _kind)
+    del _base, _i, _kind
+
+    # INC/DEC r (32-bit), PUSH/POP r, PUSHA, POPA
+    for _op in range(0x40, 0x62):
+        ONEBYTE[_op] = (False, 'none')
+
+    ONEBYTE[0x68] = (False, 'iz')
+    ONEBYTE[0x69] = (True, 'iz')
+    ONEBYTE[0x6A] = (False, 'ib')
+    ONEBYTE[0x6B] = (True, 'ib')
+
+    # Jcc rel8
+    for _op in range(0x70, 0x80):
+        ONEBYTE[_op] = (False, 'ib')
+
+    ONEBYTE[0x80] = (True, 'ib')
+    ONEBYTE[0x81] = (True, 'iz')
+    ONEBYTE[0x83] = (True, 'ib')
+
+    # TEST, XCHG, MOV variants, MOV sreg, LEA, POP r/m
+    for _op in range(0x84, 0x90):
+        ONEBYTE[_op] = (True, 'none')
+
+    # NOP, XCHG eAX/r
+    for _op in range(0x90, 0x98):
+        ONEBYTE[_op] = (False, 'none')
+
+    # CWDE, CDQ, PUSHF, POPF, SAHF, LAHF
+    for _op in [0x98, 0x99, 0x9C, 0x9D, 0x9E, 0x9F]:
+        ONEBYTE[_op] = (False, 'none')
+
+    # MOV AL/eAX moffs variants
+    for _op in [0xA0, 0xA2]:
+        ONEBYTE[_op] = (False, 'ib')
+    for _op in [0xA1, 0xA3]:
+        ONEBYTE[_op] = (False, 'iz')
+
+    ONEBYTE[0xA8] = (False, 'ib')
+    ONEBYTE[0xA9] = (False, 'iz')
+
+    # MOV r8, imm8
+    for _op in range(0xB0, 0xB8):
+        ONEBYTE[_op] = (False, 'ib')
+
+    # MOV r, imm
+    for _op in range(0xB8, 0xC0):
+        ONEBYTE[_op] = (False, 'iq')
+
+    # Shift r/m, imm8
+    for _op in [0xC0, 0xC1]:
+        ONEBYTE[_op] = (True, 'ib')
+
+    ONEBYTE[0xC2] = (False, 'iw')
+    ONEBYTE[0xC6] = (True, 'ib')
+    ONEBYTE[0xC7] = (True, 'iz')
+    ONEBYTE[0xCD] = (False, 'ib')
+
+    # RET, ENTER, LEAVE, INT3, IRET
+    for _op in [0xC3, 0xC8, 0xC9, 0xCC, 0xCF]:
+        ONEBYTE[_op] = (False, 'none')
+
+    # Shift/rotate r/m by 1 or CL
+    for _op in range(0xD0, 0xD4):
+        ONEBYTE[_op] = (True, 'none')
+
+    # LOOPNE, LOOPE, LOOP, JECXZ, IN imm8, OUT imm8
+    for _op in range(0xE0, 0xE8):
+        ONEBYTE[_op] = (False, 'ib')
+
+    # CALL rel32, JMP rel32
+    for _op in [0xE8, 0xE9]:
+        ONEBYTE[_op] = (False, 'iz')
+
+    ONEBYTE[0xEB] = (False, 'ib')
+
+    # IN/OUT via DX
+    for _op in range(0xEC, 0xF0):
+        ONEBYTE[_op] = (False, 'none')
+
+    # Group 3 — imm depends on ModR/M reg field
+    ONEBYTE[0xF6] = ('grp3_8', None)
+    ONEBYTE[0xF7] = ('grp3_v', None)
+
+    # ICEBP, HLT, CMC, CLC, STC, CLI, STI, CLD, STD
+    for _op in [0xF1, 0xF4, 0xF5, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD]:
+        ONEBYTE[_op] = (False, 'none')
+
+    # INC/DEC r/m, indirect CALL/JMP/PUSH
+    for _op in [0xFE, 0xFF]:
+        ONEBYTE[_op] = (True, 'none')
+
+    del _op
+
+    # --- Two-byte opcode map (0F xx) --------------------------------------
+
+    TWOBYTE = {}
+
+    # Jcc rel32
+    for _op in range(0x80, 0x90):
+        TWOBYTE[_op] = (False, 'iz')
+
+    # SETcc r/m8
+    for _op in range(0x90, 0xA0):
+        TWOBYTE[_op] = (True, 'none')
+
+    # PUSH/POP FS/GS, CPUID
+    for _op in [0xA0, 0xA1, 0xA2, 0xA8, 0xA9]:
+        TWOBYTE[_op] = (False, 'none')
+
+    # BT, BTS, BTR, BTC, CMPXCHG, MOVZX, MOVSX, BSF, BSR, XADD, IMUL
+    for _op in [0xA3, 0xAB, 0xAF, 0xB0, 0xB1, 0xB3,
+                0xB6, 0xB7, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+                0xC0, 0xC1]:
+        TWOBYTE[_op] = (True, 'none')
+
+    # BT/BTS/BTR/BTC r/m, imm8
+    TWOBYTE[0xBA] = (True, 'ib')
+
+    # BSWAP r
+    for _op in range(0xC8, 0xD0):
+        TWOBYTE[_op] = (False, 'none')
+
+    del _op
+
+    # --- Other constants --------------------------------------------------
+
+    LEGACY = frozenset([0xF0, 0xF2, 0xF3, 0x2E, 0x36, 0x3E, 0x26, 0x64, 0x65])
+
+    BRANCH_REL32 = frozenset([0xE8, 0xE9])
+    BRANCH_REL8  = frozenset([0xEB] + list(range(0x70, 0x80)))
+
+    # --- Integer decoding -------------------------------------------------
+
+    @classmethod
+    def decode_unsigned(cls, data, offset, size):
+        """Decode a little-endian unsigned integer from bytearray."""
+        bytes = bytearray(data[offset : offset + size])
+        Faggregate = lambda carry, octet: carry * 0x100 + octet
+        return functools.reduce(Faggregate, bytes[::-1], 0)
+
+    @classmethod
+    def decode_signed(cls, data, offset, size):
+        """Decode a little-endian signed integer from bytearray."""
+        unsigned = cls.decode_unsigned(data, offset, size)
+        sign_bit = pow(2, 8 * size - 1)
+        if unsigned & sign_bit:
+            return unsigned - 2 * sign_bit
+        return unsigned
+
+    @classmethod
+    def _read_signed(cls, data, offset, size):
+        return None if offset is None or size == 0 else cls.decode_signed(data, offset, size)
+
+    # --- Mode detection ---------------------------------------------------
+
+    @classmethod
+    def get_mode(cls):
+        try:
+            res = getattr(cls, 'mode', None)
+            if res is None:
+                raise AttributeError
+            return res
+
+        except AttributeError:
+            pass
+
+        # ask gdb for the architecture word size
+        try:
+            architecture = gdb.selected_frame().architecture()
+            name = architecture.name().lower()
+            if '64' in name or 'amd64' in name:
+                return 64
+            return 32
+
+        except (gdb.error, RuntimeError):
+            pass
+
+        # ask python for the architecture word size
+        return 64 if math.log2(2 * sys.maxsize) > 32 else 32
+
+    # --- Operand extraction -----------------------------------------------
+
+    @classmethod
+    def immediate(cls, kind, opsize16, rex_w):
+        if kind == 'none': return 0
+        if kind == 'ib':   return 1
+        if kind == 'iw':   return 2
+        if kind == 'iz':   return 2 if opsize16 else 4
+        if kind == 'iv':   return 2 if opsize16 else (8 if rex_w else 4)
+        if kind == 'iq':   return 8 if rex_w else (2 if opsize16 else 4)
+        return 0
+
+    @classmethod
+    def operands(cls, data, start, length, mode=None):
+        if mode is None:
+            mode = cls.get_mode()
+
+        p = start
+        end = start + length
+        opsize16 = False
+        rex_w = False
+
+        while p < end:
+            b = data[p]
+            if b in cls.LEGACY:
+                p += 1
+            elif b == 0x66:
+                opsize16 = True; p += 1
+            elif b == 0x67:
+                p += 1
+            elif mode == 64 and 0x40 <= b <= 0x4F:
+                rex_w = bool(b & 8); p += 1
+            else:
+                break
+
+        if p >= end:
+            return None
+
+        opcode = data[p]; p += 1
+        opcode_map = 1
+
+        if opcode == 0x0F:
+            if p >= end:
+                return None
+            opcode = data[p]; p += 1
+            opcode_map = 2
+            if opcode in (0x38, 0x3A):
+                return None
+            info = cls.TWOBYTE.get(opcode)
+        else:
+            info = cls.ONEBYTE.get(opcode)
+
+        if info is None:
+            return None
+
+        has_modrm, imm_kind = info
+
+        if has_modrm in ('grp3_8', 'grp3_v'):
+            if p >= end:
+                return None
+            reg = (data[p] >> 3) & 7
+            if reg in (0, 1):
+                imm_kind = 'ib' if has_modrm == 'grp3_8' else 'iz'
+            else:
+                imm_kind = 'none'
+            has_modrm = True
+
+        disp_off = None
+        disp_size = 0
+        rip_relative = False
+
+        if has_modrm:
+            if p >= end:
+                return None
+            modrm = data[p]; p += 1
+            mod = (modrm >> 6) & 3
+            rm = modrm & 7
+            if mod != 3:
+                if rm == 4:
+                    if p >= end:
+                        return None
+                    sib = data[p]; p += 1
+                    if mod == 0 and (sib & 7) == 5:
+                        disp_size = 4
+                if mod == 0 and rm == 5:
+                    disp_size = 4
+                    if mode == 64:
+                        rip_relative = True
+                elif mod == 1:
+                    disp_size = 1
+                elif mod == 2:
+                    disp_size = 4
+            if disp_size:
+                disp_off = p
+                p += disp_size
+
+        imm_sz = cls.immediate(imm_kind, opsize16, rex_w)
+        imm_off = None
+        if imm_sz:
+            imm_off = p
+            p += imm_sz
+
+        if p != end:
+            return None
+
+        return {
+            'opcode': opcode,
+            'opcode_map': opcode_map,
+            'rex_w': rex_w,
+            'opsize16': opsize16,
+            'disp_off': disp_off,
+            'disp_size': disp_size,
+            'imm_off': imm_off,
+            'imm_size': imm_sz,
+            'rip_relative': rip_relative,
+        }
+
+    # --- Scoring ----------------------------------------------------------
+
+    @classmethod
+    def score(cls, ops, data, address, length):
+        s = 0.0
+        end = address + length
+
+        def peek(address, inferior=gdb.selected_inferior()):
+            try: return bytearray(Memory.read(inferior, address, 1))
+            except gdb.MemoryError: return None
+
+        if ops['rip_relative']:
+            disp = cls._read_signed(data, ops['disp_off'], ops['disp_size'])
+            if disp is not None:
+                target = end + disp
+                if peek(target) is not None:
+                    s += 1.0
+                else:
+                    s -= 2.0
+
+        if not ops['rip_relative'] and ops['disp_size'] == 4:
+            disp = cls._read_signed(data, ops['disp_off'], ops['disp_size'])
+            if disp is not None:
+                target = disp & 0xFFFFFFFF
+                if peek(target) is not None:
+                    s += 0.5
+                else:
+                    s -= 0.5
+
+        imm = cls._read_signed(data, ops['imm_off'], ops['imm_size'])
+
+        if ops['opcode_map'] == 1 and ops['opcode'] in cls.BRANCH_REL32 and imm is not None:
+            target = end + imm
+            if peek(target) is not None:
+                s += 2.0
+            else:
+                s -= 3.0
+        elif ops['opcode_map'] == 2 and 0x80 <= ops['opcode'] < 0x90 and imm is not None:
+            target = end + imm
+            if peek(target) is not None:
+                s += 1.0
+            else:
+                s -= 3.0
+        elif ops['opcode_map'] == 1 and ops['opcode'] in cls.BRANCH_REL8 and imm is not None:
+            target = end + imm
+            if peek(target) is None:
+                s -= 1.0
+
+        return s
+
+    # --- Single-step backward candidates ----------------------------------
+
+    @classmethod
+    def length(cls, address):
+        '''Return the length of the instruction at the specified `address`.'''
+        try:
+            architecture = gdb.selected_frame().architecture()
+            [instruction] = architecture.disassemble(address, count=1)
+            res = instruction['length']
+        except (gdb.error, gdb.MemoryError, RuntimeError, ValueError):
+            res = None
+        return res
+
+    @classmethod
+    def candidate(cls, address):
+        '''Yield (score, ea, length) for each valid candidate ending at `address`.'''
+        inferior, mode = gdb.selected_inferior(), cls.get_mode()
+        for k in range(1, cls.maximum + 1):
+            ea = address - k
+            L = cls.length(ea)
+            if L != k:
+                continue
+
+            bytes = Memory.read(inferior, ea, k)
+            if bytes is None:
+                continue
+
+            data = bytearray(bytes)
+            ops = cls.operands(data, 0, k, mode)
+
+            if ops is None:
+                yield (0.0, ea, k)
+
+            else:
+                yield (cls.score(ops, data, ea, k), ea, k)
+            continue
+        return
+
+    # --- Block-level candidate chains (generator) -------------------------
+
+    @classmethod
+    def candidates(cls, address, depth=1):
+        """Generator yielding (score, chain) tuples incrementally.
+
+        Each chain is [(ea, length), ...] in forward order.
+        """
+        if depth < 1:
+            return
+
+        if depth == 1:
+            for score, ea, length in cls.candidate(address):
+                yield (score, [(ea, length)])
+            return
+
+        for tail_score, ea, length in cls.candidate(address):
+            predecessor = False
+            for prefix_score, prefix_chain in cls.candidates(ea, depth - 1):
+                predecessor = True
+                yield (prefix_score + tail_score, prefix_chain + [(ea, length)])
+            if not predecessor:
+                yield (tail_score, [(ea, length)])
+            continue
+        return
+
+    # --- Sorted wrapper ---------------------------------------------------
+
+    @classmethod
+    def results(cls, address, depth=1):
+        """Collect all candidate chains and return them sorted best-first.
+
+        Returns list of (score, [(address, length), ...]).
+        """
+        iterable = cls.candidates(address, depth)
+        Fkey = lambda pair: (lambda score, item: -1. * score)(*pair)
+        return sorted(iterable, key=Fkey)
+
+    # --- Convenience: backward length -------------------------------------
+
+    @classmethod
+    def get_forward_length(cls, address, count=1):
+        """Return instruction lengths for `count` instructions ending at `address`.
+
+        Returns a list of lengths in forward order.
+        """
+        ea, chain = int(address), []
+        while count > 0:
+            length = cls.length(ea)
+            chain.append((ea, length))
+            ea, count = ea + length, count - 1
+        return [length for _, length in chain]
+
+    @classmethod
+    def get_backward_length(cls, address, count=1):
+        """Return instruction lengths for `count` instructions ending at `address`, using the best-scoring chain.
+
+        Returns a list of lengths in forward order.
+        """
+        ea = int(address)
+        chains = cls.results(ea, depth=count)
+        if not chains:
+            return []
+        # grab the one with the most instructions
+        iterable = itertools.groupby(chains, key=operator.itemgetter(0))
+        score, grouped = next(iterable, (0.0, []))
+        candidates = [chain for score, chain in grouped]
+        chain = max(candidates, key=len)
+        return [length for _, length in chain]
+
+    @classmethod
+    def disassemble_forward(cls, address, count=10, mark={}, hexdump=False):
+        iterable = mark if isinstance(mark, (list, set, tuple, dict)) else {mark}
+        signs = {ea : sign for ea, sign in iterable} if isinstance(iterable, dict) else {ea : '=>' for ea in iterable}
+        signwidth = max(len("{:s} ".format(sign)) for _, sign in signs.items()) if signs else 0
+
+        frame, inferior = gdb.selected_frame(), gdb.selected_inferior()
+        architecture = frame.architecture()
+
+        instructions = architecture.disassemble(address, count=count)
+        maximum = max(instruction['addr'] for instruction in instructions) if instructions else 0
+        width = len("{:#x}".format(maximum))
+
+        chain = [(instruction['addr'], instruction['length']) for instruction in instructions]
+        for ea, length in chain:
+            try: [info] = architecture.disassemble(ea, count=1)
+            except (gdb.error, gdb.MemoryError, RuntimeError, ValueError): info = None
+            asm_column = '???' if info is None else info['asm']
+
+            marker_column = "{:<{:d}s}".format(signs.get(ea, ''), signwidth)
+            address_column = "{:<#{:d}x}".format(ea, width)
+
+            if hexdump:
+                try:
+                    raw = Memory.read(inferior, ea, length)
+                    hexrow = ' '.join(map("{:02x}".format, bytearray(raw)))
+                except gdb.MemoryError:
+                    hexrow = '??'
+                hex_column = "{:<{:d}s}".format(hexrow, 45)
+                gdb.write("{:s}{:s} {:s} {:s}\n".format(marker_column, address_column, hex_column, asm_column))
+            else:
+                gdb.write("{:s}{:s}    {:s}\n".format(marker_column, address_column, asm_column))
+            continue
+        return
+
+    @classmethod
+    def disassemble_backward(cls, address, count=10, mark={}, hexdump=False):
+        """Disassemble backwards and print results."""
+        iterable = mark if isinstance(mark, (list, set, tuple, dict)) else {mark}
+        signs = {ea : sign for ea, sign in iterable} if isinstance(iterable, dict) else {ea : '=>' for ea in iterable}
+        signwidth = max(len("{:s} ".format(sign)) for _, sign in signs.items()) if signs else 0
+
+        frame, inferior = gdb.selected_frame(), gdb.selected_inferior()
+        architecture = frame.architecture()
+
+        chains = cls.results(address, depth=count)
+        if not chains:
+            return gdb.write('(no results)\n')
+
+        _, chain = chains[0]
+        maximum = max(int(ea) for ea, _ in chain) if chain else 0
+        width = len("{:#x}".format(int(maximum)))
+
+        for ea, length in chain:
+            try: [info] = architecture.disassemble(ea, count=1)
+            except (gdb.error, gdb.MemoryError, RuntimeError, ValueError): info = None
+            asm_column = '???' if info is None else info['asm']
+
+            marker_column = "{:<{:d}s}".format(signs.get(ea, ''), signwidth)
+            address_column = "{:<#{:d}x}".format(ea, width)
+
+            if hexdump:
+                try:
+                    raw = Memory.read(inferior, ea, length)
+                    hexrow = ' '.join(map("{:02x}".format, bytearray(raw)))
+                except gdb.MemoryError:
+                    hexrow = '??'
+                hex_column = "{:<{:d}s}".format(hexrow, 45)
+                gdb.write("{:s}{:s} {:s} {:s}\n".format(marker_column, address_column, hex_column, asm_column))
+            else:
+                gdb.write("{:s}{:s}    {:s}\n".format(marker_column, address_column, asm_column))
+            continue
+        return
+
+    commands = functions = set()
+
+    @commands.add
+    class forwarddisplay(command):
+        KEYWORD = 'disassemble_forwards'
+        COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_LOCATION
+
+        def invoke(self, string, from_tty, count=10):
+            ea = int(evaluate_address(string))
+            IntelDisassembler.disassemble_forward(ea, count=count, mark=ea, hexdump=True)
+            gdb.flush()
+
+    @commands.add
+    class backwarddisplay(command):
+        KEYWORD = 'disassemble_backwards'
+        COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_LOCATION
+
+        def invoke(self, string, from_tty, count=10):
+            ea = int(evaluate_address(string))
+            IntelDisassembler.disassemble_backward(ea, count=count, mark=ea, hexdump=True)
+            gdb.flush()
+
+    @functions.add
+    class backwardlength(function):
+        def invoke(self, *args):
+            [address, count] = args if len(args) == 2 else itertools.chain(args, [1]) if len(args) == 1 else [gdb.parse_and_eval('$pc'), 1] if not args else args
+            candidates = IntelDisassembler.get_backward_length(int(address), count)
+            return sum(candidates)
+
+    @functions.add
+    class forwardlength(function):
+        def invoke(self, *args):
+            [address, count] = args if len(args) == 2 else itertools.chain(args, [1]) if len(args) == 1 else [gdb.parse_and_eval('$pc'), 1] if not args else args
+            candidates = IntelDisassembler.get_forward_length(int(address), count)
+            return sum(candidates)
+
+    EXPORTS = {item for item in itertools.chain(commands, functions)}
+
+IntelDisassembler.register()
 end
 
 ### defaults
