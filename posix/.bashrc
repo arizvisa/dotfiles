@@ -157,8 +157,13 @@ nl()
     # we do this printf(1) craziness so that suspending the
     # process will display the commandline like an alias.
     printf -v quoted ' %q' "$@"
-    printf -v nl_ "%q -v 0 -b a -n rn -s '\t' %s | sed -e 's/^ *//g'" "$nl" "$quoted"
-    eval "$nl_"
+    printf -v nl_ "%q -v 0 -b a -n rn -s '\t' %s | sed -e 's/^ *//'" "$nl" "$quoted"
+    printf -v stdin_ "%q -v 0 -b a -n rn -s '\t' | sed -e 's/^ *//'" "$nl"
+    if [ "$#" -gt 0 ]; then
+        eval "$nl_"
+    else
+        eval "$stdin_"
+    fi
 }
 
 # just some shortcuts for viewing the head or tail of a file.
