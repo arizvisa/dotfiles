@@ -1,4 +1,8 @@
 python import operator,itertools,functools,subprocess
+python from pprint import pprint as pp
+python from pprint import pformat as pf
+python from __future__ import print_function
+python p, pp, pf = print, pp, pf
 
 ### python helpers
 python
