@@ -800,6 +800,14 @@ define show_regs64
     show_flags
 end
 
+document show_regs32
+Output the register state for the 32-bit Intel architecture.
+end
+
+document show_regs64
+Output the register state for the 64-bit Intel architecture.
+end
+
 define show_stack32
     set variable $_data_rows = 8
 
@@ -832,6 +840,14 @@ define show_stack64
     end
 end
 
+document show_stack32
+Dump the memory at the address specified by the $sp register containing the 32-bit stack.
+end
+
+document show_stack64
+Dump the memory at the address specified by the $sp register containing the 64-bit stack.
+end
+
 define show_data32
     set variable $_data_rows = 8
 
@@ -858,6 +874,14 @@ define show_data64
     else
         emit $sprintf("... address %p not available ...\n", $arg0)
     end
+end
+
+document show_data32
+Dump the memory at the specified address as 32-bit data.
+end
+
+document show_data64
+Dump the memory at the specified address as 64-bit data.
 end
 
 define show_code32
@@ -919,6 +943,14 @@ define show_code64
     end
 end
 
+document show_code32
+Disassemble the memory at the address specified by the $pc register as 32-bit code.
+end
+
+document show_code64
+Disassemble the memory at the address specified by the $pc register as 64-bit code.
+end
+
 #      |11|10|F|E|D|C|B|A|9|8|7|6|5|4|3|2|1|0|
 #        |  | | | | | | | | | | | | | | | | +---  CF Carry Flag
 #        |  | | | | | | | | | | | | | | | +---  1
@@ -970,6 +1002,10 @@ define show_flags
     emit $sprintf("[flags: %s %s %s %s %s %s %s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s]\n", $_zf, $_sf, $_of, $_cf, $_df, $_pf, $_af, $_if, $_tf, $_nt, $_rf, $_vm, $_ac, $_vif, $_vip, $_id, $_iopl, $_r1, $_r2, $_r3, $_r4, $_ereserved, $_rreserved)
 end
 
+document show_flags
+Display the contents of the $ps register for the Intel architecture.
+end
+
 define here32
     show_regs32
     show_stack32
@@ -990,6 +1026,14 @@ define here64
     end
 end
 
+document here32
+Show information about the current processor state for the 32-bit Intel architecture.
+end
+
+document here64
+Show information about the current processor state for the 64-bit Intel architecture.
+end
+
 ### stepping
 define n
     nexti
@@ -1007,6 +1051,14 @@ define s
     else
         here
     end
+end
+
+document n
+Step over the next instruction and display the current processor state.
+end
+
+document s
+Step into the next instruction and display the current processor state.
 end
 
 ### conditional definitions based on the arch
@@ -1037,6 +1089,18 @@ define show_code
     end
 end
 
+document show_regs
+Show the register file from the current processor state for the Intel architecture.
+end
+
+document show_stack
+Dump the memory at the address specified by the $sp register as a stack.
+end
+
+document show_code
+Show the instructions around the memory address specified by the $pc register.
+end
+
 define here
     if $argc > 0
         if sizeof(void*) == 4
@@ -1053,6 +1117,10 @@ define here
             here64
         end
     end
+end
+
+document here
+Show information about the current processor state for the Intel architecture.
 end
 
 # needs to be defined in order to replace the help command
@@ -1095,17 +1163,39 @@ define hsrc
     info line
 end
 
+document h
+Show information about the current processor state for the Intel architecture.
+
+This is an alias for the `here` command.
+end
+
+document hsrc
+Show information about the source code currently being executed.
+end
+
 ### shortcuts
 define maps
     info proc mappings
+end
+
+document maps
+Display the segment mappings of the process (inferior) currently running.
 end
 
 define cwd
     info proc cwd
 end
 
+document cwd
+Display the current working directory of the process (inferior) currently running.
+end
+
 define segments
     info files
+end
+
+document segments
+Display the sections and their backing files from the process (inferior) currently running.
 end
 
 define tasks
@@ -1117,6 +1207,10 @@ define tasks
     end
 end
 
+document tasks
+Display each of the currently debugged processes (inferior).
+end
+
 define threads
     if $argc > 0
         info threads $arg0
@@ -1125,8 +1219,16 @@ define threads
     end
 end
 
+document threads
+Display each of the threads from the currently currently debugged process.
+end
+
 define symbols
     info variables $arg0
+end
+
+document symbols
+Display the address and name of each of the symbols matching the specified regular expression.
 end
 
 define lvars
@@ -1141,6 +1243,18 @@ define vars
     show convenience
 end
 
+document lvars
+Display the local variables in scope of the function currently being executed.
+end
+
+document args
+Display the arguments used to call the function currently being executed.
+end
+
+document vars
+Display all of the available variables provided by the debugger.
+end
+
 define la
     info address $arg0
 end
@@ -1151,6 +1265,18 @@ end
 
 define ln
     info symbol $arg0
+end
+
+document la
+Display the address information for the specified symbol.
+end
+
+document ll
+Display the line number information for the specified location.
+end
+
+document ln
+Display information about the specified global or static symbol.
 end
 
 define lm
@@ -1179,8 +1305,16 @@ define lm
     #progspace.objfile_for_address($pc)
 end
 
+document lm
+List the segment mappings for the address space of the currently running process (inferior).
+end
+
 define bl
     info breakpoints
+end
+
+document bl
+List all of the breakpoints that have been defined in the current debugging session.
 end
 
 # unassemble
@@ -1200,6 +1334,10 @@ define u
     eval "x/%di %s\n",$_unassemble_rows,"$_unassemble_position"
 end
 
+document u
+Disassemble forward from the specified address or the address specified by $pc if an address is not provided.
+end
+
 # disassemble
 define dis
     if $argc > 0
@@ -1207,6 +1345,10 @@ define dis
     else
         disassemble
     end
+end
+
+document dis
+Disassemble forward from the specified address or the current location if an address is not provided.
 end
 
 define dc
@@ -1225,6 +1367,10 @@ define dc
             show_data64 $arg0
         end
     end
+end
+
+document dc
+Dump the specified address as words defined by the processor architecture.
 end
 
 ### breakpoints with wildcards
