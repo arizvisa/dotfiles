@@ -20,6 +20,8 @@ map(sys.path.append, __import__('glob').iglob(os.path.join(os.environ.get('HOME'
 fpack = lambda F, *a, **k: lambda *ap, **kp: F(a + ap, **{ key : value for key, value in itertools.chain(k.items(), kp.items()) })
 # return a closure that executes `F` with all of its arguments concatenated and unboxed.
 funpack = lambda F, *a, **k: lambda *ap, **kp: F(*(a + functools.reduce(operator.add, builtins.map(builtins.tuple, ap), ())), **{ key : value for key, value in itertools.chain(k.items(), kp.items()) })
+# return a closure that executes `F` with its argument expanded as its keywords.
+fkeyword = lambda F, *a, **k: lambda dictionary, **kp: F(*a, **{ key : value for key, value in itertools.chain(k.items(), kp.items(), dictionary.items()) })
 # return a closure that executes `F` with only its first argument.
 fcar = lambda F, *a, **k: lambda *ap, **kp: F(*(a + ap[:1]), **{ key : value for key, value in itertools.chain(k.items(), kp.items()) })
 # return a closure that executes `F` with all of it arguments but the first.
