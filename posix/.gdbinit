@@ -92,6 +92,9 @@ class emit(command):
     def invoke(self, string, from_tty):
         gdb.write(gdb.parse_and_eval(string).string())
         gdb.flush()
+class clear(command):
+    def invoke(self, string, from_tty):
+        gdb.execute('shell clear')
 class clip(command):
     COMMAND = gdb.COMMAND_DATA
     def invoke(self, string, from_tty):
@@ -177,7 +180,7 @@ class sprintf(function):
                 raise gdb.error("Unknown format specifier: {:s}".format(typestr))
             continue
         return res
-execute(),emit(),typeof(),sizeof(),clip(),sprintf()
+execute(),emit(),clear(),typeof(),sizeof(),clip(),sprintf()
 
 def intcast(val):
     if val.type.sizeof == 8:
