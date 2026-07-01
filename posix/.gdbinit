@@ -85,17 +85,21 @@ class workspace(object):
 
 import re,string
 class execute(command):
+    '''Evaluate the parameter and execute it as a command.'''
     def invoke(self, string, from_tty):
         gdb.execute(gdb.parse_and_eval(string).string())
 class emit(command):
+    '''Evaluate the parameter and write it to the terminal.'''
     COMMAND = gdb.COMMAND_DATA
     def invoke(self, string, from_tty):
         gdb.write(gdb.parse_and_eval(string).string())
         gdb.flush()
 class clear(command):
+    '''Clear the current terminal screen.'''
     def invoke(self, string, from_tty):
         gdb.execute('shell clear')
 class clip(command):
+    '''Evaluate the parameter and copy it to the clipboard.'''
     COMMAND = gdb.COMMAND_DATA
     def invoke(self, string, from_tty):
         res = gdb.parse_and_eval(string)
@@ -139,9 +143,11 @@ class clip(command):
         raise NotImplementedError
 
 class typeof(function):
+    '''Return the type of the specified parameter as a string.'''
     def invoke(self, symbol):
         return str(symbol.type).replace(' ','')
 class sizeof(function):
+    '''Return the size of the specified parameter.'''
     def invoke(self, value):
         try:
             type = gdb.lookup_type(value.string())
@@ -150,6 +156,7 @@ class sizeof(function):
         return type.sizeof
 
 class sprintf(function):
+    '''Return each of the given parameters as a string formatted according to the first parameter.'''
     def invoke(self, *args):
         res,formatter,args = '',string.Formatter(),iter(args)
         fmt = re.sub(r'%(\d+\.?\d+f|0?\d*[\w^\d]|\d*[\w^\d]|-0?\d*[\w^\d]|-\d*[\w^\d])', lambda m:'{:'+m.groups(1)[0]+'}', next(args).string())
@@ -212,6 +219,7 @@ end
 python
 import sys,math,array,struct,string
 
+# FIXME: this should be a workspace
 class Memory(object):
     printable = set().union(string.printable).difference(string.whitespace).union(' ')
 
@@ -387,29 +395,57 @@ class __dumphex__(__dump__): method = Memory.hexdump
 class __dumpbinary__(__dump__): method = Memory.binarydump
 
 # hexadecimal
-class db(__dumphex__): kind = 'B'
-class dw(__dumphex__): kind = 'H'
-class dd(__dumphex__): kind = 'I'
-class dq(__dumphex__): kind = 'Q' if sys.version_info.major == 3 else 'L'
+class db(__dumphex__):
+    '''Dump the specified address in 8-bit hexadecimal (base16).'''
+    kind = 'B'
+class dw(__dumphex__):
+    '''Dump the specified address in 16-bit hexadecimal (base16).'''
+    kind = 'H'
+class dd(__dumphex__):
+    '''Dump the specified address in 32-bit hexadecimal (base16).'''
+    kind = 'I'
+class dq(__dumphex__):
+    '''Dump the specified address in 64-bit hexadecimal (base16).'''
+    kind = 'Q' if sys.version_info.major == 3 else 'L'
 db(),dw(),dd(),dq()
 
 # integrals
-class dnb(__dumpitem__): kind = 'B'
-class dnw(__dumpitem__): kind = 'H'
-class dnd(__dumpitem__): kind = 'I'
-class dnq(__dumpitem__): kind = 'Q' if sys.version_info.major == 3 else 'L'
+class dnb(__dumpitem__):
+    '''Dump the specified address in 8-bit decimal (base10).'''
+    kind = 'B'
+class dnw(__dumpitem__):
+    '''Dump the specified address in 16-bit decimal (base10).'''
+    kind = 'H'
+class dnd(__dumpitem__):
+    '''Dump the specified address in 32-bit decimal (base10).'''
+    kind = 'I'
+class dnq(__dumpitem__):
+    '''Dump the specified address in 64-bit decimal (base10).'''
+    kind = 'Q' if sys.version_info.major == 3 else 'L'
 dnb(),dnw(),dnd(),dnq()
 
 # floating-point
-class df(__dumpitem__): kind = 'f'
-class dD(__dumpitem__): kind = 'd'
+class df(__dumpitem__):
+    '''Dump the specified address in 32-bit floats (single).'''
+    kind = 'f'
+class dD(__dumpitem__):
+    '''Dump the specified address in 64-bit floats (double).'''
+    kind = 'd'
 df(),dD()
 
 # binary
-class dyb(__dumpbinary__): kind = 'B'
-class dyw(__dumpbinary__): kind = 'H'
-class dyd(__dumpbinary__): kind = 'I'
-class dyq(__dumpbinary__): kind = 'Q' if sys.version_info.major == 3 else 'L'
+class dyb(__dumpbinary__):
+    '''Dump the specified address in 8-bit binary (base2).'''
+    kind = 'B'
+class dyw(__dumpbinary__):
+    '''Dump the specified address in 16-bit binary (base2).'''
+    kind = 'H'
+class dyd(__dumpbinary__):
+    '''Dump the specified address in 32-bit binary (base2).'''
+    kind = 'I'
+class dyq(__dumpbinary__):
+    '''Dump the specified address in 64-bit binary (base2).'''
+    kind = 'Q' if sys.version_info.major == 3 else 'L'
 dyb(),dyw(),dyd(),dyq()
 
 ## functions
@@ -434,6 +470,7 @@ class access(function):
 hexdump(),itemdump(),bindump(),access()
 
 class wat(command):
+    '''Display information about the specified symbol.'''
     COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_SYMBOL
     DOMAINS = {value : key for key, value in gdb.__dict__.items() if all([key.startswith('SYMBOL_'), key.endswith('_DOMAIN')])}
     CLASS = {value : key for key, value in gdb.__dict__.items() if key.startswith('SYMBOL_LOC_')}
@@ -542,6 +579,7 @@ class process_mappings(workspace):
 
     @commands.add
     class select(command):
+        '''List the segment mappings for the current process (inferior).'''
         KEYWORD = 'select_process_mappings'
         COMMAND, COMPLETE = gdb.COMMAND_STATUS, gdb.COMPLETE_FILENAME
 
@@ -613,6 +651,7 @@ class process_mappings(workspace):
     import os.path
 
     class baseaddress(function):
+        '''Return the base address of the specified segment by filename, module, or partial path.'''
         def by_path(self, path):
             field = self.workspace.expected_field_names[-1]
             objfiles, mappings, fp = {}, self.workspace.mappings(), self.workspace.os.path.normpath(path[1:] if path.startswith(2 * self.workspace.os.path.sep) else path)
@@ -721,6 +760,7 @@ class process_mappings(workspace):
 
     @functions.add
     class baseoffset(baseaddress):
+        '''Return an offset from the base address of the segment for the provided address.'''
         def invoke(self, *parameters):
             integerish = {gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_INT}
             pc = gdb.parse_and_eval('$pc')
@@ -1208,6 +1248,7 @@ class breakpoints(uses_an_address):
 
     @commands.add
     class bc(command):
+        '''Delete the specified breakpoint.'''
         COMMAND = gdb.COMMAND_BREAKPOINTS
         def invoke(self, s, from_tty):
             if s == '*':
@@ -1217,6 +1258,7 @@ class breakpoints(uses_an_address):
 
     @commands.add
     class bd(command):
+        '''Disable the specified breakpoint.'''
         COMMAND = gdb.COMMAND_BREAKPOINTS
         def invoke(self, s, from_tty):
             if s == '*':
@@ -1226,6 +1268,7 @@ class breakpoints(uses_an_address):
 
     @commands.add
     class be(command):
+        '''Enable the specified breakpoint.'''
         COMMAND = gdb.COMMAND_BREAKPOINTS
         def invoke(self, s, from_tty):
             if s == '*':
@@ -1235,6 +1278,7 @@ class breakpoints(uses_an_address):
 
     @commands.add
     class ba(command):
+        '''Break on access to the specified memory address.'''
         COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_EXPRESSION
         def invoke(self, s, from_tty):
             args = gdb.string_to_argv(s)
@@ -1251,6 +1295,7 @@ class breakpoints(uses_an_address):
 
     @commands.add
     class bp(command):
+        '''Break at the execution of the specified memory address.'''
         COMMAND, COMPLETE = gdb.COMMAND_BREAKPOINTS, gdb.COMPLETE_LOCATION
         def invoke(self, s, from_tty):
             args = gdb.string_to_argv(s)    # FIXME: this stupid function removes quotes from all the arguments
@@ -1268,6 +1313,7 @@ class breakpoints(uses_an_address):
 
 class running(uses_an_address):
     class go(command):
+        '''Run or continue execution until encountering the specified address.'''
         COMMAND, COMPLETE = gdb.COMMAND_RUNNING, gdb.COMPLETE_LOCATION
         def invoke(self, s, from_tty):
             args = gdb.string_to_argv(s)
@@ -1471,14 +1517,17 @@ class StepUntil(workspace):
             )
 
     class tillcall(StepUntil):
+        '''Continue execution until a call instruction is encountered.'''
         _predicate = staticmethod(lambda m, t: StepUntil.is_call(m))
         _label = 'call'
 
     class tillbranch(StepUntil):
+        '''Continue execution until a branch instruction is encountered.'''
         _predicate = staticmethod(lambda m, t: StepUntil.is_branch(m))
         _label = 'branch'
 
     class tillreturn(StepUntil):
+        '''Continue execution until a return instruction is encountered.'''
         _predicate = staticmethod(lambda m, t: StepUntil.is_return_insn(m, t))
         _label = 'return'
 
@@ -2062,6 +2111,7 @@ class IntelDisassembler(workspace):
 
     @commands.add
     class forwarddisplay(command):
+        '''Disassemble instructions from the specified address and display them.'''
         KEYWORD = 'disassemble_forwards'
         COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_LOCATION
 
@@ -2072,6 +2122,7 @@ class IntelDisassembler(workspace):
 
     @commands.add
     class backwarddisplay(command):
+        '''Disassemble instructions backwards from the specified address and display them.'''
         KEYWORD = 'disassemble_backwards'
         COMMAND, COMPLETE = gdb.COMMAND_USER, gdb.COMPLETE_LOCATION
 
@@ -2081,17 +2132,19 @@ class IntelDisassembler(workspace):
             gdb.flush()
 
     @functions.add
-    class backwardlength(function):
-        def invoke(self, *args):
-            [address, count] = args if len(args) == 2 else itertools.chain(args, [1]) if len(args) == 1 else [gdb.parse_and_eval('$pc'), 1] if not args else args
-            candidates = IntelDisassembler.get_backward_length(int(address), count)
-            return sum(candidates)
-
-    @functions.add
     class forwardlength(function):
+        '''Return the total length of the specified number of instructions from the specified address.'''
         def invoke(self, *args):
             [address, count] = args if len(args) == 2 else itertools.chain(args, [1]) if len(args) == 1 else [gdb.parse_and_eval('$pc'), 1] if not args else args
             candidates = IntelDisassembler.get_forward_length(int(address), count)
+            return sum(candidates)
+
+    @functions.add
+    class backwardlength(function):
+        '''Return the total length of the specified number of instructions backwards from the specified address.'''
+        def invoke(self, *args):
+            [address, count] = args if len(args) == 2 else itertools.chain(args, [1]) if len(args) == 1 else [gdb.parse_and_eval('$pc'), 1] if not args else args
+            candidates = IntelDisassembler.get_backward_length(int(address), count)
             return sum(candidates)
 
     EXPORTS = {item for item in itertools.chain(commands, functions)}
