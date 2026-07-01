@@ -828,9 +828,6 @@ if has("eval")
     let g:plug_window = '$tabnew'
 
     call plug#begin()
-    Plug 'https://github.com/arizvisa/vim-incpy.git'
-    Plug 'https://github.com/arizvisa/vim-annotation.git'
-    Plug 'https://github.com/mg979/vim-visual-multi'
     Plug 'https://github.com/tpope/vim-sleuth'
     Plug 'https://github.com/tpope/vim-surround'
 
@@ -847,7 +844,9 @@ if has("eval")
     Plug 'https://github.com/coderifous/textobj-word-column.vim'
 
     " miscellaneous
-    Plug 'https://github.com/lpinilla/vim-codepainter'
+    Plug 'https://github.com/arizvisa/vim-incpy.git'
+    Plug 'https://github.com/arizvisa/vim-annotation.git'
+    Plug 'https://github.com/mg979/vim-visual-multi'
     call plug#end()
 
     " check if the plugins have been installed, and install them if not.
