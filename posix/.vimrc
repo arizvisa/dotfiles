@@ -9,7 +9,10 @@ set display=lastline,uhex
 
 " appending to a register (upper) adds a newline, and changing a line uses
 " overwrite rather than removing the text being replaced.
-set cpoptions=aABceFsz
+set cpoptions=aABceFs
+if !has('nvim')
+    set cpoptions+=z
+endif
 set cpoptions+=>$
 
 "" specify the default temp directory for swap files (overwritten when +eval)
